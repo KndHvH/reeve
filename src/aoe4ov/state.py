@@ -84,8 +84,8 @@ class StateTracker:
     def update(self, values: dict, wall: float) -> GameState:
         """`values`: Frame.values from the reader; `wall`: monotonic seconds."""
         pop = values.get("pop")
-        if pop is not None and pop[0] > pop[1]:
-            pop = None  # population can never exceed the cap: misread
+        if pop is not None and (pop[0] > pop[1] or pop[1] == 0):
+            pop = None  # misread: population over the cap, or the end screen's 0/0
         for f in SLOW_FIELDS:
             self.slow[f].push(pop if f == "pop" else values.get(f))
         for r in RESOURCES:

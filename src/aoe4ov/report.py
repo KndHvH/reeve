@@ -272,7 +272,7 @@ h2 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
 .age { display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: baseline; }
 .age .roman { font: 600 18px/1 var(--serif); color: var(--gold); grid-row: span 2; }
 .age b { font-variant-numeric: tabular-nums; } .age span:last-child { color: var(--mist); font-size: 12px; grid-column: 2; }
-.chip.age-chip { font-family: var(--serif); color: var(--gold-light); border-color: var(--gold-dim); }
+.m-age { font: 600 18px/1 var(--serif); color: var(--gold); margin-left: 12px; letter-spacing: .5px; }
 .income { display: grid; grid-template-columns: 26px auto 1fr; align-items: center; gap: 10px; padding: 6px 0; }
 .income img { width: 24px; height: 24px; object-fit: contain; }
 .income b { font: 600 20px/1 var(--serif); font-variant-numeric: tabular-nums; } .income span { color: var(--mist); font-size: 12px; }
@@ -373,11 +373,11 @@ function niceMax(v) {
 
 // A chart owns its card, legend toggles and a draw function; toggling a
 // series in the legend redraws the chart without it (and rescales the axis).
-function chart(title, keys, H, draw) {
+function chart(title, keys, H, draw, ages = true) {
   const card = document.createElement("div"); card.className = "chart";
   const head = document.createElement("header");
   head.innerHTML = `<h2>${title}</h2>`;
-  const c = { H, keys, hidden: new Set(), draw, cursor: null };
+  const c = { H, keys, hidden: new Set(), draw, cursor: null, ages };
   if (keys.length > 1) {
     const legend = document.createElement("div"); legend.className = "legend";
     keys.forEach(k => {
@@ -415,7 +415,7 @@ function ageMarks(c) {
 
 function render(c) {
   c.svg.innerHTML = "";
-  ageMarks(c);
+  if (c.ages) ageMarks(c);
   c.draw(c, c.keys.filter(k => !c.hidden.has(k)));
   hover(c);
   if (lastT != null) placeCursors(lastT);
@@ -520,9 +520,10 @@ function select(t) {
   const sev = id => (active.find(a => a.id === id) || {}).severity || "";
   const tc = r.producing == null ? "" : r.producing
     ? `<span class="chip quiet">TC producing</span>` : `<span class="chip ${sev("tc_idle")}">TC idle</span>`;
-  let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}</span>${pinned != null ? `<span class="m-pin">pinned</span>` : ""}</div>
+  const up = (D.ages || []).find(e => e.started != null && e.started <= r.t && r.t < e.reached);
+  const age = up ? `${ROMAN[up.age - 1]} → ${ROMAN[up.age]}` : (r.age ? ROMAN[r.age] : "");
+  let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}${age ? `<span class="m-age" title="${up ? "aging up" : "age"}">${age}</span>` : ""}</span>${pinned != null ? `<span class="m-pin">pinned</span>` : ""}</div>
     <div class="m-chips">
-      ${r.age ? `<span class="chip age-chip" title="age">${ROMAN[r.age]}${r.up != null ? ` → ${ROMAN[r.age + 1] || ""} ${Math.round(r.up * 100)}%${r.upb ? ` · ${img("villager")}${r.upb}` : ""}` : ""}</span>` : ""}
       <span class="chip ${sev("housed")}" title="population">${img("pop")}${r.pop == null ? "–" : `${r.pop}/${r.cap}`}</span>
       <span class="chip ${sev("idle_villager")}" title="idle villagers">${img("villager")}<sup>zz</sup>${v(r.idle)}</span>${tc}
     </div>`;
@@ -547,7 +548,7 @@ if (rows.length) {
   chart("Income per minute", RES, 170, drawLines((r, k) => r.inc[k], "/min"));
   chart("Stockpile", RES, 170, drawLines((r, k) => r.res[k], ""));
   chart("Population and cap", [], 150, drawPopulation);
-  chart("Alerts", [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes);
+  chart("Alerts", [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes, false);
   select(t1);
 }
 </script>
