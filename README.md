@@ -10,7 +10,7 @@ Overlay leve para **Age of Empires IV**, no estilo Blitz/Mobalytics. O AoE4 não
 No fim da partida ele gera um **relatório segundo a segundo**: aldeões em cada recurso, estoque, população.
 
 ## Princípios
-- **Barato**: 1 processo, meta < 50 MB de RAM e < 5 ms por ciclo, lendo 2× por segundo. Só captura regiões pequenas.
+- **Barato**: 1 processo, meta < 50 MB de RAM e < 5 ms por ciclo, lendo 1× por segundo (configurável). Só captura regiões pequenas.
 - **Sem configuração**: a resolução vem do Windows e a escala da UI é detectada por âncoras (ícones de recurso e minimapa).
 - **Nada de blackbox**: cada etapa tem uma ferramenta de inspeção visual (veja `docs/DECISIONS.md` e o ROADMAP).
 
@@ -23,5 +23,6 @@ No fim da partida ele gera um **relatório segundo a segundo**: aldeões em cada
 uv sync
 uv run aoe4ov window                    # mostra a janela do jogo detectada e a resolução
 uv run aoe4ov snap --count 6 --every 20 # salva screenshots da partida em captures/
+uv run aoe4ov inspect captures/*.png    # gera .inspect.html: âncora + regiões desenhadas
 uv run pytest
 ```

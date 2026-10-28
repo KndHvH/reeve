@@ -43,6 +43,15 @@ def cmd_snap(args) -> int:
     return 0
 
 
+def cmd_inspect(args) -> int:
+    from .inspect import run
+
+    paths = [Path(p) for p in args.images]
+    for out in run(paths):
+        print(out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="aoe4ov")
@@ -55,8 +64,11 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--every", type=float, default=10.0, help="segundos entre screenshots")
     s.add_argument("--out", default="captures")
 
+    i = sub.add_parser("inspect", help="gera <imagem>.inspect.html com a âncora e as regiões")
+    i.add_argument("images", nargs="+")
+
     args = p.parse_args(argv)
-    return {"window": cmd_window, "snap": cmd_snap}[args.cmd](args)
+    return {"window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect}[args.cmd](args)
 
 
 if __name__ == "__main__":
