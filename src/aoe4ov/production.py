@@ -51,10 +51,20 @@ def region(match: AnchorMatch, shape: tuple[int, int]) -> tuple[int, int, int, i
 
 
 def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMatch) -> Production:
-    """`sub`: recorte em cinza de `region(...)`, cujo canto está em `origin`."""
+    """`sub`: recorte em cinza de `region(...)`, cujo canto está em `origin`.
+
+    Em telas maiores que a referência, a região é reduzida para a escala de
+    referência antes da busca (ideia do usuário): ~2,3× mais barato em 1,49×,
+    e todos os templates são comparados nessa mesma escala.
+    """
     x0, y0 = origin
     reg = (x0, y0, sub.shape[1], sub.shape[0])
-    tpls = [t for t in _templates(round(match.scale, 3)) if t.shape[0] < sub.shape[0] and t.shape[1] < sub.shape[1]]
+    k = 1.0
+    if match.scale > 1.05:
+        k = match.scale
+        size = (max(1, round(sub.shape[1] / k)), max(1, round(sub.shape[0] / k)))
+        sub = np.asarray(Image.fromarray(sub).resize(size, Image.BOX), np.float32)
+    tpls = [t for t in _templates(round(match.scale / k, 3)) if t.shape[0] < sub.shape[0] and t.shape[1] < sub.shape[1]]
     if not tpls:
         return Production(False, 0.0, None, reg)
     matcher = _Matcher(sub, tuple(max(t.shape[i] for t in tpls) for i in (0, 1)))
@@ -64,5 +74,5 @@ def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMa
         iy, ix = np.unravel_index(int(r.argmax()), r.shape)
         if r[iy, ix] > score:
             score = float(r[iy, ix])
-            box = (x0 + int(ix), y0 + int(iy), tpl.shape[1], tpl.shape[0])
+            box = (x0 + round(ix * k), y0 + round(iy * k), round(tpl.shape[1] * k), round(tpl.shape[0] * k))
     return Production(score >= load_layout()["production"]["min_score"], score, box, reg)
