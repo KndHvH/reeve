@@ -465,15 +465,46 @@ function drawLines(get, unit) {
   };
 }
 
+// Monotone cubic (Fritsch–Carlson) through the points: smooth, passes through
+// every value and never overshoots, so a count never shows a peak or dip that
+// did not happen. Returns the "C" segments after the first point.
+function monotone(pts) {
+  const n = pts.length;
+  if (n < 3) return pts.slice(1).map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
+  const dx = [], s = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; s[i] = (pts[i + 1][1] - pts[i][1]) / (dx[i] || 1); }
+  m[0] = s[0]; m[n - 1] = s[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = s[i - 1] * s[i] <= 0 ? 0 : (s[i - 1] + s[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (s[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / s[i], b = m[i + 1] / s[i], h = a * a + b * b;
+    if (h > 9) { const k = 3 / Math.sqrt(h); m[i] = k * a * s[i]; m[i + 1] = k * b * s[i]; }
+  }
+  let d = "";
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], h = dx[i] / 3;
+    d += `C${(x0 + h).toFixed(1)},${(y0 + m[i] * h).toFixed(1)} ${(x1 - h).toFixed(1)},${(y1 - m[i + 1] * h).toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
+}
+
+// Villager counts move in steps of one every few seconds; drawn per reading
+// they look like stairs. The bands are drawn from one sample every
+// SMOOTH_S seconds of game time joined by monotone curves; the cursor and the
+// moment card still use every reading.
+const SMOOTH_S = 12;
 function drawStacked(c, keys) {
   const val = (r, k) => (k === "idle" ? r.idle : r.vil[k]) || 0;
   const tot = r => keys.reduce((s, k) => s + val(r, k), 0);
   const y = axes(c, niceMax(Math.max(1, ...rows.map(tot))), "");
-  let base = rows.map(() => 0);
+  const sample = rows.filter((r, i) => i === 0 || i === rows.length - 1 || Math.floor(r.t / SMOOTH_S) !== Math.floor(rows[i - 1].t / SMOOTH_S));
+  let base = sample.map(() => 0);
   keys.forEach(k => {
-    const top = rows.map((r, i) => base[i] + val(r, k));
-    let d = rows.map((r, i) => (i ? "L" : "M") + x(r.t).toFixed(1) + "," + y(top[i]).toFixed(1)).join("");
-    d += rows.slice().reverse().map((r, j) => "L" + x(r.t).toFixed(1) + "," + y(base[rows.length - 1 - j]).toFixed(1)).join("") + "Z";
+    const top = sample.map((r, i) => base[i] + val(r, k));
+    const upper = sample.map((r, i) => [x(r.t), y(top[i])]);
+    const lower = sample.map((r, i) => [x(r.t), y(base[i])]).reverse();
+    const d = `M${upper[0][0].toFixed(1)},${upper[0][1].toFixed(1)}` + monotone(upper)
+            + `L${lower[0][0].toFixed(1)},${lower[0][1].toFixed(1)}` + monotone(lower) + "Z";
     el("path", { d, fill: color(k), stroke: "var(--panel)", "stroke-width": 2, "stroke-linejoin": "round" }, c.svg);
     base = top;
   });
