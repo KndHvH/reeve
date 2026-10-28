@@ -22,6 +22,7 @@ import ctypes
 import time
 import tkinter as tk
 
+from . import __version__
 from .digits import MIN_SCORE
 from .live import LiveReader, Step
 from .rules import Alert
@@ -42,6 +43,7 @@ user32 = ctypes.windll.user32
 
 
 SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
+WATERMARK_STATE = {"reading": ("active", GOOD), "hidden": ("paused", WARN), "waiting": ("waiting for a match", MUTED)}
 
 
 def _conf_color(c: float) -> str:
@@ -106,6 +108,22 @@ class Overlay:
     def draw(self, s: Step):
         raise NotImplementedError
 
+    def _draw_watermark(self, s: Step, k: float) -> None:
+        """Tiny version + state tag in the top-left corner, above the game's own icons."""
+        c = self.canvas
+        fs = max(7, round(7 * k))
+        label, color = WATERMARK_STATE.get(s.status, ("", MUTED))
+        x, y = round(6 * k), round(3 * k)
+        t = c.create_text(x + round(10 * k), y, text=f"aoe4-overlay {__version__} · {label}", fill=MUTED,
+                          anchor="nw", font=(FONT, fs))
+        x0, y0, x1, y1 = c.bbox(t)
+        r = max(2, round(2.5 * k))
+        cy = (y0 + y1) // 2
+        dot = c.create_oval(x + round(3 * k) - r, cy - r, x + round(3 * k) + r, cy + r, fill=color, outline="")
+        bg = c.create_rectangle(x - round(2 * k), y0 - 1, x1 + round(4 * k), y1 + 1, fill=CARD, outline="")
+        c.tag_lower(bg, t)
+        c.tag_raise(dot, bg)
+
     def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
         """One card per alert, stacked downwards from (x0, y0)."""
         c = self.canvas
@@ -131,12 +149,13 @@ class CleanOverlay(Overlay):
 
     def draw(self, s: Step):
         alerts = s.alerts if s.status == "reading" else []
-        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom)
+        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom, s.status)
         if sig == self._shown:
             return
         self._shown = sig
         self.canvas.delete("all")
         k = s.match.scale if s.match else 1.0
+        self._draw_watermark(s, k)
         self._draw_alerts(alerts, round(16 * k), round(s.win.height * 0.16), k, max(8, round(8 * k)))
 
 
@@ -147,6 +166,7 @@ class DebugOverlay(Overlay):
         c.delete("all")
         k = s.match.scale if s.match else 1.0
         fs = max(8, round(8 * k))
+        self._draw_watermark(s, k)
         if s.status == "reading":
             self._draw_detection(s, k, fs)
         bottom = self._draw_hud(s, k, fs)

@@ -3,7 +3,7 @@ from aoe4ov.state import StateTracker
 
 CFG = {
     "idle_villager": {"enabled": True, "persist_s": 4, "warn_at": 1, "critical_at": 3},
-    "tc_idle": {"enabled": True, "persist_s": 6, "critical_after_s": 10},
+    "tc_idle": {"enabled": True, "persist_s": 0, "critical_after_s": 10},
     "housed": {"enabled": True, "warn_ratio": 0.8, "critical_ratio": 0.9, "max_pop": 200},
     "floating": {"enabled": True, "persist_s": 6,
                  "bands": [{"until_s": 300, "max": 400}, {"until_s": 900, "max": 800}, {"until_s": None, "max": 1500}]},
@@ -118,7 +118,7 @@ def test_tc_idle_escalates_after_10_seconds():
     levels = [a.get("tc_idle") for a in active]
     first_warn = levels.index("warn")
     first_crit = levels.index("critical")
-    assert 2 * (first_crit - first_warn) == 4   # 6 s -> 10 s of holding
+    assert 2 * (first_crit - first_warn) == 10  # shows at once, critical after 10 s
     assert any(k == "change" and a == "tc_idle" for _, k, a in log)
 
 

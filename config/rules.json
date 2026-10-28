@@ -1,7 +1,7 @@
 {
   "_doc": "Alert rules. Severities: info (blue, silent), warn (yellow, sound), critical (red, sound). persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply; use `aoe4ov replay` to test against a recorded session.",
   "idle_villager": {"enabled": true, "persist_s": 4, "warn_at": 1, "critical_at": 3},
-  "tc_idle": {"enabled": true, "persist_s": 6, "critical_after_s": 10},
+  "tc_idle": {"enabled": true, "persist_s": 0, "critical_after_s": 10},
   "housed": {"enabled": true, "warn_ratio": 0.8, "critical_ratio": 0.9, "max_pop": 200},
   "floating": {
     "enabled": true,

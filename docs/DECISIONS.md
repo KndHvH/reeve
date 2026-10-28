@@ -57,3 +57,6 @@ A short record of each choice and its rationale, so that it can be questioned an
 | 2026-10-28 | Sound for warn/critical via `winsound` (stdlib, async): on appearance, on escalation and every 5 s while unresolved; at most one sound per reading (the most severe); themes as folders of WAV files | No new dependency and the overlay loop never waits for audio. The default theme is synthesized by a script kept in the repository, so it can be regenerated or replaced. |
 | 2026-10-28 | Clean overlay redraw signature includes severity | Caught in simulation: an escalation keeps the same text, so the card stayed yellow. |
 
+| 2026-10-28 | Town center idle alert shows immediately (`persist_s` 0); critical after 10 s | User feedback. The state layer still needs two reads (~2 s) to confirm an empty queue, so one misread cannot fire it. |
+| 2026-10-28 | Default sound theme re-synthesized at 44.1 kHz with a bell timbre (inharmonic partials with individual decays, overlapping notes, light reverb, dithering) | The first version (22 kHz, plain sines) sounded low quality. Custom WAV files in a theme folder replace it. |
+| 2026-10-28 | Small top-left watermark with version and state (active / paused / waiting) in both overlay modes | User request: confirms the overlay is running without cluttering the screen. |
