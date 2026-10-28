@@ -56,16 +56,31 @@ def cmd_inspect(args) -> int:
 
 
 def cmd_label(args) -> int:
-    """Open the labeler; captures that are already fixtures are skipped."""
+    """Open the labeler; captures that are already fixtures are skipped.
+
+    A folder (e.g. sessions/ or one session) contributes its doubt_read_*.png
+    images, searched recursively: they are frames where the panel was visible
+    and some field was read with low confidence.
+    """
     import json
 
     from .glyphs import FIXTURES
     from .label import run
 
+    found: list[Path] = []
+    for arg in args.images:
+        p = Path(arg)
+        if p.is_dir():
+            found += sorted(p.rglob("doubt_read_*.png"))
+        elif p.suffix == ".png":
+            found.append(p)
+    if not found:
+        print("No images found (a folder contributes its doubt_read_*.png images).")
+        return 0
     done = {json.loads(j.read_text(encoding="utf-8")).get("source") for j in FIXTURES.glob("*.json")}
-    paths = [Path(p) for p in args.images if Path(p).suffix == ".png" and Path(p).stem not in done]
+    paths = [p for p in found if p.stem not in done]
     if not paths:
-        print("Nothing new to label (all are already fixtures).")
+        print(f"Nothing new to label: all {len(found)} images are already fixtures.")
         return 0
     run(paths)
     return 0
