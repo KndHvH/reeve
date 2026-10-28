@@ -1,24 +1,96 @@
 {
-  "_doc": "Coordenadas de referência medidas numa captura 1280x720 com UI 100%. Regiões do 'panel' são relativas ao canto superior esquerdo da âncora; as de 'top_center' são relativas ao centro do topo da tela. Formato: [x, y, largura, altura]. Origem: tests/fixtures/720p_0036.png.",
+  "_doc": "Coordenadas de referência medidas numa captura 1280x720 com UI 100%. Regiões do 'panel' são relativas ao canto superior esquerdo da âncora; as de 'top_center' são relativas ao centro do topo da tela. Formato: [x, y, largura, altura]. Origem: tests/fixtures/720p_0036.png. O relógio desce durante a troca de era: a região é alta e o reader procura a faixa de texto com formato de relógio.",
   "ref_height": 720,
   "anchor": {
     "template": "anchors/panel_icons.png",
-    "ref_pos": [6, 568],
-    "search": {"right_frac": 0.30, "top_frac": 0.55}
+    "ref_pos": [
+      6,
+      568
+    ],
+    "search": {
+      "right_frac": 0.3,
+      "top_frac": 0.55
+    }
   },
   "panel": {
-    "pop":        [22,   5, 42, 12],
-    "idle":       [90,   5, 18, 12],
-    "food":       [22,  43, 48, 12],
-    "wood":       [22,  69, 48, 12],
-    "gold":       [22,  95, 48, 12],
-    "stone":      [22, 121, 48, 12],
-    "vil_food":   [90,  43, 20, 12],
-    "vil_wood":   [90,  69, 20, 12],
-    "vil_gold":   [90,  95, 20, 12],
-    "vil_stone":  [90, 121, 20, 12]
+    "pop": [
+      22,
+      5,
+      42,
+      12
+    ],
+    "idle": [
+      90,
+      5,
+      18,
+      12
+    ],
+    "food": [
+      22,
+      43,
+      48,
+      12
+    ],
+    "wood": [
+      22,
+      69,
+      48,
+      12
+    ],
+    "gold": [
+      22,
+      95,
+      48,
+      12
+    ],
+    "stone": [
+      22,
+      121,
+      48,
+      12
+    ],
+    "vil_food": [
+      90,
+      43,
+      20,
+      12
+    ],
+    "vil_wood": [
+      90,
+      69,
+      20,
+      12
+    ],
+    "vil_gold": [
+      90,
+      95,
+      20,
+      12
+    ],
+    "vil_stone": [
+      90,
+      121,
+      20,
+      12
+    ]
   },
   "top_center": {
-    "clock": [-34, 68, 68, 16]
+    "clock": [
+      -34,
+      60,
+      68,
+      64
+    ]
+  },
+  "production": {
+    "_doc": "Fila de produção acima do painel. Região relativa à âncora; o template é o ícone de aldeão (de 720p_0117, linha de baixo).",
+    "template": "anchors/villager_icon.png",
+    "region": [
+      -6,
+      -170,
+      150,
+      168
+    ],
+    "min_score": 0.6
   }
 }
