@@ -1,7 +1,7 @@
-"""Synthesizes the default alert sound theme into assets/sounds/default/.
+"""Synthesizes two alert sounds into the sound library (assets/sounds/library/).
 
-warn.wav: a soft two-note bell chime. critical.wav: an insistent three-pulse
-bell. Bell timbre = slightly inharmonic partials, each decaying at its own
+synth_bell.wav: a soft two-note bell chime. synth_triple_bell.wav: an
+insistent three-pulse bell. Bell timbre = slightly inharmonic partials, each decaying at its own
 rate (higher partials die faster), a smooth attack, overlapping notes and a
 light reverb tail, at 44.1 kHz / 16-bit, then a gentle low-pass.
 
@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 
 RATE = 44100
-OUT = Path(__file__).resolve().parents[1] / "assets" / "sounds" / "default"
+OUT = Path(__file__).resolve().parents[1] / "assets" / "sounds" / "library"
 
 # (frequency ratio, amplitude, decay time in s) of a soft bell
 BELL = [(1.0, 1.0, 0.55), (2.0, 0.35, 0.28), (3.01, 0.12, 0.15)]
@@ -90,11 +90,11 @@ if __name__ == "__main__":
     warn = np.zeros(int(RATE * 1.1))
     place(warn, 0.8 * bell(659.25, 1.0), 0.00)    # E5
     place(warn, 1.0 * bell(880.00, 0.95), 0.13)   # A5, overlapping the first note
-    write("warn.wav", finish(lowpass(reverb(warn)), peak=0.2))
+    write("synth_bell.wav", finish(lowpass(reverb(warn)), peak=0.2))
 
     critical = np.zeros(int(RATE * 1.0))
     for at in (0.0, 0.16, 0.32):
         place(critical, bell(880.00, 0.55), at)          # A5
         place(critical, 0.5 * bell(440.00, 0.55), at)    # A4 body
-    write("critical.wav", finish(lowpass(reverb(critical, mix=0.12)), peak=0.24))
+    write("synth_triple_bell.wav", finish(lowpass(reverb(critical, mix=0.12)), peak=0.24))
     print(f"written to {OUT}")

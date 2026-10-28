@@ -146,6 +146,25 @@ def cmd_replay(args) -> int:
     return 0
 
 
+def cmd_sounds(args) -> int:
+    """Lists the sound library and which sound each severity uses; previews one."""
+    from .rules import SEVERITIES, load_config
+    from .sound import LIBRARY, library, play_file
+
+    if args.play:
+        path = LIBRARY / f"{args.play}.wav"
+        if not path.exists():
+            print(f"unknown sound: {args.play}")
+            return 1
+        play_file(path, wait=True)
+        return 0
+    cfg = load_config().get("sound", {})
+    used = {cfg.get(s): s for s in SEVERITIES if cfg.get(s)}
+    for name in library():
+        print(f"{name:20s} {used.get(name, '')}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="aoe4ov")
@@ -177,10 +196,13 @@ def main(argv: list[str] | None = None) -> int:
     rp = sub.add_parser("replay", help="replay a recorded session through the alert rules")
     rp.add_argument("log", help="path to sessions/<start>/log.jsonl")
 
+    so = sub.add_parser("sounds", help="list the alert sound library or preview a sound")
+    so.add_argument("--play", metavar="NAME", help="play a sound from the library")
+
     args = p.parse_args(argv)
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds,
     }
     return cmds[args.cmd](args)
 

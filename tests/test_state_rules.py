@@ -134,23 +134,27 @@ def test_floating_escalates_within_the_same_phase():
     assert sev(1000, 1600) == "info"      # late game: only the last band
 
 
+SOUND_CFG = {"enabled": True, "repeat_s": 5, "info": "blip", "warn": "chime", "critical": "alarm_low"}
+
+
 def test_sound_plays_on_new_escalation_and_repeat_only():
     from aoe4ov.rules import Alert
     from aoe4ov.sound import AlertSounds
 
     played = []
-    snd = AlertSounds({"enabled": True, "repeat_s": 5}, play=lambda path: played.append(path.stem))
+    snd = AlertSounds(SOUND_CFG, play=lambda path: played.append(path.stem))
     w = Alert("tc_idle", "warn", "", {})
     c = Alert("tc_idle", "critical", "", {})
     i = Alert("floating", "info", "", {})
-    assert snd.update([i], 0) is None               # info is silent
-    assert snd.update([w, i], 0) == "warn"          # new warn
-    assert snd.update([w], 2) is None               # within repeat window
-    assert snd.update([c], 4) == "critical"         # escalation plays at once
-    assert snd.update([c], 6) is None
-    assert snd.update([c], 9) == "critical"         # repeat after 5 s
-    assert snd.update([], 10) is None               # resolved: silence
-    assert played == ["warn", "critical", "critical"]
+    assert snd.update([i], 0) == "info"             # info plays once...
+    assert snd.update([i], 6) is None               # ...and never repeats
+    assert snd.update([w, i], 7) == "warn"          # new warn
+    assert snd.update([w, i], 9) is None            # within repeat window
+    assert snd.update([c, i], 10) == "critical"     # escalation plays at once
+    assert snd.update([c, i], 12) is None
+    assert snd.update([c, i], 15) == "critical"     # repeat after 5 s
+    assert snd.update([], 16) is None               # resolved: silence
+    assert played == ["blip", "chime", "alarm_low", "alarm_low"]
 
 
 def test_sound_plays_once_for_simultaneous_alerts():
@@ -158,8 +162,25 @@ def test_sound_plays_once_for_simultaneous_alerts():
     from aoe4ov.sound import AlertSounds
 
     played = []
-    snd = AlertSounds({"repeat_s": 5}, play=lambda path: played.append(path.stem))
-    alerts = [Alert("housed", "critical", "", {}), Alert("idle_villager", "warn", "", {})]
+    snd = AlertSounds(SOUND_CFG, play=lambda path: played.append(path.stem))
+    alerts = [Alert("housed", "critical", "", {}), Alert("idle_villager", "warn", "", {}), Alert("floating", "info", "", {})]
     assert snd.update(alerts, 0) == "critical"
     assert snd.update(alerts, 2) is None
-    assert played == ["critical"]
+    assert played == ["alarm_low"]
+
+
+def test_severity_without_sound_is_silent():
+    from aoe4ov.rules import Alert
+    from aoe4ov.sound import AlertSounds
+
+    snd = AlertSounds(SOUND_CFG | {"info": ""}, play=lambda path: None)
+    assert snd.update([Alert("floating", "info", "", {})], 0) is None
+
+
+def test_configured_sounds_exist_in_library():
+    from aoe4ov.rules import SEVERITIES, load_config
+    from aoe4ov.sound import library
+
+    cfg = load_config()["sound"]
+    for sev in SEVERITIES:
+        assert not cfg.get(sev) or cfg[sev] in library(), sev
