@@ -150,7 +150,7 @@ class DebugOverlay:
         cpu_total, cpu_core = self.cpu.sample()
         status = {
             "aguardando": ("aguardando partida", MUTED),
-            "oculto": (f"menu/pausa · forma {s.shape:.2f} · brilho {s.brightness:.0%}", WARN),
+            "oculto": (f"menu/pausa · forma {s.shape:.2f} · contraste {s.contrast:.2f}", WARN),
             "lendo": ("lendo", GOOD),
         }[s.status]
         lines = [

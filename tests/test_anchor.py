@@ -78,3 +78,21 @@ def test_panel_visible_drops_when_panel_hidden():
     menu = rgb.copy()
     menu[m.y - 10:, :200] = 40  # painel coberto
     assert panel_visible(menu, m) < 0.7
+
+
+def test_panel_contrast_separates_game_from_menu():
+    """Menu/pausa passam um véu (escuro ou azulado) sobre o painel: a forma
+    continua, o brilho médio pode até subir, mas o contraste sempre cai.
+    Imagens reais das sessões do usuário."""
+    from aoe4ov.anchor import panel_state
+    from aoe4ov.glyphs import labeled_fixtures
+
+    for png, _ in labeled_fixtures():
+        rgb = np.asarray(Image.open(png).convert("RGB"))
+        assert panel_state(rgb, detect(to_gray(rgb)))[1] > 0.8, png.name
+    for name in ["neg_menu_escuro.png", "neg_menu_veu.png"]:
+        rgb = np.asarray(Image.open(FIX / name).convert("RGB"))
+        assert panel_state(rgb, detect(to_gray(rgb)))[1] < 0.5, name
+    # Tooltip passando por cima do número: o painel está visível de verdade.
+    rgb = np.asarray(Image.open(FIX / "tooltip_sobre_pop.png").convert("RGB"))
+    assert panel_state(rgb, detect(to_gray(rgb)))[1] > 0.8

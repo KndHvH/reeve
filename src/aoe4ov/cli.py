@@ -106,7 +106,7 @@ def cmd_watch(args) -> int:
             elif s.status == "aguardando":
                 print(f"  aguardando partida (painel não encontrado, score {s.match.score:.2f})...".ljust(100), end="\r")
             elif s.status == "oculto":
-                print(f"  menu/pausa (painel oculto ou escurecido: forma {s.shape:.2f}, brilho {s.brightness:.0%})...".ljust(100), end="\r")
+                print(f"  menu/pausa (painel oculto ou com véu: forma {s.shape:.2f}, contraste {s.contrast:.2f})...".ljust(100), end="\r")
             else:
                 v = s.frame.values
                 pop = f"{v['pop'][0]}/{v['pop'][1]}" if v["pop"] else "?"

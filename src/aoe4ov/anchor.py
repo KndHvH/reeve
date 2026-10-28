@@ -164,11 +164,13 @@ def detect(gray: np.ndarray) -> AnchorMatch:
 
 
 def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[float, float]:
-    """(forma, brilho) da âncora na posição conhecida (barato: só ±`slack` px).
+    """(forma, contraste) da âncora na posição conhecida (barato: só ±`slack` px).
 
-    Menu, pausa e tela de fim escondem ou escurecem o painel. A forma (NCC)
-    não muda quando a tela inteira escurece por igual, por isso o brilho médio
-    também é devolvido: quem chama compara com o brilho do início da partida.
+    Menu, pausa e tela de fim escondem o painel ou passam um véu escuro ou
+    azulado por cima. A forma (NCC) não percebe um véu uniforme, e o brilho
+    médio pode até subir com o véu azulado; o que sempre cai é o contraste.
+    O contraste é dado em relação ao do próprio template (referência fixa):
+    em jogo normal fica em ~0,88, com menu/véu entre 0,03 e 0,38.
     """
     t = _resized_template(match.scale)
     th, tw = t.shape
@@ -177,7 +179,13 @@ def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[fl
     win = to_gray(rgb[y0:ty + th + slack, x0:tx + tw + slack])
     if win.shape[0] < th or win.shape[1] < tw:
         return 0.0, 0.0
-    return float(_Matcher(win, (th, tw)).ncc(t).max()), float(win.mean())
+    patch = to_gray(rgb[ty:ty + th, tx:tx + tw])
+    return float(_Matcher(win, (th, tw)).ncc(t).max()), float(patch.std()) / _template_std()
+
+
+@lru_cache(maxsize=1)
+def _template_std() -> float:
+    return float(np.asarray(_template(), np.float32).std())
 
 
 def panel_visible(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> float:

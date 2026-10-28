@@ -24,7 +24,9 @@ from .window import GameWindow, find_game_window
 
 MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida
 HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
-DIM_RATIO = 0.7      # âncora abaixo de 70% do brilho normal = tela escurecida (menu)
+MIN_CONTRAST = 0.7   # contraste da âncora ÷ do template: jogo ~0,88; menu/véu 0,03–0,38
+DOUBT_BAND = (0.55, 0.72)  # score da fila nessa faixa: salva a imagem para análise
+MAX_DOUBT_SHOTS = 20
 SHAPE_RATIO = 0.85   # forma da âncora abaixo de 85% da calibração = painel coberto/esmaecendo
 RECAL_EVERY = 3      # com o painel sumido, procura de novo a cada 3 ciclos (escala da UI mudou?)
 
@@ -39,7 +41,7 @@ class Step:
     grab_ms: float = 0.0
     read_ms: float = 0.0
     shape: float = 0.0                # forma da âncora neste ciclo
-    brightness: float = 1.0           # brilho relativo ao normal da partida
+    contrast: float = 1.0             # contraste da âncora ÷ do template
     events: list[str] = field(default_factory=list)  # mensagens para quem mostra
 
 
@@ -52,10 +54,10 @@ class LiveReader:
         self.size: tuple[int, int] | None = None
         self.fails = 0
         self.hidden = 0
-        self.ref_bright = 0.0  # brilho da âncora na partida (o maior visto)
         self.session: Path | None = None
         self.log = None
         self.saved_fails = 0
+        self.saved_doubts = 0
 
     # --- sessão -----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
@@ -63,7 +65,7 @@ class LiveReader:
             self.session = self.sessions_dir / f"{datetime.now():%Y%m%d-%H%M%S}"
             self.session.mkdir(parents=True, exist_ok=True)
             self.log = open(self.session / "log.jsonl", "a", encoding="utf-8")
-            self.saved_fails = 0
+            self.saved_fails = self.saved_doubts = 0
             events.append(f"gravando em {self.session}")
 
     def close(self, events: list[str] | None = None) -> None:
@@ -89,12 +91,19 @@ class LiveReader:
             self.size = (win.width, win.height)
             self.fails = 0
             if not self.match.ok:
-                # Menu, tela de carregamento ou fim de partida: sem painel na tela.
-                self.close(events)
+                # Menu, opções, carregamento ou fim de partida: sem painel na tela.
+                # Com uma partida aberta, só encerra depois de HIDDEN_END_S (ir às
+                # opções mudar a resolução não pode partir a partida em duas).
                 m, self.match = self.match, None
+                if self.log:
+                    if self.hidden == 0:
+                        self._write({"event": "painel_oculto", "ancora": round(m.score, 3)})
+                    self.hidden += 1
+                    if self.hidden * self.every >= HIDDEN_END_S:
+                        self.close(events)
+                        self.hidden = 0
                 return Step("aguardando", win, m, events=events)
             events.append(f"painel encontrado: score {self.match.score:.3f} escala {self.match.scale:.3f}")
-            self.ref_bright = 0.0
             self._open_session(events)
 
         match = self.match
@@ -102,15 +111,13 @@ class LiveReader:
         buf = self.cap.grab(win)
         grab_ms = (time.perf_counter() - t0) * 1000
 
-        # Menu, pausa ou tela de fim escondem o painel (forma some) ou escurecem
-        # a tela (forma fica, brilho cai): pula a leitura em vez de registrar lixo.
-        shape, bright = panel_state(buf, match)
-        rel = bright / self.ref_bright if self.ref_bright else 1.0
-        if shape >= max(MIN_SCORE, SHAPE_RATIO * match.score) and rel >= DIM_RATIO:
-            self.ref_bright = max(self.ref_bright, bright)
-        else:
+        # Menu, pausa ou tela de fim escondem o painel (forma some) ou passam um
+        # véu por cima (forma fica, contraste cai): pula a leitura em vez de
+        # registrar lixo.
+        shape, contrast = panel_state(buf, match)
+        if not (shape >= max(MIN_SCORE, SHAPE_RATIO * match.score) and contrast >= MIN_CONTRAST):
             if self.hidden == 0:
-                self._write({"event": "painel_oculto", "forma": round(shape, 3), "brilho": round(rel, 2)})
+                self._write({"event": "painel_oculto", "forma": round(shape, 3), "contraste": round(contrast, 2)})
             self.hidden += 1
             # Painel "sumido" pode ser só a escala da UI que mudou nas opções
             # (a janela não muda de tamanho): procura de novo de tempos em tempos
@@ -120,14 +127,14 @@ class LiveReader:
                 moved = abs(new.scale - match.scale) > 0.01 * match.scale or abs(new.x - match.x) + abs(new.y - match.y) > 2
                 if new.ok and moved:
                     self.cap.adopt(new, win)
-                    self.match, self.hidden, self.ref_bright = new, 0, 0.0
+                    self.match, self.hidden = new, 0
                     self._write({"event": "recalibrado", "anchor": [new.x, new.y, round(new.scale, 3), round(new.score, 3)]})
                     events.append(f"painel mudou: recalibrado (escala {new.scale:.3f})")
-                    return Step("oculto", win, new, grab_ms=grab_ms, shape=shape, brightness=rel, events=events)
+                    return Step("oculto", win, new, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
             if self.hidden * self.every >= HIDDEN_END_S:
                 self.close(events)
                 self.match, self.hidden = None, 0
-            return Step("oculto", win, match, grab_ms=grab_ms, shape=shape, brightness=rel, events=events)
+            return Step("oculto", win, match, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
         if self.hidden:
             self._write({"event": "painel_visivel"})
             self.hidden = 0
@@ -151,4 +158,9 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"falha_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
             self.saved_fails += 1
-        return Step("lendo", win, match, f, bad, grab_ms, read_ms, shape, rel, events)
+        if DOUBT_BAND[0] <= f.production.score <= DOUBT_BAND[1] and self.saved_doubts < MAX_DOUBT_SHOTS:
+            # Score da fila perto do limiar: guarda a imagem para entender o que é.
+            Image.fromarray(np.ascontiguousarray(buf)).save(
+                self.session / f"duvida_fila_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
+            self.saved_doubts += 1
+        return Step("lendo", win, match, f, bad, grab_ms, read_ms, shape, contrast, events)
