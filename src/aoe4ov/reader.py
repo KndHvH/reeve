@@ -7,12 +7,13 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from .anchor import AnchorMatch, detect, project_rois, to_gray
-from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read
+from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask_local
 from .production import Production, detect_villager_in
 from .production import region as production_region
 
@@ -55,21 +56,28 @@ _clock_y_hint: dict[float, int] = {}
 
 def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> Reading:
     """O relógio muda de altura (ex.: na troca de era) e o fundo dele é
-    semitransparente. Uma janela da altura de um dígito desce pela região; das
-    posições lidas como relógio válido (dígitos de alturas iguais), fica a de
-    maior confiança. Não basta a primeira válida: uma janela que corta 1 px do
-    topo transforma '2' em '7', e texturas do terreno às vezes viram dígitos,
-    mas ambos com confiança bem menor que o relógio de verdade.
+    semitransparente. Uma janela da altura de um dígito desce pela região; em
+    cada posição ficam só os glifos alinhados com a maioria (mesmo topo e
+    altura): bordas da caixa contra fundo claro viram traços parecidos com '1',
+    mas desalinhados. Das posições lidas como relógio válido fica a de maior
+    confiança e, no empate, a que pega os dígitos mais altos (inteiros): uma
+    janela que corta 1 px do topo transforma '2' em '7'.
     A última posição boa é tentada primeiro e aceita direto se for confiável."""
     band_h = round(DIGIT_H_REF * scale * H_RANGE[1]) + 2
     key_scale = round(scale, 3)
+    tol = max(1, round(scale))
+    gray, mask = text_mask_local(rgb, scale)
 
     def at(y0: int) -> Reading | None:
-        r = read(rgb[y0:y0 + band_h], scale, bank)
-        if not (r.ok and clock_seconds(r.text) is not None):
+        sl = slice(y0, y0 + band_h)
+        r = read(rgb[sl], scale, bank, pre=(gray[sl], mask[sl]))
+        if not r.glyphs:
             return None
-        hs = [g.h for g in r.glyphs]
-        if max(hs) - min(hs) > max(1, round(scale)):
+        tops = Counter(g.y for g in r.glyphs).most_common(1)[0][0]
+        hs = Counter(g.h for g in r.glyphs).most_common(1)[0][0]
+        r.glyphs = [g for g in r.glyphs if abs(g.y - tops) <= tol and abs(g.h - hs) <= tol]
+        r.text = "".join(g.char for g in r.glyphs)
+        if not (r.ok and clock_seconds(r.text) is not None):
             return None
         for g in r.glyphs:
             g.y += y0
@@ -85,11 +93,11 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
     for y0 in range(0, max(1, rgb.shape[0] - band_h + 1)):
         r = at(y0)
         if r is not None:
-            candidates.append((r.conf, y0, r))
+            candidates.append((round(r.conf, 2), min(g.h for g in r.glyphs), -y0, r))
     if not candidates:
         return Reading("")
-    _, y0, best = max(candidates, key=lambda c: (c[0], -c[1]))
-    _clock_y_hint[key_scale] = y0
+    *_, neg_y0, best = max(candidates, key=lambda c: c[:3])
+    _clock_y_hint[key_scale] = -neg_y0
     return best
 
 

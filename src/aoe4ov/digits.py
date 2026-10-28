@@ -32,6 +32,7 @@ DIGIT_H_REF = 8.5     # altura de um dígito em px na referência (720p, UI 100%
 H_RANGE = (0.8, 1.45) # tolerância de altura (a '/' é um pouco mais alta)
 MAX_W_REF = 7.5       # mais largo que isso são dígitos encostados ("40" em 720p)
 MIN_W_REF = 3         # largura mínima de cada pedaço ao quebrar um bloco
+LOCAL_DELTA = 60      # relógio: quanto o texto precisa ser mais claro que a vizinhança
 MIN_SCORE = 0.6       # abaixo disso o glifo é considerado não confiável
 
 CHAR_DIRS = {"/": "slash"}
@@ -75,6 +76,29 @@ def text_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return gray, (gray > thr) & neutral
 
 
+def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
+    """Média numa janela k×k (k ímpar), via imagem integral."""
+    r = k // 2
+    p = np.pad(a, r, mode="edge")
+    s = np.pad(p.cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+    return (s[k:, k:] - s[:-k, k:] - s[k:, :-k] + s[:-k, :-k]) / (k * k)
+
+
+def text_mask_local(rgb: np.ndarray, scale: float) -> tuple[np.ndarray, np.ndarray]:
+    """Máscara por contraste local, para texto sobre fundo semitransparente.
+
+    O relógio fica numa caixa translúcida: com areia clara atrás, o brilho
+    absoluto da areia passa do limiar. O dígito, porém, é bem mais claro que
+    a vizinhança imediata; a areia é clara por igual e some na subtração.
+    """
+    f = rgb[..., :3].astype(np.float32)
+    gray = f.mean(axis=2)
+    sat = f.max(axis=2) - f.min(axis=2)
+    k = 2 * round(DIGIT_H_REF * scale) + 1
+    local = gray - _box_mean(gray, k)
+    return gray, (local > LOCAL_DELTA) & (sat < SAT_MAX) & (gray > MIN_THR)
+
+
 def normalize(gray_crop: np.ndarray) -> np.ndarray:
     """Centraliza o glifo numa caixa com proporção de dígito e reduz a GLYPH_W×GLYPH_H."""
     h, w = gray_crop.shape
@@ -97,8 +121,9 @@ def _split(gray: np.ndarray, mask: np.ndarray, x0: int, x1: int, max_w: float, m
     return _split(gray, mask, x0, x0 + c, max_w, min_w) + _split(gray, mask, x0 + c, x1, max_w, min_w)
 
 
-def segment(rgb: np.ndarray, scale: float) -> tuple[list[Glyph], np.ndarray]:
-    gray, mask = text_mask(rgb)
+def segment(rgb: np.ndarray, scale: float, pre: tuple[np.ndarray, np.ndarray] | None = None) -> tuple[list[Glyph], np.ndarray]:
+    """`pre`: (cinza, máscara) já calculados, para quem usa outra máscara (relógio)."""
+    gray, mask = pre if pre is not None else text_mask(rgb)
     cols = mask.any(axis=0)
     exp_h = DIGIT_H_REF * scale
     max_w = MAX_W_REF * scale
@@ -164,9 +189,10 @@ def default_bank() -> GlyphBank:
     return GlyphBank.from_samples(samples)
 
 
-def read(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> Reading:
+def read(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None,
+         pre: tuple[np.ndarray, np.ndarray] | None = None) -> Reading:
     bank = bank or default_bank()
-    glyphs, mask = segment(rgb, scale)
+    glyphs, mask = segment(rgb, scale, pre)
     for g in glyphs:
         bank.classify(g)
     # Ruído (terreno claro, marcadores) aparece nas pontas da ROI: descarta
