@@ -1,0 +1,22 @@
+[project]
+name = "aoe4ov"
+version = "0.1.0"
+description = "Overlay leve para Age of Empires IV: lê a UI por template matching e dá dicas de macro."
+authors = [
+    { name = "Matias Herklotz", email = "delend89@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "mss>=9.0",
+    "numpy>=2.1",
+]
+
+[project.scripts]
+aoe4ov = "aoe4ov.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+dist/
+build/
+# saídas locais
+captures/
+sessions/
+*.inspect.html
