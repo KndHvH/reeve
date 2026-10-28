@@ -113,8 +113,9 @@ def cmd_watch(args) -> int:
                 res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
                 tc = "TC producing" if v["producing_villager"] else "TC IDLE"
                 warn = f"  ?? {','.join(s.bad)}" if s.bad else ""
+                alerts = f"  ! {' | '.join(a.text for a in s.alerts)}" if s.alerts else ""
                 print(f"{_fmt_clock(v['clock'])} | pop {pop} | idle {v['idle']} | {res} | {tc} | "
-                      f"{s.grab_ms + s.read_ms:.0f} ms (capture {s.grab_ms:.0f}){warn}")
+                      f"{s.grab_ms + s.read_ms:.0f} ms (capture {s.grab_ms:.0f}){warn}{alerts}")
             time.sleep(max(0.0, args.every - (time.perf_counter() - t0)))
     except KeyboardInterrupt:
         events: list[str] = []
@@ -125,14 +126,23 @@ def cmd_watch(args) -> int:
 
 
 def cmd_overlay(args) -> int:
-    """Overlay on top of the game. For now only the debug mode exists."""
+    """Overlay on top of the game: alerts only, or the full debug view."""
     from .overlay import run
 
-    print("Debug overlay active. Ctrl+C here to quit.")
+    print(f"{'Debug' if args.debug else 'Clean'} overlay active. Ctrl+C here to quit.")
     try:
-        run(args.every)
+        run(args.every, args.debug)
     except KeyboardInterrupt:
         pass
+    return 0
+
+
+def cmd_replay(args) -> int:
+    """Runs the state tracker and alert rules over a recorded session."""
+    from .replay import replay
+
+    for line in replay(Path(args.log)):
+        print(line)
     return 0
 
 
@@ -159,13 +169,17 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("watch", help="read the game live and print the values")
     w.add_argument("--every", type=float, default=2.0, help="seconds between readings (default 2)")
 
-    o = sub.add_parser("overlay", help="overlay on top of the game (debug mode: detection, values, confidence, RAM/CPU)")
+    o = sub.add_parser("overlay", help="overlay on top of the game: alerts (default) or --debug view")
+    o.add_argument("--debug", action="store_true", help="show detection, values, confidence, timings, RAM/CPU")
     o.add_argument("--every", type=float, default=2.0, help="seconds between readings (default 2)")
+
+    rp = sub.add_parser("replay", help="replay a recorded session through the alert rules")
+    rp.add_argument("log", help="path to sessions/<start>/log.jsonl")
 
     args = p.parse_args(argv)
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay,
     }
     return cmds[args.cmd](args)
 

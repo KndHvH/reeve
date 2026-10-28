@@ -3,7 +3,8 @@
 Each `step()` runs one cycle: finds the window, calibrates the anchor when
 needed, captures only the regions, checks whether the panel is visible
 (menu/pause) and reads. It also records the match in sessions/<start>/
-(log.jsonl + images of failed readings), so callers only have to display
+(log.jsonl + images of failed readings), turns readings into a confirmed
+game state and evaluates the alert rules, so callers only have to display
 the result.
 """
 
@@ -21,6 +22,8 @@ from PIL import Image
 from .anchor import MIN_SCORE, AnchorMatch, panel_state
 from .capture import Capture
 from .reader import Frame, read_frame
+from .rules import Alert, RuleEngine
+from .state import GameState, StateTracker
 from .window import GameWindow, find_game_window
 
 MAX_FAIL_SHOTS = 30  # failure images saved per match
@@ -44,6 +47,8 @@ class Step:
     shape: float = 0.0                # anchor shape in this cycle
     contrast: float = 1.0             # anchor contrast ÷ template contrast
     events: list[str] = field(default_factory=list)  # messages for the display side
+    state: GameState | None = None
+    alerts: list[Alert] = field(default_factory=list)  # active alerts, most severe first
 
 
 class LiveReader:
@@ -59,6 +64,8 @@ class LiveReader:
         self.log = None
         self.saved_fails = 0
         self.saved_doubts = 0
+        self.tracker = StateTracker()
+        self.rules = RuleEngine()
 
     # --- session ----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
@@ -67,6 +74,8 @@ class LiveReader:
             self.session.mkdir(parents=True, exist_ok=True)
             self.log = open(self.session / "log.jsonl", "a", encoding="utf-8")
             self.saved_fails = self.saved_doubts = 0
+            self.tracker = StateTracker()
+            self.rules = RuleEngine()
             events.append(f"recording to {self.session}")
 
     def close(self, events: list[str] | None = None) -> None:
@@ -146,7 +155,12 @@ class LiveReader:
         bad = [n for n, r in f.readings.items() if not r.ok]
         self.fails = self.fails + 1 if len(bad) > 3 else 0
 
+        wall = time.monotonic()
+        state = self.tracker.update(f.values, wall)
+        transitions = self.rules.evaluate(state, wall)
+
         self._write({
+            "t": round(wall, 2),
             "values": f.values,
             "text": {n: r.text for n, r in f.readings.items()},
             "conf": {n: round(r.conf, 3) for n, r in f.readings.items()},
@@ -154,7 +168,12 @@ class LiveReader:
             "anchor": [match.x, match.y, round(match.scale, 3), round(match.score, 3)],
             "ms": round(grab_ms + read_ms, 1),
             "grab_ms": round(grab_ms, 1),
+            "state": state.to_dict(),
         })
+        for tr in transitions:
+            a = tr.alert
+            self._write({"event": f"alert_{tr.kind}", "id": a.id, "text": a.text, "reason": a.reason})
+            events.append(f"alert {tr.kind}: {a.text}" if tr.kind == "on" else f"alert off: {a.id}")
         if bad and self.saved_fails < MAX_FAIL_SHOTS:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"fail_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
@@ -164,4 +183,5 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"doubt_queue_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
             self.saved_doubts += 1
-        return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events)
+        return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events,
+                    state=state, alerts=self.rules.alerts())

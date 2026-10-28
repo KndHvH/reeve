@@ -7,9 +7,9 @@ Each milestone ends with a visual validation by the user before work on the next
 |---|-------------|------------|--------|
 | M1 | Repository, scaffold, agents, game window detection, `snap` | `aoe4ov window` reports the correct resolution | ✅ |
 | M2 | Anchor and UI scale detection (multi-scale) | `inspect.html` shows the anchor box on screenshots | ✅ |
-| M3 | Digit reading (resources, villagers per resource, population, clock, idle villagers) and production queue | Per-stage `inspect.html`, labeler, live `watch` and tests | 🔎 awaiting validation |
-| M4 | Live `--debug` overlay | Boxes and values drawn over the game in a match against the AI | 🚧 debug mode done, brought forward on request |
-| M5 | Rules: idle villagers, idle town center, housed, floating resources | Trigger each situation and confirm the alert | |
+| M3 | Digit reading (resources, villagers per resource, population, clock, idle villagers) and production queue | Per-stage `inspect.html`, labeler, live `watch` and tests | ✅ |
+| M4 | Live overlay: `--debug` view and clean alert mode | Boxes and values drawn over the game in a live match | ✅ |
+| M5 | State layer (two-read confirmation, clock plausibility) and rules: idle villagers, idle town center, housed, floating resources; `replay` | Trigger each situation and confirm the alert; replay recorded sessions | 🔎 awaiting validation |
 | M6 | JSONL recorder and auditable `report.html` | Check the timeline against the replay | |
 
 ## v0.2: Execution vs. build order

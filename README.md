@@ -27,6 +27,11 @@ uv run aoe4ov inspect captures/*.png    # write .inspect.html files showing ever
 uv run aoe4ov label captures/*.png      # labeler: confirm or correct readings to create test fixtures and glyphs
 uv run aoe4ov glyphs                    # rebuild the glyph bank from the labeled fixtures
 uv run aoe4ov watch                     # live readings in the terminal; records sessions/<start>/log.jsonl and fail_*.png
-uv run aoe4ov overlay                   # debug overlay on top of the game (detection, values, confidence, RAM/CPU)
+uv run aoe4ov overlay                   # overlay on top of the game: alert cards only
+uv run aoe4ov overlay --debug           # debug overlay: detection, values, confidence, timings, RAM/CPU, alerts
+uv run aoe4ov replay sessions/<start>/log.jsonl  # replay a recorded session through the alert rules
 uv run pytest                           # run the test suite
 ```
+
+## Alerts
+Rules and thresholds are in `config/rules.json` (idle villagers, town center idle, housed, floating resources by game phase). Slow-changing values are confirmed over two consecutive readings, so a single misread never triggers an alert. Use `aoe4ov replay` to see which alerts a recorded session would produce, and why, after editing the thresholds.

@@ -1,14 +1,19 @@
-"""Transparent overlay on top of the game (debug mode only, for now).
+"""Transparent overlay on top of the game.
 
-Shows what the reader is seeing: anchor, regions with value and confidence,
-production queue, and a HUD with window, scale, timings, RAM and CPU.
+Two modes share the same window and engine:
+- clean (default): only the active alerts, as small cards; nothing is drawn
+  when there is nothing to say.
+- debug: what the reader is seeing (anchor, regions with value and
+  confidence, production queue) plus a HUD with window, scale, timings, RAM,
+  CPU and the active alerts.
 
 - The window is excluded from screen captures (WDA_EXCLUDEFROMCAPTURE),
   otherwise the overlay itself would show up in the image being read. As an
   extra safeguard, nothing is drawn inside the regions that are read.
 - Clicks pass through (WS_EX_TRANSPARENT) and the window never takes focus,
   so the game stays in the foreground.
-- The canvas is only redrawn on each reading (default 2 s), with no animation.
+- The canvas is only redrawn on each reading (default 2 s), with no animation;
+  the clean mode redraws only when the alerts change.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ import tkinter as tk
 
 from .digits import MIN_SCORE
 from .live import LiveReader, Step
+from .rules import Alert
 from .metrics import CpuMeter, ram_mb
 
 KEY = "#010203"  # color treated as transparent
@@ -33,11 +39,16 @@ WDA_EXCLUDEFROMCAPTURE = 0x11
 user32 = ctypes.windll.user32
 
 
+SEVERITY_COLOR = {"danger": BAD, "warn": WARN, "info": ACCENT}
+
+
 def _conf_color(c: float) -> str:
     return GOOD if c >= 0.85 else WARN if c >= MIN_SCORE else BAD
 
 
-class DebugOverlay:
+class Overlay:
+    """Window, engine loop and alert cards shared by both modes."""
+
     def __init__(self, every: float):
         self.every = every
         self.live = LiveReader(every)
@@ -84,6 +95,44 @@ class DebugOverlay:
         finally:
             self.live.close()
 
+    def draw(self, s: Step):
+        raise NotImplementedError
+
+    def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
+        """One card per alert, stacked downwards from (x0, y0)."""
+        c = self.canvas
+        pad, gap = round(8 * k), round(6 * k)
+        y = y0
+        for a in alerts:
+            t = c.create_text(x0 + pad + round(6 * k), y + pad, text=a.text, fill=FG, anchor="nw",
+                              font=(FONT, fs + 2, "bold"))
+            _, _, x1, y1 = c.bbox(t)
+            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline="#262b33")
+            bar = c.create_rectangle(x0, y, x0 + round(4 * k), y1 + pad, fill=SEVERITY_COLOR[a.severity], outline="")
+            c.tag_lower(bar, t)
+            c.tag_lower(card, bar)
+            y = y1 + pad + gap
+
+
+class CleanOverlay(Overlay):
+    """Only the alerts. Redraws only when they change."""
+
+    def __init__(self, every: float):
+        self._shown = None
+        super().__init__(every)
+
+    def draw(self, s: Step):
+        alerts = s.alerts if s.status == "reading" else []
+        sig = (tuple((a.id, a.text) for a in alerts), self.geom)
+        if sig == self._shown:
+            return
+        self._shown = sig
+        self.canvas.delete("all")
+        k = s.match.scale if s.match else 1.0
+        self._draw_alerts(alerts, round(16 * k), round(s.win.height * 0.16), k, max(8, round(8 * k)))
+
+
+class DebugOverlay(Overlay):
     # --- drawing ----------------------------------------------------------
     def draw(self, s: Step):
         c = self.canvas
@@ -92,7 +141,9 @@ class DebugOverlay:
         fs = max(8, round(8 * k))
         if s.status == "reading":
             self._draw_detection(s, k, fs)
-        self._draw_hud(s, k, fs)
+        bottom = self._draw_hud(s, k, fs)
+        if s.status == "reading":
+            self._draw_alerts(s.alerts, round(16 * k), bottom + round(8 * k), k, fs)
 
     def _box(self, x, y, w, h, color, width=1, dash=None):
         # 2 px outside the region: nothing from the overlay falls inside what is read.
@@ -145,7 +196,8 @@ class DebugOverlay:
         bg = c.create_rectangle(x0 - 4, y0 - 2, x1 + 4, y1 + 2, fill=CARD, outline="")
         c.tag_lower(bg, t)
 
-    def _draw_hud(self, s: Step, k: float, fs: int):
+    def _draw_hud(self, s: Step, k: float, fs: int) -> int:
+        """Draws the HUD card; returns its bottom y."""
         c = self.canvas
         cpu_total, cpu_core = self.cpu.sample()
         status = {
@@ -154,7 +206,7 @@ class DebugOverlay:
             "reading": ("reading", GOOD),
         }[s.status]
         lines = [
-            ("AoE4 overlay · debug", FG, True),
+            ("aoe4-overlay · debug", FG, True),
             (status[0], status[1], False),
             (f"window {s.win.width}×{s.win.height}", MUTED, False),
         ]
@@ -179,7 +231,8 @@ class DebugOverlay:
         for i, (text, color, bold) in enumerate(lines):
             c.create_text(x0 + pad + 4, y0 + pad + i * lh + lh // 2, text=text, fill=color, anchor="w",
                           font=(FONT, fs + (1 if bold else 0), "bold" if bold else "normal"))
+        return y0 + height
 
 
-def run(every: float) -> None:
-    DebugOverlay(every).run()
+def run(every: float, debug: bool = False) -> None:
+    (DebugOverlay if debug else CleanOverlay)(every).run()

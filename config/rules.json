@@ -1,0 +1,15 @@
+{
+  "_doc": "Alert rules. persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply.",
+  "idle_villager": {"enabled": true, "min_idle": 1, "persist_s": 4},
+  "tc_idle": {"enabled": true, "persist_s": 6},
+  "housed": {"enabled": true, "margin": 1, "max_pop": 200},
+  "floating": {
+    "enabled": true,
+    "persist_s": 6,
+    "bands": [
+      {"until_s": 300, "max": 400},
+      {"until_s": 900, "max": 800},
+      {"until_s": null, "max": 1500}
+    ]
+  }
+}
