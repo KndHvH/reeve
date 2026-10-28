@@ -16,7 +16,7 @@ from .window import GameWindow
 
 class Capture:
     def __init__(self):
-        self.sct = mss.mss()
+        self.sct = mss.MSS()
         self.buf: np.ndarray | None = None
         self.rects: list[tuple[int, int, int, int]] = []
 

@@ -8,7 +8,7 @@ Cada marco termina com uma validação visual feita pelo usuário antes de segui
 | M1 | Repo, scaffold, agentes, detecção da janela, `snap` | `aoe4ov window` mostra a resolução certa | ✅ |
 | M2 | Âncora + escala da UI (multi-escala) | `inspect.html` com a caixa da âncora nos screenshots | ✅ |
 | M3 | Leitura de dígitos (recursos, aldeões/recurso, pop, relógio, ociosos) + fila de produção | `inspect.html` por estágio + rotulador + `watch` ao vivo + testes | 🔎 aguardando validação |
-| M4 | Overlay `--debug` ao vivo | Caixas e valores por cima do jogo numa partida vs IA | |
+| M4 | Overlay `--debug` ao vivo | Caixas e valores por cima do jogo numa partida vs IA | 🚧 modo debug pronto, adiantado a pedido |
 | M5 | Regras: ocioso, TC parado, housed, banco flutuando | Forçar cada situação e ver o alerta | |
 | M6 | Recorder JSONL + `report.html` auditável | Conferir a timeline contra o replay | |
 

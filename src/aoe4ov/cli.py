@@ -10,11 +10,6 @@ from pathlib import Path
 
 from .window import find_game_window
 
-MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida no watch
-HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
-DIM_RATIO = 0.7      # âncora abaixo de 70% do brilho normal = tela escurecida (menu)
-SHAPE_RATIO = 0.85   # forma da âncora abaixo de 85% da calibração = painel coberto/esmaecendo
-
 
 def cmd_window(_args) -> int:
     win = find_game_window()
@@ -33,7 +28,7 @@ def cmd_snap(args) -> int:
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         for i in range(args.count):
             win = find_game_window()
             if win is None:
@@ -91,122 +86,54 @@ def _fmt_clock(secs) -> str:
 
 
 def cmd_watch(args) -> int:
-    """Lê o jogo ao vivo e imprime uma linha por leitura: validação antes do overlay.
+    """Lê o jogo ao vivo e imprime uma linha por leitura (motor em live.py).
 
-    Cada partida também vai para sessions/<início>/log.jsonl (uma linha por
-    leitura, com valores, textos e confiança) e, quando algum campo falha,
-    a imagem das regiões capturadas vai para sessions/<início>/falha_*.png.
+    Cada partida também vai para sessions/<início>/log.jsonl e, quando algum
+    campo falha, a imagem das regiões capturadas vai para falha_*.png.
     """
-    import json
+    from .live import LiveReader
 
-    from PIL import Image
-
-    from .anchor import MIN_SCORE, panel_state
-    from .capture import Capture
-    from .reader import read_frame
-
-    cap = Capture()
-    match = None
-    size = None
-    fails = 0
-    hidden = 0
-    ref_bright = 0.0  # brilho da âncora na partida (o maior visto): base para detectar escurecimento
-    session: Path | None = None
-    log = None
-    saved_fails = 0
-
-    def close_session():
-        nonlocal session, log
-        if log:
-            log.close()
-            print(f"[partida] log salvo em {session}".ljust(100))
-        session, log = None, None
-
+    live = LiveReader(args.every)
     print("Ctrl+C para sair.")
     try:
         while True:
-            win = find_game_window()
-            if win is None or not win.foreground:
-                print("  aguardando o AoE4 em primeiro plano...".ljust(100), end="\r")
-                time.sleep(args.every)
-                continue
-            if match is None or size != (win.width, win.height) or fails >= 3:
-                match = cap.calibrate(win)
-                size = (win.width, win.height)
-                fails = 0
-                if not match.ok:
-                    # Menu, tela de carregamento ou fim de partida: sem painel na tela.
-                    close_session()
-                    print(f"  aguardando partida (painel não encontrado, score {match.score:.2f})...".ljust(100), end="\r")
-                    match = None
-                    time.sleep(args.every)
-                    continue
-                print(f"[partida] painel encontrado: score {match.score:.3f} escala {match.scale:.3f}".ljust(100))
-                ref_bright = 0.0
-                if log is None:
-                    session = Path("sessions") / f"{datetime.now():%Y%m%d-%H%M%S}"
-                    session.mkdir(parents=True, exist_ok=True)
-                    log = open(session / "log.jsonl", "a", encoding="utf-8")
-                    saved_fails = 0
-                    print(f"[partida] gravando em {session}".ljust(100))
             t0 = time.perf_counter()
-            buf = cap.grab(win)
-            t1 = time.perf_counter()
-
-            # Menu, pausa ou tela de fim escondem o painel (forma some) ou
-            # escurecem a tela (forma fica, brilho cai): pula a leitura em vez
-            # de registrar lixo. Escondido por muito tempo = fim de partida.
-            vis, bright = panel_state(buf, match)
-            rel = bright / ref_bright if ref_bright else 1.0
-            if vis >= max(MIN_SCORE, SHAPE_RATIO * match.score) and rel >= DIM_RATIO:
-                ref_bright = max(ref_bright, bright)
+            s = live.step()
+            for e in s.events:
+                print(f"[partida] {e}".ljust(100))
+            if s.status == "sem_jogo":
+                print("  aguardando o AoE4 em primeiro plano...".ljust(100), end="\r")
+            elif s.status == "aguardando":
+                print(f"  aguardando partida (painel não encontrado, score {s.match.score:.2f})...".ljust(100), end="\r")
+            elif s.status == "oculto":
+                print(f"  menu/pausa (painel oculto ou escurecido: forma {s.shape:.2f}, brilho {s.brightness:.0%})...".ljust(100), end="\r")
             else:
-                if hidden == 0:
-                    log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", "event": "painel_oculto",
-                                          "forma": round(vis, 3), "brilho": round(rel, 2)}) + "\n")
-                    log.flush()
-                hidden += 1
-                print(f"  menu/pausa (painel oculto ou escurecido: forma {vis:.2f}, brilho {rel:.0%})...".ljust(100), end="\r")
-                if hidden * args.every >= HIDDEN_END_S:
-                    close_session()
-                    match, hidden = None, 0
-                time.sleep(args.every)
-                continue
-            if hidden:
-                log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", "event": "painel_visivel"}) + "\n")
-                hidden = 0
-
-            f = read_frame(buf, match)
-            dt = (time.perf_counter() - t0) * 1000
-            grab_ms = (t1 - t0) * 1000
-            v = f.values
-            bad = [n for n, r in f.readings.items() if not r.ok]
-            fails = fails + 1 if len(bad) > 3 else 0
-
-            log.write(json.dumps({
-                "wall": f"{datetime.now():%H:%M:%S}",
-                "values": v,
-                "text": {n: r.text for n, r in f.readings.items()},
-                "conf": {n: round(r.conf, 3) for n, r in f.readings.items()},
-                "prod_score": round(f.production.score, 3),
-                "anchor": [match.x, match.y, round(match.scale, 3), round(match.score, 3)],
-                "ms": round(dt, 1),
-                "grab_ms": round(grab_ms, 1),
-                "clock_conf": round(f.readings["clock"].conf, 3),
-            }, ensure_ascii=False) + "\n")
-            log.flush()
-            if bad and saved_fails < MAX_FAIL_SHOTS:
-                Image.fromarray(buf).save(session / f"falha_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
-                saved_fails += 1
-            pop = f"{v['pop'][0]}/{v['pop'][1]}" if v["pop"] else "?"
-            res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
-            tc = "TC produzindo" if v["producing_villager"] else "TC PARADO"
-            warn = f"  ?? {','.join(bad)}" if bad else ""
-            print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | {dt:.0f} ms (captura {grab_ms:.0f}){warn}")
-            time.sleep(max(0.0, args.every - dt / 1000))
+                v = s.frame.values
+                pop = f"{v['pop'][0]}/{v['pop'][1]}" if v["pop"] else "?"
+                res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
+                tc = "TC produzindo" if v["producing_villager"] else "TC PARADO"
+                warn = f"  ?? {','.join(s.bad)}" if s.bad else ""
+                print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | "
+                      f"{s.grab_ms + s.read_ms:.0f} ms (captura {s.grab_ms:.0f}){warn}")
+            time.sleep(max(0.0, args.every - (time.perf_counter() - t0)))
     except KeyboardInterrupt:
-        close_session()
+        events: list[str] = []
+        live.close(events)
+        for e in events:
+            print(f"[partida] {e}".ljust(100))
         return 0
+
+
+def cmd_overlay(args) -> int:
+    """Overlay por cima do jogo. Por enquanto só existe o modo debug."""
+    from .overlay import run
+
+    print("Overlay de debug ativo. Ctrl+C aqui para sair.")
+    try:
+        run(args.every)
+    except KeyboardInterrupt:
+        pass
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -232,10 +159,13 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("watch", help="lê o jogo ao vivo e imprime os valores")
     w.add_argument("--every", type=float, default=2.0, help="segundos entre leituras (padrão 2)")
 
+    o = sub.add_parser("overlay", help="overlay por cima do jogo (modo debug: detecção, valores, confiança, RAM/CPU)")
+    o.add_argument("--every", type=float, default=2.0, help="segundos entre leituras (padrão 2)")
+
     args = p.parse_args(argv)
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay,
     }
     return cmds[args.cmd](args)
 
