@@ -12,6 +12,8 @@ from .window import find_game_window
 
 MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida no watch
 HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
+DIM_RATIO = 0.7      # âncora abaixo de 70% do brilho normal = tela escurecida (menu)
+SHAPE_RATIO = 0.85   # forma da âncora abaixo de 85% da calibração = painel coberto/esmaecendo
 
 
 def cmd_window(_args) -> int:
@@ -99,7 +101,7 @@ def cmd_watch(args) -> int:
 
     from PIL import Image
 
-    from .anchor import MIN_SCORE, panel_visible
+    from .anchor import MIN_SCORE, panel_state
     from .capture import Capture
     from .reader import read_frame
 
@@ -108,6 +110,7 @@ def cmd_watch(args) -> int:
     size = None
     fails = 0
     hidden = 0
+    ref_bright = 0.0  # brilho da âncora na partida (o maior visto): base para detectar escurecimento
     session: Path | None = None
     log = None
     saved_fails = 0
@@ -139,6 +142,7 @@ def cmd_watch(args) -> int:
                     time.sleep(args.every)
                     continue
                 print(f"[partida] painel encontrado: score {match.score:.3f} escala {match.scale:.3f}".ljust(100))
+                ref_bright = 0.0
                 if log is None:
                     session = Path("sessions") / f"{datetime.now():%Y%m%d-%H%M%S}"
                     session.mkdir(parents=True, exist_ok=True)
@@ -149,16 +153,20 @@ def cmd_watch(args) -> int:
             buf = cap.grab(win)
             t1 = time.perf_counter()
 
-            # Menu, pausa ou tela de fim escondem o painel: pula a leitura em vez
+            # Menu, pausa ou tela de fim escondem o painel (forma some) ou
+            # escurecem a tela (forma fica, brilho cai): pula a leitura em vez
             # de registrar lixo. Escondido por muito tempo = fim de partida.
-            vis = panel_visible(buf, match)
-            if vis < MIN_SCORE:
+            vis, bright = panel_state(buf, match)
+            rel = bright / ref_bright if ref_bright else 1.0
+            if vis >= max(MIN_SCORE, SHAPE_RATIO * match.score) and rel >= DIM_RATIO:
+                ref_bright = max(ref_bright, bright)
+            else:
                 if hidden == 0:
                     log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", "event": "painel_oculto",
-                                          "score": round(vis, 3)}) + "\n")
+                                          "forma": round(vis, 3), "brilho": round(rel, 2)}) + "\n")
                     log.flush()
                 hidden += 1
-                print(f"  menu/pausa (painel oculto, score {vis:.2f})...".ljust(100), end="\r")
+                print(f"  menu/pausa (painel oculto ou escurecido: forma {vis:.2f}, brilho {rel:.0%})...".ljust(100), end="\r")
                 if hidden * args.every >= HIDDEN_END_S:
                     close_session()
                     match, hidden = None, 0

@@ -17,7 +17,6 @@ from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask, t
 from .production import Production, detect_villager_in
 from .production import region as production_region
 
-CLOCK_HINT_CONF = 0.85  # na posição do cache, aceita direto acima disso
 COLORED_FIELDS = {"pop"}  # amarela perto do limite, vermelha no limite
 PANEL_FIELDS = ["pop", "idle", "food", "wood", "gold", "stone", "vil_food", "vil_wood", "vil_gold", "vil_stone"]
 
@@ -52,7 +51,7 @@ def parse(name: str, text: str):
     return int(text) if text.isdigit() else None
 
 
-_clock_y_hint: dict[float, int] = {}
+_clock_y_hint: dict[float, tuple[int, int]] = {}  # escala -> (y da faixa, altura dos dígitos)
 
 
 def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> Reading:
@@ -84,22 +83,30 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
             g.y += y0
         return r
 
+    def best_of(offsets) -> tuple | None:
+        cands = []
+        for y0 in offsets:
+            r = at(y0)
+            if r is not None:
+                cands.append((round(r.conf, 2), min(g.h for g in r.glyphs), -y0, r))
+        return max(cands, key=lambda c: c[:3]) if cands else None
+
+    # Cache: posição anterior ±1 px. Vale se os dígitos têm a mesma altura da
+    # última leitura boa (janela cortando o topo dá altura menor) — assim não
+    # depende de confiança alta, que em resoluções sem amostras fica em ~0,7.
     hint = _clock_y_hint.get(key_scale)
     if hint is not None:
-        r = at(hint)
-        if r is not None and r.conf >= CLOCK_HINT_CONF:
-            return r
+        y_h, h_h = hint
+        c = best_of(range(max(0, y_h - 1), y_h + 2))
+        if c is not None and c[1] >= h_h:
+            _clock_y_hint[key_scale] = (-c[2], c[1])
+            return c[3]
 
-    candidates = []
-    for y0 in range(0, max(1, rgb.shape[0] - band_h + 1)):
-        r = at(y0)
-        if r is not None:
-            candidates.append((round(r.conf, 2), min(g.h for g in r.glyphs), -y0, r))
-    if not candidates:
+    c = best_of(range(0, max(1, rgb.shape[0] - band_h + 1)))
+    if c is None:
         return Reading("")
-    *_, neg_y0, best = max(candidates, key=lambda c: c[:3])
-    _clock_y_hint[key_scale] = -neg_y0
-    return best
+    _clock_y_hint[key_scale] = (-c[2], c[1])
+    return c[3]
 
 
 def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None) -> Frame:

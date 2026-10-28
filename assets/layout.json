@@ -83,14 +83,19 @@
     ]
   },
   "production": {
-    "_doc": "Fila de produção acima do painel. Região relativa à âncora; o template é o ícone de aldeão (de 720p_0117, linha de baixo).",
-    "template": "anchors/villager_icon.png",
+    "_doc": "Fila de produção acima do painel. Região relativa à âncora. templates: [arquivo, escala em que foi recortado]; o primeiro vem de 720p_0117 (linha de baixo).",
     "region": [
       -6,
       -170,
       150,
       168
     ],
-    "min_score": 0.6
+    "min_score": 0.6,
+    "templates": [
+      [
+        "anchors/villager_icon.png",
+        1.0
+      ]
+    ]
   }
 }

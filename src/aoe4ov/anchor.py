@@ -149,19 +149,24 @@ def detect(gray: np.ndarray) -> AnchorMatch:
     return AnchorMatch(x=cx0 + ix, y=y0 + cy0 + iy, scale=s, score=score)
 
 
-def panel_visible(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> float:
-    """Confere se o painel continua na posição conhecida (barato: só ±`slack` px).
+def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[float, float]:
+    """(forma, brilho) da âncora na posição conhecida (barato: só ±`slack` px).
 
-    Menu, pausa e tela de fim escondem ou escurecem o painel: o score cai e a
-    leitura daquele ciclo deve ser ignorada.
+    Menu, pausa e tela de fim escondem ou escurecem o painel. A forma (NCC)
+    não muda quando a tela inteira escurece por igual, por isso o brilho médio
+    também é devolvido: quem chama compara com o brilho do início da partida.
     """
     t = _resized_template(match.scale)
     th, tw = t.shape
     y0, x0 = max(0, match.y - slack), max(0, match.x - slack)
     win = to_gray(rgb[y0:match.y + th + slack, x0:match.x + tw + slack])
     if win.shape[0] < th or win.shape[1] < tw:
-        return 0.0
-    return float(_Matcher(win, (th, tw)).ncc(t).max())
+        return 0.0, 0.0
+    return float(_Matcher(win, (th, tw)).ncc(t).max()), float(win.mean())
+
+
+def panel_visible(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> float:
+    return panel_state(rgb, match, slack)[0]
 
 
 def project_rois(match: AnchorMatch, width: int) -> dict[str, tuple[int, int, int, int]]:

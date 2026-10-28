@@ -25,10 +25,19 @@ class Production:
 
 
 @lru_cache(maxsize=4)
-def _template(scale: float) -> np.ndarray:
-    tpl = Image.open(ASSETS / load_layout()["production"]["template"]).convert("L")
-    size = (max(3, round(tpl.width * scale)), max(3, round(tpl.height * scale)))
-    return np.asarray(tpl.resize(size, Image.BILINEAR), np.float32)
+def _templates(scale: float) -> list[np.ndarray]:
+    """Todos os ícones de aldeão do layout, levados à escala atual.
+
+    Cada template guarda a escala em que foi recortado: um ícone tirado em
+    1080p casa melhor em 1080p do que o de 720p ampliado.
+    """
+    out = []
+    for file, tpl_scale in load_layout()["production"]["templates"]:
+        tpl = Image.open(ASSETS / file).convert("L")
+        k = scale / tpl_scale
+        size = (max(3, round(tpl.width * k)), max(3, round(tpl.height * k)))
+        out.append(np.asarray(tpl.resize(size, Image.BILINEAR), np.float32))
+    return out
 
 
 def region(match: AnchorMatch, shape: tuple[int, int]) -> tuple[int, int, int, int]:
@@ -45,11 +54,15 @@ def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMa
     """`sub`: recorte em cinza de `region(...)`, cujo canto está em `origin`."""
     x0, y0 = origin
     reg = (x0, y0, sub.shape[1], sub.shape[0])
-    tpl = _template(round(match.scale, 3))
-    if sub.shape[0] <= tpl.shape[0] or sub.shape[1] <= tpl.shape[1]:
+    tpls = [t for t in _templates(round(match.scale, 3)) if t.shape[0] < sub.shape[0] and t.shape[1] < sub.shape[1]]
+    if not tpls:
         return Production(False, 0.0, None, reg)
-    r = _Matcher(sub, tpl.shape).ncc(tpl)
-    iy, ix = np.unravel_index(int(r.argmax()), r.shape)
-    score = float(r[iy, ix])
-    box = (x0 + int(ix), y0 + int(iy), tpl.shape[1], tpl.shape[0])
+    matcher = _Matcher(sub, tuple(max(t.shape[i] for t in tpls) for i in (0, 1)))
+    score, box = -1.0, None
+    for tpl in tpls:
+        r = matcher.ncc(tpl)
+        iy, ix = np.unravel_index(int(r.argmax()), r.shape)
+        if r[iy, ix] > score:
+            score = float(r[iy, ix])
+            box = (x0 + int(ix), y0 + int(iy), tpl.shape[1], tpl.shape[0])
     return Production(score >= load_layout()["production"]["min_score"], score, box, reg)
