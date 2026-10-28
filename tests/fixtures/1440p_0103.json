@@ -1,0 +1,15 @@
+{
+ "clock": "01:03",
+ "pop": "10/10",
+ "idle": "0",
+ "food": "80",
+ "vil_food": "7",
+ "wood": "0",
+ "vil_wood": "0",
+ "gold": "100",
+ "vil_gold": "1",
+ "stone": "0",
+ "vil_stone": "0",
+ "producing_villager": true,
+ "source": "doubt_read_183537_vil_food=7"
+}
