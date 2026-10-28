@@ -95,7 +95,7 @@
       150,
       168
     ],
-    "min_score": 0.6,
+    "min_score": 0.63,
     "templates": [
       [
         "anchors/villager_icon.png",
