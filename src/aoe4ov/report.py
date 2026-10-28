@@ -130,8 +130,7 @@ def _ledger(s: dict, icons: dict[str, str]) -> str:
       <section class='col'>
         <h2>Overview</h2>
         <div class='hero'><b>{_fmt_clock(s['duration'])}</b><span>played, from {_fmt_clock(s['span'][0])} to {_fmt_clock(s['span'][1])}</span></div>
-        <div class='minis'>{vil}</div>
-        <div class='line'><span>Villagers by minute</span></div>
+        <div class='minis'><img src='{icons.get("villager", "")}' alt='villagers' title='Villagers at 5, 10 and 15 minutes'>{vil}</div>
         <div class='pair'><span>Peak idle villagers</span><b>{s['peak_idle']}</b></div>
         <div class='pair'><span>Final population</span><b>{'–' if pop is None else f'{pop}/{cap}'}</b></div>
       </section>"""
@@ -218,10 +217,10 @@ h2 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
 .col + .col { border-left: 1px solid var(--gold-dim); }
 .hero b { font: 600 34px/1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
 .hero span { display: block; color: var(--mist); margin-top: 4px; }
-.minis { display: flex; gap: 18px; margin-top: 16px; }
+.minis { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+.minis img { width: 16px; height: 28px; object-fit: contain; }
 .mini b { font: 600 22px/1 var(--serif); font-variant-numeric: tabular-nums; }
 .mini span { display: block; color: var(--mist); font-size: 12px; }
-.line span { color: var(--mist); font-size: 12px; }
 .pair { display: flex; justify-content: space-between; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--rule); }
 .pair span { color: var(--ink-2); } .pair b { font-variant-numeric: tabular-nums; }
 .problem { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--rule); }
@@ -241,6 +240,11 @@ h2 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
 .chart header { border: 0; padding: 0; margin: 0 0 6px; }
 .legend { display: flex; gap: 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend button { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid transparent;
+  border-radius: 3px; padding: 2px 5px; cursor: pointer; }
+.legend button:hover { border-color: var(--gold-dim); }
+.legend button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.legend button.off { filter: grayscale(1); opacity: .35; }
 .legend i { width: 10px; height: 10px; border-radius: 2px; } .legend img { width: 18px; height: 18px; object-fit: contain; }
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { fill: var(--mist); font: 11px var(--sans); }
@@ -309,22 +313,59 @@ const x = t => PAD.l + (t - t0) / Math.max(1, t1 - t0) * (W - PAD.l - PAD.r);
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag);
   for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-const cursors = [];
-let pinned = null;
+const charts = [];
+let pinned = null, lastT = null;
+const cursors = () => charts.map(c => c.cursor).filter(Boolean);
 
-function niceMax(v) { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)); return Math.ceil(v / p) * p; }
-
-function frame(title, keys, H) {
-  const card = document.createElement("div"); card.className = "chart";
-  const legend = keys.length > 1 ? `<div class="legend">${keys.map(k =>
-    `<span title="${k === "idle" ? "idle villagers" : k}" aria-label="${k}"><i style="background:${color(k)}"></i>${img(iconOf(k))}</span>`).join("")}</div>` : "";
-  card.innerHTML = `<header><h2>${title}</h2>${legend}</header>`;
-  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, card);
-  document.getElementById("charts").appendChild(card);
-  return svg;
+// Axis maximum = 4 ticks of a round step (1, 1.5, 2, 2.5, 3, 4, 5, 6 or 8 × 10^k), so the
+// labels read 300 / 600 / 900 / 1200 instead of 18 / 35 / 53 / 70.
+function niceMax(v) {
+  if (v <= 0) return 4;
+  const raw = v / 4, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map(m => m * p).find(s => s >= raw);
+  return Math.max(4, step * 4);
 }
 
-function axes(svg, H, ymax, unit) {
+// A chart owns its card, legend toggles and a draw function; toggling a
+// series in the legend redraws the chart without it (and rescales the axis).
+function chart(title, keys, H, draw) {
+  const card = document.createElement("div"); card.className = "chart";
+  const head = document.createElement("header");
+  head.innerHTML = `<h2>${title}</h2>`;
+  const c = { H, keys, hidden: new Set(), draw, cursor: null };
+  if (keys.length > 1) {
+    const legend = document.createElement("div"); legend.className = "legend";
+    keys.forEach(k => {
+      const b = document.createElement("button");
+      const name = k === "idle" ? "idle villagers" : k;
+      b.type = "button"; b.title = `Show or hide ${name}`; b.setAttribute("aria-label", name); b.setAttribute("aria-pressed", "true");
+      b.innerHTML = `<i style="background:${color(k)}"></i>${img(iconOf(k))}`;
+      b.addEventListener("click", () => {
+        c.hidden.has(k) ? c.hidden.delete(k) : c.hidden.add(k);
+        b.classList.toggle("off", c.hidden.has(k)); b.setAttribute("aria-pressed", String(!c.hidden.has(k)));
+        render(c);
+      });
+      legend.appendChild(b);
+    });
+    head.appendChild(legend);
+  }
+  card.appendChild(head);
+  c.svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, card);
+  document.getElementById("charts").appendChild(card);
+  charts.push(c);
+  render(c);
+  return c;
+}
+
+function render(c) {
+  c.svg.innerHTML = "";
+  c.draw(c, c.keys.filter(k => !c.hidden.has(k)));
+  hover(c);
+  if (lastT != null) placeCursors(lastT);
+}
+
+function axes(c, ymax, unit) {
+  const { svg, H } = c;
   const y = v => H - PAD.b - v / ymax * (H - PAD.t - PAD.b);
   for (let i = 0; i <= 4; i++) {
     const v = ymax * i / 4, yy = y(v);
@@ -337,94 +378,88 @@ function axes(svg, H, ymax, unit) {
   return y;
 }
 
-function hover(svg, H) {
-  const cur = el("line", { y1: PAD.t, y2: H - PAD.b, stroke: "var(--gold)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }, svg);
-  cursors.push(cur);
+function hover(c) {
+  const { svg, H } = c;
+  c.cursor = el("line", { y1: PAD.t, y2: H - PAD.b, stroke: "var(--gold)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }, svg);
   const hit = el("rect", { x: PAD.l, y: 0, width: W - PAD.l - PAD.r, height: H, fill: "transparent" }, svg);
   const toT = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
     const q = p.matrixTransform(svg.getScreenCTM().inverse()); return t0 + (q.x - PAD.l) / (W - PAD.l - PAD.r) * (t1 - t0); };
   hit.addEventListener("mousemove", ev => { if (pinned == null) select(toT(ev)); });
   hit.addEventListener("click", ev => { const t = toT(ev); pinned = pinned == null ? t : null; select(t); });
-  hit.addEventListener("mouseleave", () => { if (pinned == null) cursors.forEach(c => c.setAttribute("visibility", "hidden")); });
+  hit.addEventListener("mouseleave", () => { if (pinned == null) cursors().forEach(cur => cur.setAttribute("visibility", "hidden")); });
 }
 
-function lines(title, get, keys, unit, H = 170) {
-  const svg = frame(title, keys, H);
-  let max = 0; rows.forEach(r => keys.forEach(k => { const v = get(r, k); if (v != null) max = Math.max(max, v); }));
-  const y = axes(svg, H, niceMax(max * 1.05), unit);
-  const ends = [];
-  keys.forEach(k => {
-    let d = "", pen = false;
-    rows.forEach(r => { const v = get(r, k); if (v == null) { pen = false; return; }
-      d += (pen ? "L" : "M") + x(r.t).toFixed(1) + "," + y(v).toFixed(1); pen = true; });
-    el("path", { d, fill: "none", stroke: color(k), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-    const last = [...rows].reverse().find(r => get(r, k) != null);
-    if (last) ends.push({ k, y: y(get(last, k)) });
-  });
-  // Line ends carry the game icon, so identity never relies on color alone.
-  ends.sort((a, b) => a.y - b.y).forEach((e, i, a) => { if (i && e.y - a[i - 1].y < 16) e.y = a[i - 1].y + 16; });
-  ends.forEach(e => { if (ICON[iconOf(e.k)]) el("image", { href: ICON[iconOf(e.k)], x: W - PAD.r + 6, y: e.y - 8, width: 16, height: 16 }, svg); });
-  hover(svg, H);
+function drawLines(get, unit) {
+  return (c, keys) => {
+    let max = 0; rows.forEach(r => keys.forEach(k => { const v = get(r, k); if (v != null) max = Math.max(max, v); }));
+    const y = axes(c, niceMax(max), unit);
+    const ends = [];
+    keys.forEach(k => {
+      let d = "", pen = false;
+      rows.forEach(r => { const v = get(r, k); if (v == null) { pen = false; return; }
+        d += (pen ? "L" : "M") + x(r.t).toFixed(1) + "," + y(v).toFixed(1); pen = true; });
+      el("path", { d, fill: "none", stroke: color(k), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, c.svg);
+      const last = [...rows].reverse().find(r => get(r, k) != null);
+      if (last) ends.push({ k, y: y(get(last, k)) });
+    });
+    // Line ends carry the game icon, so identity never relies on color alone.
+    ends.sort((a, b) => a.y - b.y).forEach((e, i, a) => { if (i && e.y - a[i - 1].y < 16) e.y = a[i - 1].y + 16; });
+    ends.forEach(e => { if (ICON[iconOf(e.k)]) el("image", { href: ICON[iconOf(e.k)], x: W - PAD.r + 6, y: e.y - 8, width: 16, height: 16 }, c.svg); });
+  };
 }
 
-function stacked(title, keys, H = 190) {
-  const svg = frame(title, keys, H);
+function drawStacked(c, keys) {
   const val = (r, k) => (k === "idle" ? r.idle : r.vil[k]) || 0;
   const tot = r => keys.reduce((s, k) => s + val(r, k), 0);
-  const y = axes(svg, H, niceMax(Math.max(1, ...rows.map(tot)) * 1.05), "");
+  const y = axes(c, niceMax(Math.max(1, ...rows.map(tot))), "");
   let base = rows.map(() => 0);
   keys.forEach(k => {
     const top = rows.map((r, i) => base[i] + val(r, k));
     let d = rows.map((r, i) => (i ? "L" : "M") + x(r.t).toFixed(1) + "," + y(top[i]).toFixed(1)).join("");
     d += rows.slice().reverse().map((r, j) => "L" + x(r.t).toFixed(1) + "," + y(base[rows.length - 1 - j]).toFixed(1)).join("") + "Z";
-    el("path", { d, fill: color(k), stroke: "var(--panel)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    el("path", { d, fill: color(k), stroke: "var(--panel)", "stroke-width": 2, "stroke-linejoin": "round" }, c.svg);
     base = top;
   });
-  hover(svg, H);
 }
 
-function population(H = 150) {
-  const svg = frame("Population and cap", [], H);
-  const y = axes(svg, H, niceMax(Math.max(10, ...rows.map(r => r.cap || 0)) * 1.05), "");
+function drawPopulation(c) {
+  const y = axes(c, niceMax(Math.max(10, ...rows.map(r => r.cap || 0))), "");
   const path = key => rows.filter(r => r[key] != null).map((r, i) => (i ? "L" : "M") + x(r.t).toFixed(1) + "," + y(r[key]).toFixed(1)).join("");
-  el("path", { d: path("cap"), fill: "none", stroke: "var(--gold-dim)", "stroke-width": 2, "stroke-dasharray": "5 4" }, svg);
-  el("path", { d: path("pop"), fill: "none", stroke: "var(--ink)", "stroke-width": 2 }, svg);
+  el("path", { d: path("cap"), fill: "none", stroke: "var(--gold-dim)", "stroke-width": 2, "stroke-dasharray": "5 4" }, c.svg);
+  el("path", { d: path("pop"), fill: "none", stroke: "var(--ink)", "stroke-width": 2 }, c.svg);
   const last = [...rows].reverse().find(r => r.pop != null);
-  if (last) { el("text", { x: W - PAD.r + 6, y: y(last.pop) + 12, style: "fill:var(--ink-2)" }, svg).textContent = "pop";
-              el("text", { x: W - PAD.r + 6, y: y(last.cap) - 4, style: "fill:var(--gold)" }, svg).textContent = "cap"; }
-  hover(svg, H);
+  if (last) { el("text", { x: W - PAD.r + 6, y: y(last.pop) + 12, style: "fill:var(--ink-2)" }, c.svg).textContent = "pop";
+              el("text", { x: W - PAD.r + 6, y: y(last.cap) - 4, style: "fill:var(--gold)" }, c.svg).textContent = "cap"; }
 }
 
-function alertLanes() {
-  const names = { housed: "Housed", tc_idle: "TC idle", idle_villager: "Idle villagers", floating: "Floating" };
-  const ids = Object.keys(names), lane = 18, H = PAD.t + ids.length * (lane + 6) + PAD.b;
-  const card = document.createElement("div"); card.className = "chart";
-  card.innerHTML = `<header><h2>Alerts</h2><div class="legend">
-    <span title="info"><i style="background:var(--status-info)"></i></span>
-    <span title="warn"><i style="background:var(--status-warn)"></i></span>
-    <span title="critical"><i style="background:var(--status-critical)"></i></span></div></header>`;
-  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Alert timeline" }, card);
-  document.getElementById("charts").appendChild(card);
-  ids.forEach((id, i) => {
+const LANES = { housed: "Housed", tc_idle: "TC idle", idle_villager: "Idle villagers", floating: "Floating" };
+function drawLanes(c) {
+  const lane = 18;
+  Object.keys(LANES).forEach((id, i) => {
     const yy = PAD.t + i * (lane + 6);
-    el("text", { x: PAD.l - 8, y: yy + 13, "text-anchor": "end" }, svg).textContent = names[id];
-    el("rect", { x: PAD.l, y: yy, width: W - PAD.l - PAD.r, height: lane, fill: "var(--panel-2)", rx: 2 }, svg);
+    el("text", { x: PAD.l - 8, y: yy + 13, "text-anchor": "end" }, c.svg).textContent = LANES[id];
+    el("rect", { x: PAD.l, y: yy, width: W - PAD.l - PAD.r, height: lane, fill: "var(--panel-2)", rx: 2 }, c.svg);
     D.alerts.filter(a => a.id === id).forEach(a => {
       const r = el("rect", { x: x(a.start), y: yy, width: Math.max(2, x(a.end) - x(a.start) - 2), height: lane, rx: 2,
-        fill: `var(--status-${a.severity})` }, svg);
+        fill: `var(--status-${a.severity})` }, c.svg);
       el("title", {}, r).textContent = `${a.text} (${fmt(a.start)}–${fmt(a.end)})`;
     });
   });
-  hover(svg, H);
+}
+
+function placeCursors(t) {
+  cursors().forEach(cur => { cur.setAttribute("x1", x(t)); cur.setAttribute("x2", x(t)); cur.setAttribute("visibility", "visible"); });
 }
 
 function select(t) {
   if (!rows.length) return;
   const r = rows.reduce((b, q) => Math.abs(q.t - t) < Math.abs(b.t - t) ? q : b);
-  cursors.forEach(c => { c.setAttribute("x1", x(r.t)); c.setAttribute("x2", x(r.t)); c.setAttribute("visibility", "visible"); });
+  lastT = r.t;
+  placeCursors(r.t);
   document.getElementById("sel-hint").textContent = pinned != null ? "Click a chart again to unpin." : "Click to pin this moment.";
   const v = n => n == null ? "–" : n;
-  const active = D.alerts.filter(a => a.start <= r.t && r.t < a.end);
+  // An alert still open when the log ends has end == t1: include that last moment.
+  const active = D.alerts.filter(a => a.start <= r.t && (r.t < a.end || (a.end === t1 && r.t === t1)));
   const sev = id => (active.find(a => a.id === id) || {}).severity || "";
   const tc = r.producing == null ? "" : r.producing
     ? `<span class="chip quiet">TC producing</span>` : `<span class="chip ${sev("tc_idle")}">TC idle</span>`;
@@ -450,11 +485,11 @@ function select(t) {
 }
 
 if (rows.length) {
-  stacked("Villagers per resource", ORDER);
-  lines("Income per minute", (r, k) => r.inc[k], RES, "/min");
-  lines("Stockpile", (r, k) => r.res[k], RES, "");
-  population();
-  alertLanes();
+  chart("Villagers per resource", ORDER, 190, drawStacked);
+  chart("Income per minute", RES, 170, drawLines((r, k) => r.inc[k], "/min"));
+  chart("Stockpile", RES, 170, drawLines((r, k) => r.res[k], ""));
+  chart("Population and cap", [], 150, drawPopulation);
+  chart("Alerts", [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes);
   select(t1);
 }
 </script>
