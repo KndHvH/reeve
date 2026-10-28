@@ -26,6 +26,7 @@ MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida
 HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
 DIM_RATIO = 0.7      # âncora abaixo de 70% do brilho normal = tela escurecida (menu)
 SHAPE_RATIO = 0.85   # forma da âncora abaixo de 85% da calibração = painel coberto/esmaecendo
+RECAL_EVERY = 3      # com o painel sumido, procura de novo a cada 3 ciclos (escala da UI mudou?)
 
 
 @dataclass
@@ -111,6 +112,18 @@ class LiveReader:
             if self.hidden == 0:
                 self._write({"event": "painel_oculto", "forma": round(shape, 3), "brilho": round(rel, 2)})
             self.hidden += 1
+            # Painel "sumido" pode ser só a escala da UI que mudou nas opções
+            # (a janela não muda de tamanho): procura de novo de tempos em tempos
+            # e, se achar em outro lugar/escala, segue na mesma partida.
+            if self.hidden % RECAL_EVERY == 0:
+                new = self.cap.probe(win)
+                moved = abs(new.scale - match.scale) > 0.01 * match.scale or abs(new.x - match.x) + abs(new.y - match.y) > 2
+                if new.ok and moved:
+                    self.cap.adopt(new, win)
+                    self.match, self.hidden, self.ref_bright = new, 0, 0.0
+                    self._write({"event": "recalibrado", "anchor": [new.x, new.y, round(new.scale, 3), round(new.score, 3)]})
+                    events.append(f"painel mudou: recalibrado (escala {new.scale:.3f})")
+                    return Step("oculto", win, new, grab_ms=grab_ms, shape=shape, brightness=rel, events=events)
             if self.hidden * self.every >= HIDDEN_END_S:
                 self.close(events)
                 self.match, self.hidden = None, 0

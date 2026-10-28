@@ -26,11 +26,18 @@ class Capture:
         return np.asarray(shot)[..., 2::-1]  # BGRA → RGB
 
     def calibrate(self, win: GameWindow) -> AnchorMatch:
-        frame = self.full(win)
-        match = detect(to_gray(frame))
-        self.buf = np.zeros_like(frame)
-        self.rects = _union_rects(match, win, frame.shape)
+        match = self.probe(win)
+        self.adopt(match, win)
         return match
+
+    def probe(self, win: GameWindow) -> AnchorMatch:
+        """Procura a âncora na tela inteira sem mudar o que é capturado."""
+        return detect(to_gray(self.full(win)))
+
+    def adopt(self, match: AnchorMatch, win: GameWindow) -> None:
+        """Passa a capturar as regiões de `match`."""
+        self.buf = np.zeros((win.height, win.width, 3), np.uint8)
+        self.rects = _union_rects(match, win, self.buf.shape)
 
     def grab(self, win: GameWindow) -> np.ndarray:
         """Copia só as regiões calibradas para o buffer e devolve o buffer."""
