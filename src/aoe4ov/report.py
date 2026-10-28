@@ -575,10 +575,10 @@ function select(t) {
 }
 
 if (rows.length) {
-  chart("Villagers per resource", ORDER, 190, drawStacked);
-  chart("Income per minute", RES, 170, drawLines((r, k) => r.inc[k], "/min"));
-  chart("Stockpile", RES, 170, drawLines((r, k) => r.res[k], ""));
-  chart("Population and cap", [], 150, drawPopulation);
+  chart("Villagers per resource", ORDER, 228, drawStacked);
+  chart("Income per minute", RES, 204, drawLines((r, k) => r.inc[k], "/min"));
+  chart("Stockpile", RES, 204, drawLines((r, k) => r.res[k], ""));
+  chart("Population and cap", [], 180, drawPopulation);
   chart("Alerts", [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes, false);
   select(t1);
 }
