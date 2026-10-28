@@ -131,7 +131,7 @@ def cmd_overlay(args) -> int:
 
     print(f"{'Debug' if args.debug else 'Clean'} overlay active. Ctrl+C here to quit.")
     try:
-        run(args.every, args.debug)
+        run(args.every, args.debug, args.mute)
     except KeyboardInterrupt:
         pass
     return 0
@@ -171,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
 
     o = sub.add_parser("overlay", help="overlay on top of the game: alerts (default) or --debug view")
     o.add_argument("--debug", action="store_true", help="show detection, values, confidence, timings, RAM/CPU")
+    o.add_argument("--mute", action="store_true", help="no alert sounds")
     o.add_argument("--every", type=float, default=2.0, help="seconds between readings (default 2)")
 
     rp = sub.add_parser("replay", help="replay a recorded session through the alert rules")

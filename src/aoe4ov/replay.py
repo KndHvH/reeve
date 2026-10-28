@@ -37,12 +37,14 @@ def replay(log_path: Path, config: dict | None = None) -> list[str]:
         reads += 1
         for tr in engine.evaluate(state, wall):
             a = tr.alert
+            if tr.kind == "off":
+                lines.append(f"{_fmt_clock(state.clock)}  off     {a.id}")
+                continue
             if tr.kind == "on":
                 on_count[a.id] = on_count.get(a.id, 0) + 1
-                reason = ", ".join(f"{k}={v}" for k, v in a.reason.items() if k != "clock")
-                lines.append(f"{_fmt_clock(state.clock)}  ON   {a.id:14s} {a.text}  ({reason})")
-            else:
-                lines.append(f"{_fmt_clock(state.clock)}  off  {a.id}")
+            reason = ", ".join(f"{k}={v}" for k, v in a.reason.items() if k != "clock")
+            label = "ON" if tr.kind == "on" else "->"
+            lines.append(f"{_fmt_clock(state.clock)}  {label:2s} {a.severity:8s} {a.id:14s} {a.text}  ({reason})")
     summary = ", ".join(f"{k} x{v}" for k, v in sorted(on_count.items())) or "no alerts"
     lines.append(f"{reads} readings replayed; alerts fired: {summary}")
     return lines

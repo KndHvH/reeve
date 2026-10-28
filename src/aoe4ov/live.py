@@ -172,8 +172,8 @@ class LiveReader:
         })
         for tr in transitions:
             a = tr.alert
-            self._write({"event": f"alert_{tr.kind}", "id": a.id, "text": a.text, "reason": a.reason})
-            events.append(f"alert {tr.kind}: {a.text}" if tr.kind == "on" else f"alert off: {a.id}")
+            self._write({"event": f"alert_{tr.kind}", "id": a.id, "severity": a.severity, "text": a.text, "reason": a.reason})
+            events.append(f"alert off: {a.id}" if tr.kind == "off" else f"alert {tr.kind} [{a.severity}]: {a.text}")
         if bad and self.saved_fails < MAX_FAIL_SHOTS:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"fail_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")

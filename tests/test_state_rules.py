@@ -2,9 +2,9 @@ from aoe4ov.rules import RuleEngine
 from aoe4ov.state import StateTracker
 
 CFG = {
-    "idle_villager": {"enabled": True, "min_idle": 1, "persist_s": 4},
-    "tc_idle": {"enabled": True, "persist_s": 6},
-    "housed": {"enabled": True, "margin": 1, "max_pop": 200},
+    "idle_villager": {"enabled": True, "persist_s": 4, "warn_at": 1, "critical_at": 3},
+    "tc_idle": {"enabled": True, "persist_s": 6, "critical_after_s": 10},
+    "housed": {"enabled": True, "warn_ratio": 0.8, "critical_ratio": 0.9, "max_pop": 200},
     "floating": {"enabled": True, "persist_s": 6,
                  "bands": [{"until_s": 300, "max": 400}, {"until_s": 900, "max": 800}, {"until_s": None, "max": 1500}]},
 }
@@ -19,7 +19,8 @@ def _values(clock, pop=(20, 30), idle=0, producing=True, food=100, wood=100, gol
 
 
 def _run(seq, every=2.0):
-    """Feeds readings every `every` seconds; returns (states, alert ids active after each step, transitions)."""
+    """Feeds readings every `every` seconds; returns (states, {alert id: severity}
+    active after each step, transitions)."""
     tracker, engine = StateTracker(), RuleEngine(config=CFG)
     states, active, log = [], [], []
     for i, v in enumerate(seq):
@@ -27,7 +28,7 @@ def _run(seq, every=2.0):
         s = tracker.update(v, wall)
         log += [(i, tr.kind, tr.alert.id) for tr in engine.evaluate(s, wall)]
         states.append(s)
-        active.append({a.id for a in engine.alerts()})
+        active.append({a.id: a.severity for a in engine.alerts()})
     return states, active, log
 
 
@@ -82,11 +83,15 @@ def test_tc_idle_fires_but_not_when_housed():
     assert "housed" in active[-1]
 
 
-def test_housed_warns_one_before_cap_and_ignores_max_pop():
-    _, active, _ = _run([_values(100 + 2 * i, pop=(29, 30)) for i in range(3)])
-    assert "housed" in active[-1]
-    _, active, _ = _run([_values(100 + 2 * i, pop=(199, 200)) for i in range(3)])
-    assert "housed" not in active[-1]
+def test_housed_levels_by_population_ratio():
+    def sev(pop):
+        _, active, _ = _run([_values(100 + 2 * i, pop=pop, producing=True) for i in range(3)])
+        return active[-1].get("housed")
+    assert sev((15, 20)) is None            # 75%
+    assert sev((16, 20)) == "warn"          # 80%
+    assert sev((18, 20)) == "critical"      # 90%
+    assert sev((20, 20)) == "critical"      # at the cap
+    assert sev((199, 200)) is None          # max population: nothing to build
 
 
 def test_floating_threshold_depends_on_game_time():
@@ -96,3 +101,65 @@ def test_floating_threshold_depends_on_game_time():
     mid = [_values(600 + 2 * i, food=500) for i in range(5)]
     _, active, _ = _run(mid)
     assert "floating" not in active[-1]      # limit is 800 between 5:00 and 15:00
+
+
+def test_idle_villager_levels():
+    def sev(n):
+        _, active, _ = _run([_values(100 + 2 * i, idle=n) for i in range(6)])
+        return active[-1].get("idle_villager")
+    assert sev(0) is None
+    assert sev(1) == "warn" and sev(2) == "warn"
+    assert sev(3) == "critical"
+
+
+def test_tc_idle_escalates_after_10_seconds():
+    seq = [_values(100 + 2 * i, producing=False) for i in range(10)]
+    _, active, log = _run(seq)
+    levels = [a.get("tc_idle") for a in active]
+    first_warn = levels.index("warn")
+    first_crit = levels.index("critical")
+    assert 2 * (first_crit - first_warn) == 4   # 6 s -> 10 s of holding
+    assert any(k == "change" and a == "tc_idle" for _, k, a in log)
+
+
+def test_floating_escalates_within_the_same_phase():
+    def sev(clock, food):
+        _, active, _ = _run([_values(clock + 2 * i, food=food) for i in range(5)])
+        return active[-1].get("floating")
+    assert sev(200, 450) == "info"        # > 400 before 5:00
+    assert sev(200, 900) == "warn"        # already above the 5:00-15:00 limit
+    assert sev(200, 1600) == "critical"   # above the late-game limit
+    assert sev(600, 900) == "info"        # > 800 between 5:00 and 15:00
+    assert sev(600, 1600) == "warn"
+    assert sev(1000, 1600) == "info"      # late game: only the last band
+
+
+def test_sound_plays_on_new_escalation_and_repeat_only():
+    from aoe4ov.rules import Alert
+    from aoe4ov.sound import AlertSounds
+
+    played = []
+    snd = AlertSounds({"enabled": True, "repeat_s": 5}, play=lambda path: played.append(path.stem))
+    w = Alert("tc_idle", "warn", "", {})
+    c = Alert("tc_idle", "critical", "", {})
+    i = Alert("floating", "info", "", {})
+    assert snd.update([i], 0) is None               # info is silent
+    assert snd.update([w, i], 0) == "warn"          # new warn
+    assert snd.update([w], 2) is None               # within repeat window
+    assert snd.update([c], 4) == "critical"         # escalation plays at once
+    assert snd.update([c], 6) is None
+    assert snd.update([c], 9) == "critical"         # repeat after 5 s
+    assert snd.update([], 10) is None               # resolved: silence
+    assert played == ["warn", "critical", "critical"]
+
+
+def test_sound_plays_once_for_simultaneous_alerts():
+    from aoe4ov.rules import Alert
+    from aoe4ov.sound import AlertSounds
+
+    played = []
+    snd = AlertSounds({"repeat_s": 5}, play=lambda path: played.append(path.stem))
+    alerts = [Alert("housed", "critical", "", {}), Alert("idle_villager", "warn", "", {})]
+    assert snd.update(alerts, 0) == "critical"
+    assert snd.update(alerts, 2) is None
+    assert played == ["critical"]

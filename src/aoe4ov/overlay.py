@@ -19,11 +19,13 @@ Two modes share the same window and engine:
 from __future__ import annotations
 
 import ctypes
+import time
 import tkinter as tk
 
 from .digits import MIN_SCORE
 from .live import LiveReader, Step
 from .rules import Alert
+from .sound import AlertSounds
 from .metrics import CpuMeter, ram_mb
 
 KEY = "#010203"  # color treated as transparent
@@ -39,7 +41,7 @@ WDA_EXCLUDEFROMCAPTURE = 0x11
 user32 = ctypes.windll.user32
 
 
-SEVERITY_COLOR = {"danger": BAD, "warn": WARN, "info": ACCENT}
+SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
 
 
 def _conf_color(c: float) -> str:
@@ -49,9 +51,13 @@ def _conf_color(c: float) -> str:
 class Overlay:
     """Window, engine loop and alert cards shared by both modes."""
 
-    def __init__(self, every: float):
+    def __init__(self, every: float, mute: bool = False):
         self.every = every
         self.live = LiveReader(every)
+        sound_cfg = dict(self.live.rules.config.get("sound", {}))
+        if mute:
+            sound_cfg["enabled"] = False
+        self.sounds = AlertSounds(sound_cfg)
         self.cpu = CpuMeter()
         self.root = tk.Tk()
         self.root.overrideredirect(True)
@@ -87,6 +93,8 @@ class Overlay:
                 self.geom = g
             self.root.deiconify()
             self.draw(s)
+        # Sounds follow what is on screen: nothing while in a menu or alt-tabbed.
+        self.sounds.update(s.alerts if s.status == "reading" else [], time.monotonic())
         self.root.after(int(self.every * 1000), self.tick)
 
     def run(self):
@@ -117,13 +125,13 @@ class Overlay:
 class CleanOverlay(Overlay):
     """Only the alerts. Redraws only when they change."""
 
-    def __init__(self, every: float):
+    def __init__(self, every: float, mute: bool = False):
         self._shown = None
-        super().__init__(every)
+        super().__init__(every, mute)
 
     def draw(self, s: Step):
         alerts = s.alerts if s.status == "reading" else []
-        sig = (tuple((a.id, a.text) for a in alerts), self.geom)
+        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom)
         if sig == self._shown:
             return
         self._shown = sig
@@ -234,5 +242,5 @@ class DebugOverlay(Overlay):
         return y0 + height
 
 
-def run(every: float, debug: bool = False) -> None:
-    (DebugOverlay if debug else CleanOverlay)(every).run()
+def run(every: float, debug: bool = False, mute: bool = False) -> None:
+    (DebugOverlay if debug else CleanOverlay)(every, mute).run()
