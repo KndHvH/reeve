@@ -106,11 +106,13 @@ def cmd_watch(args) -> int:
                 match = cap.calibrate(win)
                 size = (win.width, win.height)
                 fails = 0
-                print(f"[âncora] score {match.score:.3f} escala {match.scale:.3f} em ({match.x},{match.y})".ljust(100))
                 if not match.ok:
+                    # Menu, tela de carregamento ou fim de partida: sem painel na tela.
+                    print(f"  aguardando partida (painel não encontrado, score {match.score:.2f})...".ljust(100), end="\r")
                     match = None
                     time.sleep(args.every)
                     continue
+                print(f"[partida] painel encontrado: score {match.score:.3f} escala {match.scale:.3f}".ljust(100))
             t0 = time.perf_counter()
             f = read_frame(cap.grab(win), match)
             dt = (time.perf_counter() - t0) * 1000
