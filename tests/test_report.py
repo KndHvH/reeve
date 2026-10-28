@@ -31,8 +31,10 @@ def test_timeline_and_summary(tmp_path):
     tc = [a for a in tl["alerts"] if a["id"] == "tc_idle"]
     assert tc and tc[0]["start"] >= 40 and tc[0]["end"] <= 54
     assert tl["rows"][-1]["inc"]["food"] > 0
-    summary = dict(summarize(tl))
-    assert summary["Town center idle"] != "00:00"
+    summary = summarize(tl)
+    tc = next(p for p in summary["problems"] if p["id"] == "tc_idle")
+    assert tc["seconds"] > 0 and tc["severity"] == "warn"
+    assert summary["income"]["food"] > 0
 
 
 def test_report_is_self_contained_html(tmp_path):
