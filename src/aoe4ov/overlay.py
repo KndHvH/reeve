@@ -22,6 +22,9 @@ import ctypes
 import time
 import tkinter as tk
 import traceback
+from pathlib import Path
+
+from PIL import Image, ImageTk
 
 from . import __version__
 from .digits import MIN_SCORE
@@ -31,9 +34,14 @@ from .sound import AlertSounds
 from .metrics import CpuMeter, ram_mb
 
 KEY = "#010203"  # color treated as transparent
-BG, CARD, FG, MUTED = "#0f1115", "#14171d", "#e6e6e6", "#8b93a1"
-GOOD, WARN, BAD, ACCENT = "#3ddc84", "#f5c542", "#ff5c5c", "#4da3ff"
+# Same visual language as the post-match report: night-blue panels, gold
+# rules, parchment text, a classic serif for the alert text.
+CARD, RULE, FG, MUTED = "#151c25", "#263140", "#ece4d0", "#98a0a8"
+GOLD, GOLD_DIM, GOLD_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
+GOOD, WARN, BAD, ACCENT = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
 FONT = "Segoe UI"
+SERIF = "Palatino Linotype"
+ICONS = Path(__file__).resolve().parents[2] / "assets" / "report_icons"
 
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT = 0x80000, 0x20
@@ -44,6 +52,15 @@ user32 = ctypes.windll.user32
 
 
 SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
+
+
+def _alert_icon(a: Alert) -> str:
+    """Game icon shown on an alert card."""
+    if a.id == "housed":
+        return "pop"
+    if a.id == "floating":
+        return next(iter(a.reason.get("over", {})), "gold")
+    return "villager"
 
 
 def _status_color(s: Step | None) -> str:
@@ -86,6 +103,7 @@ class Overlay:
         self.excluded = self._win32_setup()
         self.geom = None
         self.last_events: list[str] = []
+        self._icon_cache: dict[tuple[str, int], ImageTk.PhotoImage] = {}
         self.root.after(100, self.tick)
 
     def _win32_setup(self) -> bool:
@@ -148,19 +166,39 @@ class Overlay:
         c.create_oval(x + 1, cy - r, x + 1 + 2 * r, cy + r, fill=color, outline="")
         c.tag_lower(bg, t)
 
+    def _icon(self, name: str, height: int) -> ImageTk.PhotoImage | None:
+        """Game icon scaled to `height` px (cached; transparent edges blend with the card)."""
+        key = (name, height)
+        if key not in self._icon_cache:
+            path = ICONS / f"{name}.png"
+            if not path.exists():
+                return None
+            im = Image.open(path).convert("RGBA")
+            w = max(1, round(im.width * height / im.height))
+            self._icon_cache[key] = ImageTk.PhotoImage(im.resize((w, height), Image.LANCZOS))
+        return self._icon_cache[key]
+
     def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
-        """One card per alert, stacked downwards from (x0, y0)."""
+        """One card per alert, stacked downwards from (x0, y0): severity bar,
+        game icon and the alert text, framed in gold like the report."""
         c = self.canvas
-        pad, gap = round(8 * k), round(6 * k)
+        pad, gap, bar_w = round(8 * k), round(6 * k), round(4 * k)
+        icon_h = round((fs + 2) * 1.9)
         y = y0
         for a in alerts:
-            t = c.create_text(x0 + pad + round(6 * k), y + pad, text=a.text, fill=FG, anchor="nw",
-                              font=(FONT, fs + 2, "bold"))
-            _, _, x1, y1 = c.bbox(t)
-            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline="#262b33")
-            bar = c.create_rectangle(x0, y, x0 + round(4 * k), y1 + pad, fill=SEVERITY_COLOR[a.severity], outline="")
-            c.tag_lower(bar, t)
-            c.tag_lower(card, bar)
+            icon = self._icon(_alert_icon(a), icon_h)
+            tx = x0 + bar_w + pad
+            if icon is not None:
+                c.create_image(tx, y + pad, image=icon, anchor="nw")
+                tx += icon.width() + round(6 * k)
+            t = c.create_text(tx, y + pad + icon_h // 2, text=a.text, fill=FG, anchor="w",
+                              font=(SERIF, fs + 2, "bold"))
+            _, _, x1, _ = c.bbox(t)
+            y1 = y + pad + icon_h
+            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline=GOLD_DIM)
+            bar = c.create_rectangle(x0 + 1, y + 1, x0 + bar_w, y1 + pad, fill=SEVERITY_COLOR[a.severity], outline="")
+            c.tag_lower(bar)
+            c.tag_lower(card)
             y = y1 + pad + gap
 
 
@@ -284,11 +322,11 @@ class DebugOverlay(Overlay):
         pad, lh = round(10 * k), round(fs * 1.9)
         width = round(fs * 34)
         height = pad * 2 + lh * len(lines)
-        c.create_rectangle(x0, y0, x0 + width, y0 + height, fill=CARD, outline="#262b33")
-        c.create_rectangle(x0, y0, x0 + 3, y0 + height, fill=ACCENT, outline="")
+        c.create_rectangle(x0, y0, x0 + width, y0 + height, fill=CARD, outline=GOLD_DIM)
+        c.create_rectangle(x0 + 1, y0 + 1, x0 + 3, y0 + height, fill=GOLD, outline="")
         for i, (text, color, bold) in enumerate(lines):
-            c.create_text(x0 + pad + 4, y0 + pad + i * lh + lh // 2, text=text, fill=color, anchor="w",
-                          font=(FONT, fs + (1 if bold else 0), "bold" if bold else "normal"))
+            c.create_text(x0 + pad + 4, y0 + pad + i * lh + lh // 2, text=text, fill=GOLD_LIGHT if bold else color,
+                          anchor="w", font=(SERIF, fs + 2, "bold") if bold else (FONT, fs))
         return y0 + height
 
 
