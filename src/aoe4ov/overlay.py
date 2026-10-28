@@ -100,10 +100,9 @@ class DebugOverlay:
 
     def _draw_detection(self, s: Step, k: float, fs: int):
         c, f, m = self.canvas, s.frame, s.match
-        from .anchor import _template
+        from .anchor import template_box
 
-        tpl = _template()
-        self._box(m.x, m.y, round(tpl.width * m.scale), round(tpl.height * m.scale), GOOD, 2)
+        self._box(*template_box(m), GOOD, 2)
 
         for name, (x, y, w, h) in f.rois.items():
             r = f.readings[name]

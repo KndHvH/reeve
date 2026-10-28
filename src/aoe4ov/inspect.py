@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .anchor import _template, detect, to_gray
+from .anchor import detect, template_box, to_gray
 from .digits import MIN_SCORE
 from .reader import _clock_y_hint, read_frame
 
@@ -51,10 +51,9 @@ def build(path: Path) -> str:
     f = read_frame(rgb, m)
     t_read = (time.perf_counter() - t0) * 1000
 
-    tpl = _template()
-    aw, ah = round(tpl.width * m.scale), round(tpl.height * m.scale)
+    tx, ty, aw, ah = template_box(m)
     acolor = GOOD if m.ok else BAD
-    rects = [f'<rect x="{m.x}" y="{m.y}" width="{aw}" height="{ah}" fill="none" stroke="{acolor}" stroke-width="2"/>']
+    rects = [f'<rect x="{tx}" y="{ty}" width="{aw}" height="{ah}" fill="none" stroke="{acolor}" stroke-width="2"/>']
 
     rows = []
     for name, (x, y, w, h) in f.rois.items():

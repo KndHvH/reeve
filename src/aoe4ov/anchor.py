@@ -47,6 +47,19 @@ def _template() -> Image.Image:
     return Image.open(ASSETS / load_layout()["anchor"]["template"]).convert("L")
 
 
+def _offset(scale: float) -> tuple[int, int]:
+    """Deslocamento do template em relação à origem da âncora, em pixels."""
+    ox, oy = load_layout()["anchor"].get("template_offset", [0, 0])
+    return round(ox * scale), round(oy * scale)
+
+
+def template_box(match: "AnchorMatch") -> tuple[int, int, int, int]:
+    """Onde o template da âncora está na imagem (x, y, w, h)."""
+    tpl = _template()
+    ox, oy = _offset(match.scale)
+    return match.x + ox, match.y + oy, round(tpl.width * match.scale), round(tpl.height * match.scale)
+
+
 def to_gray(rgb: np.ndarray) -> np.ndarray:
     return rgb[..., :3].astype(np.float32).mean(axis=2)
 
@@ -146,7 +159,8 @@ def detect(gray: np.ndarray) -> AnchorMatch:
     win = region[cy0:gy + th + pad, cx0:gx + tw + pad]
     fm = _Matcher(win, (th, tw))
     score, ix, iy, s = _best(fm, scale * (1 + np.arange(-err, err + 1e-9, FINE_STEP / 2)))
-    return AnchorMatch(x=cx0 + ix, y=y0 + cy0 + iy, scale=s, score=score)
+    ox, oy = _offset(s)
+    return AnchorMatch(x=cx0 + ix - ox, y=y0 + cy0 + iy - oy, scale=s, score=score)
 
 
 def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[float, float]:
@@ -158,8 +172,9 @@ def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[fl
     """
     t = _resized_template(match.scale)
     th, tw = t.shape
-    y0, x0 = max(0, match.y - slack), max(0, match.x - slack)
-    win = to_gray(rgb[y0:match.y + th + slack, x0:match.x + tw + slack])
+    tx, ty, _, _ = template_box(match)
+    y0, x0 = max(0, ty - slack), max(0, tx - slack)
+    win = to_gray(rgb[y0:ty + th + slack, x0:tx + tw + slack])
     if win.shape[0] < th or win.shape[1] < tw:
         return 0.0, 0.0
     return float(_Matcher(win, (th, tw)).ncc(t).max()), float(win.mean())
