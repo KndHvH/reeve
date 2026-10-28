@@ -57,3 +57,18 @@ def test_clock_moved_down_is_still_found():
 )
 def test_clock_seconds(digits, secs):
     assert clock_seconds(digits) == secs
+
+
+@pytest.mark.parametrize("tint", [(1.0, 0.85, 0.2), (1.0, 0.25, 0.2)], ids=["amarelo", "vermelho"])
+def test_pop_colored_near_cap(tint):
+    """A população fica amarela perto do limite e vermelha no limite."""
+    from aoe4ov.anchor import detect, project_rois, to_gray
+
+    png, label = FIXTURES[0]
+    rgb = _rgb(png).astype(np.float32)
+    m = detect(to_gray(rgb))
+    x, y, w, h = project_rois(m, rgb.shape[1])["pop"]
+    rgb[y:y + h, x:x + w] *= np.array(tint, np.float32)
+    f = read_frame(rgb.astype(np.uint8), m)
+    a, b = label["pop"].split("/")
+    assert f.values["pop"] == (int(a), int(b))

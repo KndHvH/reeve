@@ -66,3 +66,15 @@ def test_rejects_non_game_screen():
     """Captura com outra janela por cima (navegador): confiança tem que ficar baixa."""
     m = detect(_gray(Image.open(FIX / "neg_not_game.png")))
     assert not m.ok
+
+
+def test_panel_visible_drops_when_panel_hidden():
+    """Menu/pausa escondem ou escurecem o painel: a checagem barata tem que perceber."""
+    from aoe4ov.anchor import panel_visible
+
+    rgb = np.asarray(Image.open(SHOTS[0]).convert("RGB"))
+    m = detect(to_gray(rgb))
+    assert panel_visible(rgb, m) > 0.9
+    menu = rgb.copy()
+    menu[m.y - 10:, :200] = 40  # painel coberto
+    assert panel_visible(menu, m) < 0.7

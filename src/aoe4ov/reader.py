@@ -13,11 +13,12 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .anchor import AnchorMatch, detect, project_rois, to_gray
-from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask_local
+from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask, text_mask_local
 from .production import Production, detect_villager_in
 from .production import region as production_region
 
 CLOCK_HINT_CONF = 0.85  # na posição do cache, aceita direto acima disso
+COLORED_FIELDS = {"pop"}  # amarela perto do limite, vermelha no limite
 PANEL_FIELDS = ["pop", "idle", "food", "wood", "gold", "stone", "vil_food", "vil_wood", "vil_gold", "vil_stone"]
 
 
@@ -70,7 +71,7 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
 
     def at(y0: int) -> Reading | None:
         sl = slice(y0, y0 + band_h)
-        r = read(rgb[sl], scale, bank, pre=(gray[sl], mask[sl]))
+        r = read(rgb[sl], scale, bank, pre=(gray[sl], mask[sl]), trim_edges=True)
         if not r.glyphs:
             return None
         tops = Counter(g.y for g in r.glyphs).most_common(1)[0][0]
@@ -115,7 +116,12 @@ def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBan
     f.values["producing_villager"] = f.production.villager
     for name, (x, y, w, h) in rois.items():
         crop = rgb[y:y + h, x:x + w]
-        r = read_clock(crop, match.scale, bank) if name == "clock" else read(crop, match.scale, bank)
+        if name == "clock":
+            r = read_clock(crop, match.scale, bank)
+        elif name in COLORED_FIELDS:
+            r = read(crop, match.scale, bank, pre=text_mask(crop, colored=True))
+        else:
+            r = read(crop, match.scale, bank)
         f.readings[name] = r
         f.values[name] = parse(name, r.text) if r.ok else None
     return f

@@ -66,11 +66,17 @@ class Reading:
         return bool(self.glyphs) and self.conf >= MIN_SCORE
 
 
-def text_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def text_mask(rgb: np.ndarray, colored: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """`colored`: para texto que muda de cor (população amarela perto do
+    limite, vermelha no limite). Usa o canal mais forte do pixel, então
+    branco, amarelo e vermelho viram o mesmo formato, e não exige texto neutro."""
     f = rgb[..., :3].astype(np.float32)
-    gray = f.mean(axis=2)
-    sat = f.max(axis=2) - f.min(axis=2)
-    neutral = sat < SAT_MAX
+    if colored:
+        gray = f.max(axis=2)
+        neutral = np.ones(gray.shape, bool)
+    else:
+        gray = f.mean(axis=2)
+        neutral = (f.max(axis=2) - f.min(axis=2)) < SAT_MAX
     peak = float(np.percentile(gray[neutral], 99)) if neutral.any() else 0.0
     thr = max(MIN_THR, peak * PEAK_FRAC)
     return gray, (gray > thr) & neutral
@@ -190,15 +196,17 @@ def default_bank() -> GlyphBank:
 
 
 def read(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None,
-         pre: tuple[np.ndarray, np.ndarray] | None = None) -> Reading:
+         pre: tuple[np.ndarray, np.ndarray] | None = None, trim_edges: bool = False) -> Reading:
+    """`trim_edges`: só para o relógio, onde terreno/marcadores aparecem nas
+    pontas da região. No painel não há ruído nas pontas: um glifo fraco ali
+    precisa invalidar a leitura, senão "7/10" vira um "7/1" com cara de válido."""
     bank = bank or default_bank()
     glyphs, mask = segment(rgb, scale, pre)
     for g in glyphs:
         bank.classify(g)
-    # Ruído (terreno claro, marcadores) aparece nas pontas da ROI: descarta
-    # glifos de borda que não se parecem com nenhum caractere.
-    while glyphs and glyphs[0].score < MIN_SCORE:
-        glyphs.pop(0)
-    while glyphs and glyphs[-1].score < MIN_SCORE:
-        glyphs.pop()
+    if trim_edges:
+        while glyphs and glyphs[0].score < MIN_SCORE:
+            glyphs.pop(0)
+        while glyphs and glyphs[-1].score < MIN_SCORE:
+            glyphs.pop()
     return Reading("".join(g.char for g in glyphs), glyphs, mask)

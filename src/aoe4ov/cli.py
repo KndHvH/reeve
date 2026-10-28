@@ -11,6 +11,7 @@ from pathlib import Path
 from .window import find_game_window
 
 MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida no watch
+HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
 
 
 def cmd_window(_args) -> int:
@@ -98,6 +99,7 @@ def cmd_watch(args) -> int:
 
     from PIL import Image
 
+    from .anchor import MIN_SCORE, panel_visible
     from .capture import Capture
     from .reader import read_frame
 
@@ -105,6 +107,7 @@ def cmd_watch(args) -> int:
     match = None
     size = None
     fails = 0
+    hidden = 0
     session: Path | None = None
     log = None
     saved_fails = 0
@@ -144,8 +147,30 @@ def cmd_watch(args) -> int:
                     print(f"[partida] gravando em {session}".ljust(100))
             t0 = time.perf_counter()
             buf = cap.grab(win)
+            t1 = time.perf_counter()
+
+            # Menu, pausa ou tela de fim escondem o painel: pula a leitura em vez
+            # de registrar lixo. Escondido por muito tempo = fim de partida.
+            vis = panel_visible(buf, match)
+            if vis < MIN_SCORE:
+                if hidden == 0:
+                    log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", "event": "painel_oculto",
+                                          "score": round(vis, 3)}) + "\n")
+                    log.flush()
+                hidden += 1
+                print(f"  menu/pausa (painel oculto, score {vis:.2f})...".ljust(100), end="\r")
+                if hidden * args.every >= HIDDEN_END_S:
+                    close_session()
+                    match, hidden = None, 0
+                time.sleep(args.every)
+                continue
+            if hidden:
+                log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", "event": "painel_visivel"}) + "\n")
+                hidden = 0
+
             f = read_frame(buf, match)
             dt = (time.perf_counter() - t0) * 1000
+            grab_ms = (t1 - t0) * 1000
             v = f.values
             bad = [n for n, r in f.readings.items() if not r.ok]
             fails = fails + 1 if len(bad) > 3 else 0
@@ -158,6 +183,8 @@ def cmd_watch(args) -> int:
                 "prod_score": round(f.production.score, 3),
                 "anchor": [match.x, match.y, round(match.scale, 3), round(match.score, 3)],
                 "ms": round(dt, 1),
+                "grab_ms": round(grab_ms, 1),
+                "clock_conf": round(f.readings["clock"].conf, 3),
             }, ensure_ascii=False) + "\n")
             log.flush()
             if bad and saved_fails < MAX_FAIL_SHOTS:
@@ -167,7 +194,7 @@ def cmd_watch(args) -> int:
             res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
             tc = "TC produzindo" if v["producing_villager"] else "TC PARADO"
             warn = f"  ?? {','.join(bad)}" if bad else ""
-            print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | {dt:.1f} ms{warn}")
+            print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | {dt:.0f} ms (captura {grab_ms:.0f}){warn}")
             time.sleep(max(0.0, args.every - dt / 1000))
     except KeyboardInterrupt:
         close_session()
@@ -195,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("glyphs", help="refaz assets/glyphs/ a partir das fixtures rotuladas")
 
     w = sub.add_parser("watch", help="lê o jogo ao vivo e imprime os valores")
-    w.add_argument("--every", type=float, default=1.0, help="segundos entre leituras (1 a 2)")
+    w.add_argument("--every", type=float, default=2.0, help="segundos entre leituras (padrão 2)")
 
     args = p.parse_args(argv)
     cmds = {

@@ -149,6 +149,21 @@ def detect(gray: np.ndarray) -> AnchorMatch:
     return AnchorMatch(x=cx0 + ix, y=y0 + cy0 + iy, scale=s, score=score)
 
 
+def panel_visible(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> float:
+    """Confere se o painel continua na posição conhecida (barato: só ±`slack` px).
+
+    Menu, pausa e tela de fim escondem ou escurecem o painel: o score cai e a
+    leitura daquele ciclo deve ser ignorada.
+    """
+    t = _resized_template(match.scale)
+    th, tw = t.shape
+    y0, x0 = max(0, match.y - slack), max(0, match.x - slack)
+    win = to_gray(rgb[y0:match.y + th + slack, x0:match.x + tw + slack])
+    if win.shape[0] < th or win.shape[1] < tw:
+        return 0.0
+    return float(_Matcher(win, (th, tw)).ncc(t).max())
+
+
 def project_rois(match: AnchorMatch, width: int) -> dict[str, tuple[int, int, int, int]]:
     """Converte as regiões de referência do layout em pixels reais (x, y, w, h)."""
     lay = load_layout()
