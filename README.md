@@ -31,6 +31,7 @@ uv run aoe4ov overlay                   # overlay on top of the game: alert card
 uv run aoe4ov overlay --debug           # debug overlay: detection, values, confidence, timings, RAM/CPU, alerts
 uv run aoe4ov replay sessions/<start>/log.jsonl  # replay a recorded session through the alert rules
 uv run aoe4ov sounds                    # list the alert sound library (--play NAME to preview)
+uv run aoe4ov report sessions/<start>   # write the post-match report.html (also written automatically when a match ends)
 uv run pytest                           # run the test suite
 ```
 
@@ -47,3 +48,9 @@ Rules and thresholds are in `config/rules.json`. Each alert has a severity: **in
 Each severity plays a sound from the library in `assets/sounds/library/`, chosen by name in `config/rules.json` ("sound"); defaults: info `blip`, warn `chime`, critical `alarm_low`. A sound plays when an alert appears or escalates; warn and critical repeat every 5 s while unresolved, info plays once. `aoe4ov sounds` lists the library, `aoe4ov sounds --play NAME` previews a sound and `overlay --mute` silences everything. New sounds are imported with `scripts/import_sound.py <file> <name>` (any format ffmpeg reads; trimmed, capped at 1.5 s and loudness-normalized; source and license recorded in `assets/sounds/library/SOURCE.md`).
 
 Slow-changing values are confirmed over two consecutive readings, so a single misread never triggers an alert. Use `aoe4ov replay` to see which alerts a recorded session would produce, and why, after editing the thresholds.
+
+## Post-match report
+When a match ends, `sessions/<start>/report.html` is written: a single offline HTML file with a summary (villagers at 5/10/15 min, time with the town center idle, time housed, idle villagers, floating resources, average income) and charts over game time for villagers per resource, income per minute, stockpiles, population and the alert timeline. Hovering a chart moves a shared cursor; clicking pins a moment and shows the values read then, next to the panel as it was captured (a small crop is kept every 10 s of game time).
+
+Income is estimated from the stockpile: the sum of its increases over the last 60 s of game time, per minute, after a median-of-3 filter against single misreads. Spending is ignored, so a drop-off that lands in the same reading as a purchase is partly hidden and the estimate leans slightly low. Income per villager divides by the villagers on that resource. It is computed live (shown in `overlay --debug`) and logged with every reading.
+

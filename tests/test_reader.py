@@ -103,3 +103,11 @@ def test_non_villager_queue_icons_are_not_villagers(name):
     m = detect(to_gray(rgb))
     x, y, w, h = region(m, rgb.shape)
     assert not detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m).villager
+
+
+def test_two_digit_villager_counts():
+    """Villager counts above 9 touched the old 20 px region and lost a digit
+    live (23 read as 3, 14 as 1). Values checked by eye on this capture."""
+    f = read_frame(_rgb(FIXTURES_DIR / "vil_two_digits.png"))
+    got = {k: f.values[k] for k in ("idle", "vil_food", "vil_wood", "vil_gold", "vil_stone")}
+    assert got == {"idle": 34, "vil_food": 23, "vil_wood": 13, "vil_gold": 2, "vil_stone": 0}

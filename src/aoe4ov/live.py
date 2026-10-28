@@ -21,6 +21,7 @@ from PIL import Image
 
 from .anchor import MIN_SCORE, AnchorMatch, panel_state
 from .capture import Capture
+from .income import Income, IncomeTracker
 from .reader import Frame, read_frame
 from .rules import Alert, RuleEngine
 from .state import GameState, StateTracker
@@ -33,6 +34,7 @@ DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analys
 MAX_DOUBT_SHOTS = 20
 LOW_CONF = 0.75      # a field read below this is kept as a doubt_read_ image (and turns the dot yellow)
 MAX_LOW_SHOTS = 30
+FRAME_EVERY_S = 10   # game seconds between audit frames (panel crop) kept for the report
 SHAPE_RATIO = 0.85   # anchor shape below 85% of calibration = panel covered/fading
 RECAL_EVERY = 3      # with the panel gone, search again every 3 cycles (did the UI scale change?)
 
@@ -50,6 +52,7 @@ class Step:
     contrast: float = 1.0             # anchor contrast ÷ template contrast
     events: list[str] = field(default_factory=list)  # messages for the display side
     state: GameState | None = None
+    income: Income | None = None
     alerts: list[Alert] = field(default_factory=list)  # active alerts, most severe first
 
 
@@ -69,6 +72,9 @@ class LiveReader:
         self._low_seen: set[tuple[str, str]] = set()
         self.tracker = StateTracker()
         self.rules = RuleEngine()
+        self.income = IncomeTracker()
+        self._last_frame_clock: int | None = None
+        self.readings = 0
 
     # --- session ----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
@@ -80,6 +86,9 @@ class LiveReader:
             self._low_seen: set[tuple[str, str]] = set()
             self.tracker = StateTracker()
             self.rules = RuleEngine()
+            self.income = IncomeTracker()
+            self._last_frame_clock = None
+            self.readings = 0
             events.append(f"recording to {self.session}")
 
     def close(self, events: list[str] | None = None) -> None:
@@ -87,6 +96,16 @@ class LiveReader:
             self.log.close()
             if events is not None:
                 events.append(f"log saved to {self.session}")
+            if self.readings:
+                try:
+                    from .report import write_report
+
+                    out = write_report(self.session)
+                    if events is not None:
+                        events.append(f"report: {out}")
+                except Exception as e:  # the report must never break the overlay
+                    if events is not None:
+                        events.append(f"report failed: {e}")
         self.session, self.log = None, None
 
     def _write(self, obj: dict) -> None:
@@ -162,6 +181,8 @@ class LiveReader:
         wall = time.monotonic()
         state = self.tracker.update(f.values, wall)
         transitions = self.rules.evaluate(state, wall)
+        income = self.income.update(state)
+        self.readings += 1
 
         self._write({
             "t": round(wall, 2),
@@ -173,7 +194,9 @@ class LiveReader:
             "ms": round(grab_ms + read_ms, 1),
             "grab_ms": round(grab_ms, 1),
             "state": state.to_dict(),
+            "income": income.to_dict(),
         })
+        self._save_frame(buf, state)
         for tr in transitions:
             a = tr.alert
             self._write({"event": f"alert_{tr.kind}", "id": a.id, "severity": a.severity, "text": a.text, "reason": a.reason})
@@ -198,4 +221,18 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"doubt_read_{datetime.now():%H%M%S}_{tag}.png")
         return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events,
-                    state=state, alerts=self.rules.alerts())
+                    state=state, income=income, alerts=self.rules.alerts())
+
+    def _save_frame(self, buf: np.ndarray, state: GameState) -> None:
+        """Small JPEG of the bottom-left capture every FRAME_EVERY_S game
+        seconds: lets the report show what was actually read at any point."""
+        c = state.clock
+        if c is None or not self.cap.rects:
+            return
+        if self._last_frame_clock is not None and c - self._last_frame_clock < FRAME_EVERY_S:
+            return
+        self._last_frame_clock = c
+        x, y, w, h = self.cap.rects[0]
+        frames = self.session / "frames"
+        frames.mkdir(exist_ok=True)
+        Image.fromarray(np.ascontiguousarray(buf[y:y + h, x:x + w])).save(frames / f"{c:05d}.jpg", quality=70)

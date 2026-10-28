@@ -180,6 +180,21 @@ def cmd_sounds(args) -> int:
     return 0
 
 
+def cmd_report(args) -> int:
+    """Writes report.html for one or more sessions (also done automatically when a match ends)."""
+    from .report import write_report
+
+    for s in args.sessions:
+        path = Path(s)
+        if path.is_file():
+            path = path.parent
+        if not (path / "log.jsonl").exists():
+            print(f"no log.jsonl in {path}")
+            continue
+        print(write_report(path))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="aoe4ov")
@@ -214,10 +229,13 @@ def main(argv: list[str] | None = None) -> int:
     so = sub.add_parser("sounds", help="list the alert sound library or preview a sound")
     so.add_argument("--play", metavar="NAME", help="play a sound from the library")
 
+    rpt = sub.add_parser("report", help="write report.html for recorded sessions")
+    rpt.add_argument("sessions", nargs="+", help="sessions/<start> folders (or their log.jsonl)")
+
     args = p.parse_args(argv)
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report,
     }
     return cmds[args.cmd](args)
 

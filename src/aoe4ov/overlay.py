@@ -267,6 +267,11 @@ class DebugOverlay(Overlay):
             lines.append((f"UI {s.match.scale:.2f}× · anchor {s.match.score:.2f}", MUTED, False))
         if s.status == "reading":
             lines.append((f"read {s.read_ms:.0f} ms · capture {s.grab_ms:.0f} ms · every {self.every:g} s", MUTED, False))
+            if s.income:
+                fmt = lambda v: "–" if v is None else f"{v:.0f}"
+                pm, pv = s.income.per_min, s.income.per_villager
+                lines.append(("income/min " + " · ".join(f"{r[0].upper()} {fmt(pm[r])}" for r in pm), FG, False))
+                lines.append(("per villager " + " · ".join(f"{r[0].upper()} {fmt(pv[r])}" for r in pv), MUTED, False))
             if s.bad:
                 lines.append(("failed: " + ", ".join(s.bad), BAD, False))
         lines.append((f"RAM {ram_mb():.0f} MB · CPU {cpu_total:.1f}% ({cpu_core:.0f}% of 1 core)", MUTED, False))

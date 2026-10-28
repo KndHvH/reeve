@@ -1,5 +1,5 @@
 {
-  "_doc": "Reference coordinates measured on a 1280x720 capture with 100% UI. 'panel' regions are relative to the top-left corner of the anchor; 'top_center' regions are relative to the top center of the screen. Format: [x, y, width, height]. Source: tests/fixtures/720p_0036.png. The clock moves down during age-up: the region is tall and the reader searches for the text band shaped like a clock.",
+  "_doc": "Reference coordinates measured on a 1280x720 capture with 100% UI. 'panel' regions are relative to the top-left corner of the anchor; 'top_center' regions are relative to the top center of the screen. Format: [x, y, width, height]. Source: tests/fixtures/720p_0036.png. The clock moves down during age-up: the region is tall and the reader searches for the text band shaped like a clock. Villager/idle regions are 30 px wide (fit 3 digits) with 1 px margin above/below: two-digit counts touched the old 20 px region and lost a digit.",
   "ref_height": 720,
   "anchor": {
     "template": "anchors/resource_icons.png",
@@ -25,10 +25,10 @@
       12
     ],
     "idle": [
-      90,
-      5,
-      18,
-      12
+      88,
+      4,
+      30,
+      14
     ],
     "food": [
       22,
@@ -55,28 +55,28 @@
       12
     ],
     "vil_food": [
-      90,
-      43,
-      20,
-      12
+      88,
+      42,
+      30,
+      14
     ],
     "vil_wood": [
-      90,
-      69,
-      20,
-      12
+      88,
+      68,
+      30,
+      14
     ],
     "vil_gold": [
-      90,
-      95,
-      20,
-      12
+      88,
+      94,
+      30,
+      14
     ],
     "vil_stone": [
-      90,
-      121,
-      20,
-      12
+      88,
+      120,
+      30,
+      14
     ]
   },
   "top_center": {
