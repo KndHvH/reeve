@@ -31,6 +31,11 @@ class GameWindow:
     height: int
 
     @property
+    def foreground(self) -> bool:
+        """mss copia o que está visível na tela: só vale ler com o jogo na frente."""
+        return user32.GetForegroundWindow() == self.hwnd
+
+    @property
     def rect(self) -> dict[str, int]:
         """Formato aceito por `mss.grab`."""
         return {"left": self.left, "top": self.top, "width": self.width, "height": self.height}

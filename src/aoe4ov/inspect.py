@@ -69,7 +69,7 @@ def build(path: Path) -> str:
 <div class="stats">
  <span>Âncora: <b>{status}</b></span>
  <span>score <b>{m.score:.3f}</b></span>
- <span>escala <b>{m.scale:.3f}</b> (UI ≈ {m.scale / (img.height / 720) * 100:.0f}%)</span>
+ <span>escala <b>{m.scale:.3f}</b> × referência</span>
  <span>posição <b>{m.x},{m.y}</b></span>
  <span>detecção <b>{dt:.0f} ms</b></span>
 </div>

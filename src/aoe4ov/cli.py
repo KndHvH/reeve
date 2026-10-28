@@ -34,6 +34,9 @@ def cmd_snap(args) -> int:
             if win is None:
                 print("AoE4 não encontrado.")
                 return 1
+            while not win.foreground:
+                print("  aguardando o AoE4 ficar em primeiro plano...", end="\r")
+                time.sleep(1)
             shot = sct.grab(win.rect)
             path = out / f"{datetime.now():%Y%m%d-%H%M%S}_{win.width}x{win.height}.png"
             mss.tools.to_png(shot.rgb, shot.size, output=str(path))

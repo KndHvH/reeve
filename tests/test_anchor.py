@@ -52,3 +52,17 @@ def test_project_rois_scales_with_anchor():
     rois = project_rois(m, 1280)
     x, y, w, h = rois["food"]
     assert (abs(x - 28) <= 1, abs(y - 611) <= 1, w, h) == (True, True, 48, 12)
+
+
+def test_other_window_size_same_ui():
+    """Janela 1280x768: a UI do AoE4 não cresce com a altura, a âncora acha mesmo assim."""
+    m = detect(_gray(Image.open(FIX / "768p_0648_idle5.png")))
+    assert m.ok
+    assert abs(m.scale - 1.0) < 0.02
+    assert (m.x, m.y) == (6, 616)
+
+
+def test_rejects_non_game_screen():
+    """Captura com outra janela por cima (navegador): confiança tem que ficar baixa."""
+    m = detect(_gray(Image.open(FIX / "neg_not_game.png")))
+    assert not m.ok
