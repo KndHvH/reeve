@@ -110,12 +110,32 @@
     "border_min_blue_minus_red": -5
   },
   "age_region": {
-    "_doc": "Age numeral (I-IV) and the age-up progress bar above the clock, relative to the top center (reference coordinates). Captured and kept in audit frames (frames/top_*.jpg) to build the age detector from real matches; not read yet.",
+    "_doc": "Age numeral (I-IV) and age-up bar above the clock, relative to the top center (reference coordinates). Numeral: bright-gold mask matched against equal-width templates (assets/age, cropped at scale 1.485 from session 20261028-200819). Bar: columns of the band must be dark track or bright fill; builders = white digits right of the bar.",
     "rect": [
       -75,
       12,
       150,
       60
+    ],
+    "numeral_window": [
+      -24,
+      18,
+      48,
+      30
+    ],
+    "templates_scale": 1.485,
+    "min_score": 0.5,
+    "bar": [
+      -35,
+      74,
+      75,
+      3
+    ],
+    "builders": [
+      48,
+      66,
+      20,
+      16
     ]
   }
 }

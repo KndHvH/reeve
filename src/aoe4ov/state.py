@@ -10,7 +10,10 @@ sliding over "10/10" produced "10/1"; one clock read came out as 12:31 at
   rules add their own persistence on top;
 - accepts the clock only when it moves forward by roughly the wall time that
   passed (the game may keep running behind a menu, so larger forward jumps
-  are fine if a second read confirms them).
+  are fine if a second read confirms them);
+- moves the age only forward, one step at a time, after two identical reads
+  (an isolated numeral misread or an impossible jump is ignored); the age-up
+  progress and builders are taken as read.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ RESOURCES = ("food", "wood", "gold", "stone")
 SLOW_FIELDS = ("pop", "idle", "vil_food", "vil_wood", "vil_gold", "vil_stone", "producing_villager")
 CONFIRM = 2         # identical consecutive reads needed to accept a slow field
 CLOCK_SLACK_S = 3   # tolerance between game-time and wall-time progress
+AGE_CONFIRM_NO_BAR = 5  # reads needed to advance the age when no age-up bar was seen
 
 
 @dataclass
@@ -49,6 +53,9 @@ class GameState:
     pop_cap: int | None = None
     idle: int | None = None
     producing_villager: bool | None = None
+    age: int | None = None              # 1–4
+    ageup_progress: float | None = None  # 0–1 while a landmark is being built
+    ageup_builders: int | None = None
     resources: dict[str, int | None] = field(default_factory=lambda: {r: None for r in RESOURCES})
     villagers: dict[str, int | None] = field(default_factory=lambda: {r: None for r in RESOURCES})
 
@@ -56,6 +63,7 @@ class GameState:
         return {
             "clock": self.clock, "pop": self.pop, "pop_cap": self.pop_cap, "idle": self.idle,
             "producing_villager": self.producing_villager,
+            "age": self.age, "ageup_progress": self.ageup_progress, "ageup_builders": self.ageup_builders,
             "resources": dict(self.resources), "villagers": dict(self.villagers),
         }
 
@@ -65,6 +73,11 @@ class StateTracker:
         self.slow = {f: _Debounced() for f in SLOW_FIELDS}
         self.resources: dict[str, int | None] = {r: None for r in RESOURCES}
         self.clock: int | None = None
+        self.age = _Debounced()
+        self._ageup_seen = False
+        self._age_candidate: int | None = None
+        self._age_streak = 0
+        self.ageup: tuple[float | None, int | None] = (None, None)
         self._clock_wall: float | None = None
         self._clock_pending: tuple[int, float] | None = None
 
@@ -79,7 +92,31 @@ class StateTracker:
             if values.get(r) is not None:
                 self.resources[r] = values[r]
         self._update_clock(values.get("clock"), wall)
+        self.ageup = (values.get("ageup_progress"), values.get("ageup_builders"))
+        if self.ageup[0] is not None:
+            self._ageup_seen = True
+        self._update_age(values.get("age"))
         return self.state()
+
+    def _update_age(self, a: int | None) -> None:
+        """Forward only, one step at a time. A real age-up shows the landmark
+        bar first, so after a bar two reads confirm the new age; without one
+        (e.g. something parked behind the numeral misreads it for a few
+        seconds) it takes AGE_CONFIRM_NO_BAR reads."""
+        cur = self.age.value
+        if a is None or (cur is not None and a not in (cur, cur + 1)):
+            return
+        if cur is not None and a == cur + 1 and not self._ageup_seen:
+            self._age_streak = self._age_streak + 1 if self._age_candidate == a else 1
+            self._age_candidate = a
+            if self._age_streak >= AGE_CONFIRM_NO_BAR:
+                self.age.value, self._age_streak = a, 0
+            return
+        self._age_streak, self._age_candidate = 0, None
+        before = self.age.value
+        self.age.push(a)
+        if self.age.value != before:
+            self._ageup_seen = False
 
     def _update_clock(self, c: int | None, wall: float) -> None:
         if c is None:
@@ -108,6 +145,9 @@ class StateTracker:
             pop_cap=pop[1] if pop else None,
             idle=self.slow["idle"].value,
             producing_villager=self.slow["producing_villager"].value,
+            age=self.age.value,
+            ageup_progress=self.ageup[0],
+            ageup_builders=self.ageup[1],
             resources=dict(self.resources),
             villagers={r: self.slow[f"vil_{r}"].value for r in RESOURCES},
         )

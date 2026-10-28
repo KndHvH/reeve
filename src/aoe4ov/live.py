@@ -29,6 +29,7 @@ from .window import GameWindow, find_game_window
 
 MAX_FAIL_SHOTS = 30  # failure images saved per match
 HIDDEN_END_S = 30    # panel hidden for longer than this = end of match
+REPORT_AFTER_S = 10  # a match not being read for this long gets its report written (end screen, menu, alt-tab)
 MIN_CONTRAST = 0.7   # anchor contrast ÷ template contrast: game ~0.88; menu/veil 0.03–0.38
 DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analysis
 MAX_DOUBT_SHOTS = 20
@@ -75,6 +76,8 @@ class LiveReader:
         self.income = IncomeTracker()
         self._last_frame_clock: int | None = None
         self.readings = 0
+        self._idle_since: float | None = None   # when the open match stopped being read
+        self._report_fresh = False              # report written since the last reading
 
     # --- session ----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
@@ -96,17 +99,21 @@ class LiveReader:
             self.log.close()
             if events is not None:
                 events.append(f"log saved to {self.session}")
-            if self.readings:
-                try:
-                    from .report import write_report
-
-                    out = write_report(self.session)
-                    if events is not None:
-                        events.append(f"report: {out}")
-                except Exception as e:  # the report must never break the overlay
-                    if events is not None:
-                        events.append(f"report failed: {e}")
+            if self.readings and not self._report_fresh:
+                self._report(events)
         self.session, self.log = None, None
+
+    def _report(self, events: list[str] | None) -> None:
+        try:
+            from .report import write_report
+
+            out = write_report(self.session)
+            self._report_fresh = True
+            if events is not None:
+                events.append(f"report: {out}")
+        except Exception as e:  # the report must never break the overlay
+            if events is not None:
+                events.append(f"report failed: {e}")
 
     def _write(self, obj: dict) -> None:
         self.log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", **obj}, ensure_ascii=False) + "\n")
@@ -114,6 +121,21 @@ class LiveReader:
 
     # --- cycle ------------------------------------------------------------
     def step(self) -> Step:
+        """One cycle; also writes the report of the open match once it has not
+        been read for REPORT_AFTER_S (end screen, menu, alt-tab), so a report
+        exists even if the app is closed abruptly afterwards. Reading again
+        makes it stale; it is rewritten the next time reading stops."""
+        s = self._step()
+        now = time.monotonic()
+        if s.status == "reading":
+            self._idle_since, self._report_fresh = None, False
+        elif self.log and self.readings and not self._report_fresh:
+            self._idle_since = self._idle_since or now
+            if now - self._idle_since >= REPORT_AFTER_S:
+                self._report(s.events)
+        return s
+
+    def _step(self) -> Step:
         events: list[str] = []
         win = find_game_window()
         if win is None or not win.foreground:

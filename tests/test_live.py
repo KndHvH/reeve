@@ -50,3 +50,35 @@ def test_ui_scale_change_recalibrates_in_same_session(monkeypatch, tmp_path):
     assert steps[-1].frame.values["pop"] == (10, 40)
     assert steps[-1].frame.values["food"] == 100
     assert len(list(tmp_path.iterdir())) == 1, "should continue in the same session"
+
+
+def test_report_written_when_reading_stops(monkeypatch, tmp_path):
+    """The report is written once the match has not been read for a while
+    (end screen, menu, alt-tab), not only when the app closes."""
+    a = np.asarray(Image.open(FIXTURES / "720p_0217.png").convert("RGB"))
+    state = {"fg": True}
+
+    class _Win(_FakeWin):
+        @property
+        def foreground(self):
+            return state["fg"]
+
+    w = _Win(1, "AoE4", 0, 0, 1280, 720)
+    clock = {"t": 0.0}
+    monkeypatch.setattr(live, "find_game_window", lambda: w)
+    monkeypatch.setattr(capm.Capture, "full", lambda self, _w: a)
+    monkeypatch.setattr(capm.Capture, "grab", lambda self, _w: a)
+    monkeypatch.setattr(live.time, "monotonic", lambda: clock["t"])
+
+    reader = live.LiveReader(2.0, sessions_dir=tmp_path)
+    for _ in range(3):
+        reader.step(); clock["t"] += 2
+    session = next(tmp_path.iterdir())
+    assert not (session / "report.html").exists()
+    state["fg"] = False                      # player alt-tabs / match over
+    for _ in range(4):
+        reader.step(); clock["t"] += 2
+    assert not (session / "report.html").exists()   # 6 s: not yet
+    for _ in range(3):
+        reader.step(); clock["t"] += 2
+    assert (session / "report.html").exists()       # >= 10 s without reading

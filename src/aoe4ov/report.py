@@ -72,6 +72,7 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
             "t": s.clock,
             "pop": s.pop, "cap": s.pop_cap, "idle": s.idle,
             "producing": s.producing_villager,
+            "age": s.age, "up": None if s.ageup_progress is None else round(s.ageup_progress, 2), "upb": s.ageup_builders,
             "res": dict(s.resources), "vil": dict(s.villagers),
             "inc": {k: None if v is None else round(v) for k, v in inc.per_min.items()},
             "incv": {k: None if v is None else round(v, 1) for k, v in inc.per_villager.items()},
@@ -79,7 +80,28 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     end = rows[-1]["t"] if rows else 0
     intervals += [a | {"end": end} for a in open_alerts.values()]
     frames = sorted(int(p.stem) for p in (log_path.parent / "frames").glob("[0-9]*.jpg"))
-    return {"rows": rows, "alerts": intervals, "frames": frames}
+    return {"rows": rows, "alerts": intervals, "frames": frames, "ages": age_events(rows)}
+
+
+def age_events(rows: list[dict]) -> list[dict]:
+    """When each age was reached, when its landmark started, and how many
+    villagers built it (the most common reading during the age-up, so one
+    misread digit does not inflate it)."""
+    from collections import Counter
+
+    events, prev, start, builders = [], None, None, Counter()
+    for r in rows:
+        if r.get("up") is not None:
+            start = r["t"] if start is None else start
+            if r.get("upb"):
+                builders[r["upb"]] += 1
+        a = r.get("age")
+        if a is not None and a != prev:
+            if prev is not None:
+                events.append({"age": a, "reached": r["t"], "started": start,
+                               "builders": builders.most_common(1)[0][0] if builders else None})
+            prev, start, builders = a, None, Counter()
+    return events
 
 
 def summarize(tl: dict) -> dict:
@@ -112,7 +134,8 @@ def summarize(tl: dict) -> dict:
         "span": (rows[0]["t"], rows[-1]["t"]),
         "villagers_at": {m: villagers_at(m) for m in (5, 10, 15)},
         "peak_idle": max((r["idle"] or 0) for r in rows),
-        "final_pop": (rows[-1]["pop"], rows[-1]["cap"]),
+        "final_pop": next(((r["pop"], r["cap"]) for r in reversed(rows) if r["cap"]), (None, None)),
+        "ages": tl.get("ages", []),
         "problems": problems,
         "income": income,
     }
@@ -133,6 +156,7 @@ def _ledger(s: dict, icons: dict[str, str]) -> str:
         <div class='minis'><img src='{icons.get("villager", "")}' alt='villagers' title='Villagers at 5, 10 and 15 minutes'>{vil}</div>
         <div class='pair'><span>Peak idle villagers</span><b>{s['peak_idle']}</b></div>
         <div class='pair'><span>Final population</span><b>{'–' if pop is None else f'{pop}/{cap}'}</b></div>
+        {_ages_html(s['ages'])}
       </section>"""
     rows = "".join(
         f"<div class='problem {p['severity'] or 'none'}'><i></i><span>{e(p['label'])}</span>"
@@ -154,6 +178,22 @@ def _ledger(s: dict, icons: dict[str, str]) -> str:
         {inc}
       </section>"""
     return overview + problems + income
+
+
+ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
+
+
+def _ages_html(ages: list[dict]) -> str:
+    if not ages:
+        return ""
+    items = ""
+    for e in ages:
+        detail = [f"started {_fmt_clock(e['started'])}"] if e["started"] is not None else []
+        if e["builders"]:
+            detail.append(f"{e['builders']} builders")
+        items += (f"<div class='age'><span class='roman'>{ROMAN[e['age']]}</span><b>{_fmt_clock(e['reached'])}</b>"
+                  f"<span>{', '.join(detail)}</span></div>")
+    return f"<div class='ages' title='Age reached, when its landmark started and how many villagers built it'>{items}</div>"
 
 
 def write_report(session: Path) -> Path:
@@ -228,6 +268,11 @@ h2 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
 .problem.info i { background: var(--status-info); } .problem.warn i { background: var(--status-warn); } .problem.critical i { background: var(--status-critical); }
 .problem b { font-variant-numeric: tabular-nums; } .problem.none b { color: var(--mist); font-weight: 400; }
 .note { color: var(--mist); font-size: 12px; margin: 10px 0 0; }
+.ages { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
+.age { display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: baseline; }
+.age .roman { font: 600 18px/1 var(--serif); color: var(--gold); grid-row: span 2; }
+.age b { font-variant-numeric: tabular-nums; } .age span:last-child { color: var(--mist); font-size: 12px; grid-column: 2; }
+.chip.age-chip { font-family: var(--serif); color: var(--gold-light); border-color: var(--gold-dim); }
 .income { display: grid; grid-template-columns: 26px auto 1fr; align-items: center; gap: 10px; padding: 6px 0; }
 .income img { width: 24px; height: 24px; object-fit: contain; }
 .income b { font: 600 20px/1 var(--serif); font-variant-numeric: tabular-nums; } .income span { color: var(--mist); font-size: 12px; }
@@ -357,8 +402,20 @@ function chart(title, keys, H, draw) {
   return c;
 }
 
+const ROMAN = { 1: "I", 2: "II", 3: "III", 4: "IV" };
+function ageMarks(c) {
+  (D.ages || []).forEach(e => {
+    if (e.started != null)
+      el("rect", { x: x(e.started), y: PAD.t, width: Math.max(1, x(e.reached) - x(e.started)), height: c.H - PAD.t - PAD.b,
+                   fill: "var(--gold)", opacity: 0.08 }, c.svg);
+    el("line", { x1: x(e.reached), x2: x(e.reached), y1: PAD.t, y2: c.H - PAD.b, stroke: "var(--gold-dim)", "stroke-width": 1 }, c.svg);
+    el("text", { x: x(e.reached) + 3, y: PAD.t + 10, style: "fill:var(--gold);font-family:var(--serif)" }, c.svg).textContent = ROMAN[e.age];
+  });
+}
+
 function render(c) {
   c.svg.innerHTML = "";
+  ageMarks(c);
   c.draw(c, c.keys.filter(k => !c.hidden.has(k)));
   hover(c);
   if (lastT != null) placeCursors(lastT);
@@ -465,6 +522,7 @@ function select(t) {
     ? `<span class="chip quiet">TC producing</span>` : `<span class="chip ${sev("tc_idle")}">TC idle</span>`;
   let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}</span>${pinned != null ? `<span class="m-pin">pinned</span>` : ""}</div>
     <div class="m-chips">
+      ${r.age ? `<span class="chip age-chip" title="age">${ROMAN[r.age]}${r.up != null ? ` → ${ROMAN[r.age + 1] || ""} ${Math.round(r.up * 100)}%${r.upb ? ` · ${img("villager")}${r.upb}` : ""}` : ""}</span>` : ""}
       <span class="chip ${sev("housed")}" title="population">${img("pop")}${r.pop == null ? "–" : `${r.pop}/${r.cap}`}</span>
       <span class="chip ${sev("idle_villager")}" title="idle villagers">${img("villager")}<sup>zz</sup>${v(r.idle)}</span>${tc}
     </div>`;

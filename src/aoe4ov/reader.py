@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .age import AgeReading, read_age
 from .anchor import AnchorMatch, detect, project_rois, to_gray
 from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask, text_mask_local
 from .production import Production, detect_villager_in
@@ -28,6 +29,7 @@ class Frame:
     readings: dict[str, Reading] = field(default_factory=dict)
     values: dict[str, object] = field(default_factory=dict)
     production: Production | None = None
+    age: AgeReading | None = None
 
 
 def clock_seconds(digits: str) -> int | None:
@@ -118,6 +120,8 @@ def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBan
     px, py, pw, ph = production_region(match, rgb.shape)
     f.production = detect_villager_in(rgb[py:py + ph, px:px + pw], (px, py), match)
     f.values["producing_villager"] = f.production.villager
+    f.age = read_age(rgb, match, rgb.shape[1])
+    f.values.update(age=f.age.age, ageup_progress=f.age.progress, ageup_builders=f.age.builders)
     for name, (x, y, w, h) in rois.items():
         crop = rgb[y:y + h, x:x + w]
         if name == "clock":
