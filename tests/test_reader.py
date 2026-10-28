@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from aoe4ov.glyphs import FIXTURES as FIXTURES_DIR
 from aoe4ov.glyphs import bank_from, labeled_fixtures
 from aoe4ov.reader import _clock_y_hint, clock_seconds, read_frame
 
@@ -88,3 +89,17 @@ def test_label_validation_rejects_empty_and_malformed():
     assert len(validate({n: "" for n in FIELDS})) == len(FIELDS)
     assert validate(good | {"pop": "910"}) == ["Population"]
     assert validate(good | {"clock": "4:72"}) == ["Clock"]
+
+
+@pytest.mark.parametrize("name", ["queue_military_units.png", "queue_blocked_housed.png", "queue_tech_and_units.png"])
+def test_non_villager_queue_icons_are_not_villagers(name):
+    """Military units, technologies and production blocked by housing have
+    human figures that scored 0.57–0.63 on shape alone (live session); the
+    icon's background color rules them out."""
+    from aoe4ov.anchor import detect, to_gray
+    from aoe4ov.production import detect_villager_in, region
+
+    rgb = _rgb(FIXTURES_DIR / name)
+    m = detect(to_gray(rgb))
+    x, y, w, h = region(m, rgb.shape)
+    assert not detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m).villager

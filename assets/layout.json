@@ -105,6 +105,8 @@
         "anchors/villager_icon_top_1486.png",
         1.486
       ]
-    ]
+    ],
+    "border_max_brightness": 80,
+    "border_min_blue_minus_red": -5
   }
 }

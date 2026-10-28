@@ -25,7 +25,7 @@ import traceback
 
 from . import __version__
 from .digits import MIN_SCORE
-from .live import LiveReader, Step
+from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
 from .sound import AlertSounds
 from .metrics import CpuMeter, ram_mb
@@ -44,7 +44,6 @@ user32 = ctypes.windll.user32
 
 
 SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
-LOW_CONF = 0.75  # watermark dot turns yellow when any field reads below this
 
 
 def _status_color(s: Step | None) -> str:

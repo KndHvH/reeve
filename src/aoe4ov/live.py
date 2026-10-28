@@ -31,6 +31,8 @@ HIDDEN_END_S = 30    # panel hidden for longer than this = end of match
 MIN_CONTRAST = 0.7   # anchor contrast ÷ template contrast: game ~0.88; menu/veil 0.03–0.38
 DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analysis
 MAX_DOUBT_SHOTS = 20
+LOW_CONF = 0.75      # a field read below this is kept as a doubt_read_ image (and turns the dot yellow)
+MAX_LOW_SHOTS = 30
 SHAPE_RATIO = 0.85   # anchor shape below 85% of calibration = panel covered/fading
 RECAL_EVERY = 3      # with the panel gone, search again every 3 cycles (did the UI scale change?)
 
@@ -64,6 +66,7 @@ class LiveReader:
         self.log = None
         self.saved_fails = 0
         self.saved_doubts = 0
+        self._low_seen: set[tuple[str, str]] = set()
         self.tracker = StateTracker()
         self.rules = RuleEngine()
 
@@ -74,6 +77,7 @@ class LiveReader:
             self.session.mkdir(parents=True, exist_ok=True)
             self.log = open(self.session / "log.jsonl", "a", encoding="utf-8")
             self.saved_fails = self.saved_doubts = 0
+            self._low_seen: set[tuple[str, str]] = set()
             self.tracker = StateTracker()
             self.rules = RuleEngine()
             events.append(f"recording to {self.session}")
@@ -183,5 +187,15 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"doubt_queue_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
             self.saved_doubts += 1
+        # Low-confidence reads are right most of the time but show where the
+        # glyph bank lacks samples: keep one image per (field, text) so they
+        # can be labeled (`aoe4ov label`) and become references and tests.
+        low = [(n, r.text) for n, r in f.readings.items() if r.ok and r.conf < LOW_CONF]
+        new = [k for k in low if k not in self._low_seen]
+        if new and len(self._low_seen) < MAX_LOW_SHOTS:
+            self._low_seen.update(new)
+            tag = "-".join(f"{n}={t.replace('/', 'of')}" for n, t in new)
+            Image.fromarray(np.ascontiguousarray(buf)).save(
+                self.session / f"doubt_read_{datetime.now():%H%M%S}_{tag}.png")
         return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events,
                     state=state, alerts=self.rules.alerts())

@@ -112,15 +112,11 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
 
 def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None) -> Frame:
     """`rgb`: the whole game area. With a known `match`, detection is skipped."""
-    gray = None
-    if match is None:
-        gray = to_gray(rgb)
-        match = detect(gray)
+    match = match or detect(to_gray(rgb))
     rois = project_rois(match, rgb.shape[1])
     f = Frame(match, rois)
     px, py, pw, ph = production_region(match, rgb.shape)
-    sub = to_gray(rgb[py:py + ph, px:px + pw]) if gray is None else gray[py:py + ph, px:px + pw]
-    f.production = detect_villager_in(sub, (px, py), match)
+    f.production = detect_villager_in(rgb[py:py + ph, px:px + pw], (px, py), match)
     f.values["producing_villager"] = f.production.villager
     for name, (x, y, w, h) in rois.items():
         crop = rgb[y:y + h, x:x + w]

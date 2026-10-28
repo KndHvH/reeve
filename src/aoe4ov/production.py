@@ -3,6 +3,12 @@
 The queue is visible without selecting the town center. It is enough
 to know whether any villager icon is in it: NCC of the icon template in the
 region above the anchor. On real captures: idle TC ≤ 0.43; producing ≥ 0.70.
+
+Shape alone is not enough: military units (brown background), technologies
+(teal) and production blocked by housing (red, with "!") have human figures
+that scored 0.57–0.63 against the villager template. A villager icon has a
+dark navy background, so the border of the best match must also be dark and
+bluish (villager: R 19–47, B−R +3.6…+14.6; the others: R ≥ 97 or B−R ≤ −13).
 """
 
 from __future__ import annotations
@@ -13,7 +19,7 @@ from functools import lru_cache
 import numpy as np
 from PIL import Image
 
-from .anchor import ASSETS, AnchorMatch, _Matcher, load_layout
+from .anchor import ASSETS, AnchorMatch, _Matcher, load_layout, to_gray
 
 
 @dataclass(frozen=True)
@@ -22,6 +28,7 @@ class Production:
     score: float
     box: tuple[int, int, int, int] | None    # best icon (x, y, w, h) in the image
     region: tuple[int, int, int, int]         # where it searched
+    border: tuple[float, float, float] | None = None  # mean RGB of the best icon's border
 
 
 @lru_cache(maxsize=4)
@@ -50,14 +57,25 @@ def region(match: AnchorMatch, shape: tuple[int, int]) -> tuple[int, int, int, i
     return x0, y0, x1 - x0, y1 - y0
 
 
-def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMatch) -> Production:
-    """`sub`: grayscale crop of `region(...)`, whose corner is at `origin`.
+def _border_rgb(rgb: np.ndarray, box: tuple[int, int, int, int], scale: float) -> tuple[float, float, float]:
+    """Mean color of a thin ring just inside `box` (local coordinates)."""
+    x, y, w, h = box
+    b = rgb[y:y + h, x:x + w, :3].astype(np.float32)
+    t = max(1, round(2 * scale))
+    ring = np.concatenate([b[:t].reshape(-1, 3), b[-t:].reshape(-1, 3), b[:, :t].reshape(-1, 3), b[:, -t:].reshape(-1, 3)])
+    r, g, bl = ring.mean(axis=0)
+    return float(r), float(g), float(bl)
+
+
+def detect_villager_in(rgb_sub: np.ndarray, origin: tuple[int, int], match: AnchorMatch) -> Production:
+    """`rgb_sub`: color crop of `region(...)`, whose corner is at `origin`.
 
     On screens larger than the reference, the region is downscaled to the
     reference scale before searching: ~2.3× cheaper at 1.49×,
     and all templates are compared at that same scale.
     """
     x0, y0 = origin
+    sub = to_gray(rgb_sub)
     reg = (x0, y0, sub.shape[1], sub.shape[0])
     k = 1.0
     if match.scale > 1.05:
@@ -75,4 +93,9 @@ def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMa
         if r[iy, ix] > score:
             score = float(r[iy, ix])
             box = (x0 + round(ix * k), y0 + round(iy * k), round(tpl.shape[1] * k), round(tpl.shape[0] * k))
-    return Production(score >= load_layout()["production"]["min_score"], score, box, reg)
+    cfg = load_layout()["production"]
+    bx, by, bw, bh = box
+    border = _border_rgb(rgb_sub, (bx - x0, by - y0, bw, bh), match.scale)
+    r, _, b = border
+    navy = max(border) <= cfg["border_max_brightness"] and b - r >= cfg["border_min_blue_minus_red"]
+    return Production(score >= cfg["min_score"] and navy, score, box, reg, border)
