@@ -22,9 +22,20 @@ from .replay import _wall_seconds
 from .rules import RuleEngine, _fmt_clock, load_config
 from .state import RESOURCES, StateTracker
 
-# Assignment order puts gold on the yellow slot and wood on orange (closest to
-# the game's own colors); the palette passes the colorblind checks in this order.
+# Resource colors follow the game (meat, log, gold, stone) and were tuned to
+# pass the colorblind separation checks on the dark surface: food #e4608c,
+# wood #9c5a24, gold #f0bd1a, stone #6f97d4 (worst pair CVD dE 12.1, normal
+# vision 19.1). Idle villagers are neutral gray. The game's own icons (cropped
+# from captures, assets/report_icons) carry identity next to every color.
 SERIES_ORDER = ["food", "wood", "stone", "gold", "idle"]
+ICONS = Path(__file__).resolve().parents[2] / "assets" / "report_icons"
+
+
+def _icons() -> dict[str, str]:
+    import base64
+
+    return {p.stem: "data:image/png;base64," + base64.b64encode(p.read_bytes()).decode()
+            for p in sorted(ICONS.glob("*.png"))}
 
 
 def build_timeline(log_path: Path, config: dict | None = None) -> dict:
@@ -114,6 +125,7 @@ def render(tl: dict, title: str) -> str:
             .replace("__VERSION__", __version__)
             .replace("__SUMMARY__", summary or "<p class='muted'>No readings in this session.</p>")
             .replace("__SERIES__", json.dumps(SERIES_ORDER))
+            .replace("__ICONS__", json.dumps(_icons()))
             .replace("__DATA__", data))
 
 
@@ -129,7 +141,7 @@ TEMPLATE = r"""<!doctype html>
   --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e2e1dc;
   --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #85847f;
   --grid: #ecebe7; --cursor: #52514e;
-  --series-food: #2a78d6; --series-wood: #eb6834; --series-stone: #1baf7a; --series-gold: #eda100; --series-idle: #e87ba4;
+  --series-food: #e4608c; --series-wood: #9c5a24; --series-stone: #6f97d4; --series-gold: #f0bd1a; --series-idle: #8f8e86;
   --status-info: #6da7ec; --status-warn: #fab219; --status-critical: #d03b3b; --status-good: #0ca30c;
 }
 @media (prefers-color-scheme: dark) {
@@ -138,7 +150,7 @@ TEMPLATE = r"""<!doctype html>
     --surface-0: #111110; --surface-1: #1a1a19; --border: #2c2c2a;
     --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
     --grid: #262624; --cursor: #c3c2b7;
-    --series-food: #3987e5; --series-wood: #d95926; --series-stone: #199e70; --series-gold: #c98500; --series-idle: #d55181;
+    --series-food: #e4608c; --series-wood: #9c5a24; --series-stone: #6f97d4; --series-gold: #f0bd1a; --series-idle: #8f8e86;
     --status-info: #5598e7;
   }
 }
@@ -147,7 +159,7 @@ TEMPLATE = r"""<!doctype html>
   --surface-0: #111110; --surface-1: #1a1a19; --border: #2c2c2a;
   --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
   --grid: #262624; --cursor: #c3c2b7;
-  --series-food: #3987e5; --series-wood: #d95926; --series-stone: #199e70; --series-gold: #c98500; --series-idle: #d55181;
+  --series-food: #e4608c; --series-wood: #9c5a24; --series-stone: #6f97d4; --series-gold: #f0bd1a; --series-idle: #8f8e86;
   --status-info: #5598e7;
 }
 body { margin: 0; background: var(--surface-0); }
@@ -166,9 +178,27 @@ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 0 0 8px; 
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { fill: var(--text-muted); font-size: 11px; }
 .side { position: sticky; top: 12px; }
-.side table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.side td { padding: 3px 0; border-bottom: 1px solid var(--border); } .side td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-.side img { width: 100%; border-radius: 6px; margin-top: 10px; image-rendering: auto; background: #000; }
+.m-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.m-clock { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.m-pin { font-size: 11px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.m-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-0); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.chip img, .res img { width: 18px; height: 18px; object-fit: contain; }
+.chip sup { font-size: 9px; color: var(--text-muted); margin-left: -5px; }
+.chip.ok { color: var(--text-secondary); } .chip.bad { border-color: var(--status-warn); }
+.res { display: grid; grid-template-columns: 22px 1fr auto auto; align-items: center; gap: 8px;
+  padding: 7px 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.res b { font-size: 16px; }
+.res .vil { display: inline-flex; align-items: center; gap: 2px; color: var(--text-secondary); font-size: 13px; }
+.res .vil img { width: 12px; height: 16px; }
+.res .inc { color: var(--text-muted); font-size: 12px; min-width: 62px; text-align: right; }
+.m-alerts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pill { font-size: 12px; border-radius: 999px; padding: 2px 9px; color: #111; font-weight: 600; }
+.pill.info { background: var(--status-info); } .pill.warn { background: var(--status-warn); } .pill.critical { background: var(--status-critical); color: #fff; }
+.side .frame { width: 100%; border-radius: 6px; margin-top: 12px; background: #000; display: block; }
+.side .frame[hidden] { display: none; }
+.legend img { width: 14px; height: 14px; object-fit: contain; vertical-align: -3px; margin-right: 4px; }
 .hint { font-size: 12px; color: var(--text-muted); }
 </style>
 </head>
@@ -180,17 +210,18 @@ svg text { fill: var(--text-muted); font-size: 11px; }
 <div class="layout">
   <div id="charts"></div>
   <aside class="side card">
-    <h2 id="sel-title">Moment</h2>
-    <div class="hint" id="sel-hint">Hover a chart to inspect a moment; click to pin it.</div>
-    <table id="sel-table"></table>
-    <img id="sel-frame" alt="Panel as read at this moment" hidden>
+    <div id="moment"></div>
+    <img id="sel-frame" class="frame" alt="Panel as read at this moment" hidden>
     <div class="hint" id="sel-frame-note"></div>
+    <div class="hint" id="sel-hint">Hover a chart to inspect a moment; click to pin it.</div>
   </aside>
 </div>
 </div>
 <script>
 const D = __DATA__;
 const ORDER = __SERIES__;
+const ICON = __ICONS__;
+const img = (name, cls = "") => ICON[name] ? `<img src="${ICON[name]}" alt="${name}" class="${cls}">` : "";
 const RES = ["food", "wood", "stone", "gold"];
 const css = n => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(n).trim();
 const color = k => `var(--series-${k})`;
@@ -210,7 +241,7 @@ function niceMax(v) { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log1
 function frame(title, legend, H) {
   const card = document.createElement("div"); card.className = "card";
   card.innerHTML = `<h2>${title}</h2>` + (legend.length > 1 ? `<div class="legend">${legend.map(k =>
-    `<span><i style="background:${color(k)}"></i>${k}</span>`).join("")}</div>` : "");
+    `<span><i style="background:${color(k)}"></i>${img(k === "idle" ? "villager" : k)}${k}</span>`).join("")}</div>` : "");
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, card);
   document.getElementById("charts").appendChild(card);
   return svg;
@@ -279,7 +310,7 @@ function population(H = 150) {
   const y = axes(svg, H, niceMax(Math.max(10, ...rows.map(r => r.cap || 0)) * 1.05), "");
   const path = key => rows.filter(r => r[key] != null).map((r, i) => (i ? "L" : "M") + x(r.t).toFixed(1) + "," + y(r[key]).toFixed(1)).join("");
   el("path", { d: path("cap"), fill: "none", stroke: "var(--text-muted)", "stroke-width": 2, "stroke-dasharray": "5 4" }, svg);
-  el("path", { d: path("pop"), fill: "none", stroke: color("food"), "stroke-width": 2 }, svg);
+  el("path", { d: path("pop"), fill: "none", stroke: "var(--text-primary)", "stroke-width": 2 }, svg);
   const last = [...rows].reverse().find(r => r.pop != null);
   if (last) { el("text", { x: W - PAD.r + 6, y: y(last.pop) + 4, style: "fill:var(--text-secondary)" }, svg).textContent = "population";
               el("text", { x: W - PAD.r + 6, y: y(last.cap) - 6, style: "fill:var(--text-secondary)" }, svg).textContent = "cap"; }
@@ -314,22 +345,30 @@ function select(t) {
   if (!rows.length) return;
   const r = rows.reduce((b, q) => Math.abs(q.t - t) < Math.abs(b.t - t) ? q : b);
   cursors.forEach(c => { c.setAttribute("x1", x(r.t)); c.setAttribute("x2", x(r.t)); c.setAttribute("visibility", "visible"); });
-  document.getElementById("sel-title").textContent = `At ${fmt(r.t)}` + (pinned != null ? " (pinned)" : "");
   document.getElementById("sel-hint").textContent = pinned != null ? "Click a chart again to unpin." : "Click to pin this moment.";
   const v = n => n == null ? "–" : n;
-  const tr = (k, val) => `<tr><td>${k}</td><td>${val}</td></tr>`;
-  let h = tr("population", r.pop == null ? "–" : `${r.pop}/${r.cap}`) + tr("idle villagers", v(r.idle)) +
-          tr("villager queued", r.producing == null ? "–" : (r.producing ? "yes" : "no"));
-  RES.forEach(k => { h += tr(k, `${v(r.res[k])} · ${v(r.vil[k])} vil · ${v(r.inc[k])}/min`); });
+  const tc = r.producing == null ? "" : r.producing
+    ? `<span class="chip ok">TC producing</span>` : `<span class="chip bad">TC idle</span>`;
+  let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}</span>${pinned != null ? `<span class="m-pin">pinned</span>` : ""}</div>
+    <div class="m-chips">
+      <span class="chip" title="population">${img("pop")}${r.pop == null ? "–" : `${r.pop}/${r.cap}`}</span>
+      <span class="chip" title="idle villagers">${img("villager")}<sup>zz</sup>${v(r.idle)}</span>${tc}
+    </div>`;
+  RES.forEach(k => {
+    h += `<div class="res"><span title="${k}">${img(k)}</span><b>${v(r.res[k])}</b>
+      <span class="vil" title="villagers on ${k}">${img("villager")}${v(r.vil[k])}</span>
+      <span class="inc" title="income per minute">${r.inc[k] == null ? "–" : r.inc[k] + "/min"}</span></div>`;
+  });
   const active = D.alerts.filter(a => a.start <= r.t && r.t < a.end);
-  h += tr("alerts", active.length ? active.map(a => `${a.text} [${a.severity}]`).join("<br>") : "none");
-  document.getElementById("sel-table").innerHTML = h;
-  const img = document.getElementById("sel-frame"), note = document.getElementById("sel-frame-note");
+  h += `<div class="m-alerts">${active.length ? active.map(a => `<span class="pill ${a.severity}">${a.text}</span>`).join("")
+                                               : `<span class="hint">No alerts</span>`}</div>`;
+  document.getElementById("moment").innerHTML = h;
+  const frameImg = document.getElementById("sel-frame"), note = document.getElementById("sel-frame-note");
   const f = D.frames.length ? D.frames.reduce((b, q) => Math.abs(q - r.t) < Math.abs(b - r.t) ? q : b) : null;
   if (f != null && Math.abs(f - r.t) <= 15) {
-    img.src = `frames/${String(f).padStart(5, "0")}.jpg`; img.hidden = false;
+    frameImg.src = `frames/${String(f).padStart(5, "0")}.jpg`; frameImg.hidden = false;
     note.textContent = `Panel as captured at ${fmt(f)}`;
-  } else { img.hidden = true; note.textContent = D.frames.length ? "No frame near this moment." : ""; }
+  } else { frameImg.hidden = true; note.textContent = D.frames.length ? "No frame near this moment." : ""; }
 }
 
 if (rows.length) {
