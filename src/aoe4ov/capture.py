@@ -1,7 +1,7 @@
-"""Captura ao vivo só das regiões necessárias (nunca a tela inteira no loop).
+"""Live capture of only the needed regions (never the full screen in the loop).
 
-As regiões são copiadas para um buffer do tamanho da área do jogo, alocado uma
-vez, para que o reader use as mesmas coordenadas da imagem inteira.
+The regions are copied into a buffer the size of the game area, allocated
+once, so the reader uses the same coordinates as for the full image.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class Capture:
         self.rects: list[tuple[int, int, int, int]] = []
 
     def full(self, win: GameWindow) -> np.ndarray:
-        """Área inteira do jogo (usada só para detectar a âncora)."""
+        """The whole game area (used only to detect the anchor)."""
         shot = self.sct.grab(win.rect)
         return np.asarray(shot)[..., 2::-1]  # BGRA → RGB
 
@@ -31,17 +31,17 @@ class Capture:
         return match
 
     def probe(self, win: GameWindow) -> AnchorMatch:
-        """Procura a âncora na tela inteira sem mudar o que é capturado."""
+        """Searches for the anchor on the full screen without changing what is captured."""
         return detect(to_gray(self.full(win)))
 
     def adopt(self, match: AnchorMatch, win: GameWindow) -> None:
-        """Passa a capturar as regiões de `match`."""
+        """Switches to capturing the regions of `match`."""
         self.buf = np.zeros((win.height, win.width, 3), np.uint8)
         self.rects = _union_rects(match, win, self.buf.shape)
 
     def grab(self, win: GameWindow) -> np.ndarray:
-        """Copia só as regiões calibradas para o buffer e devolve o buffer."""
-        assert self.buf is not None, "chame calibrate() antes"
+        """Copies only the calibrated regions into the buffer and returns the buffer."""
+        assert self.buf is not None, "call calibrate() first"
         for x, y, w, h in self.rects:
             shot = self.sct.grab({"left": win.left + x, "top": win.top + y, "width": w, "height": h})
             self.buf[y:y + h, x:x + w] = np.asarray(shot)[..., 2::-1]
@@ -49,7 +49,7 @@ class Capture:
 
 
 def _union_rects(match: AnchorMatch, win: GameWindow, shape) -> list[tuple[int, int, int, int]]:
-    """Dois retângulos: canto inferior esquerdo (painel + fila) e topo (relógio)."""
+    """Two rectangles: bottom-left corner (panel + queue) and top (clock)."""
     from .anchor import project_rois
 
     rois = project_rois(match, win.width)

@@ -1,13 +1,13 @@
-"""Leitura de números da UI por template matching de glifos (sem OCR).
+"""Reads UI numbers by glyph template matching (no OCR).
 
-Pipeline de uma região (ROI):
-  1. máscara de texto: pixels claros e pouco saturados (texto branco/cinza);
-     pontos amarelos de caminho e terreno colorido ficam de fora.
-  2. segmentação por colunas: cada bloco contíguo de colunas é um glifo.
-  3. filtro de altura: só ficam glifos com altura de dígito (tira ':' e ruído).
-  4. normalização: glifo centrado numa caixa com a proporção de um dígito,
-     redimensionado para GLYPH_W×GLYPH_H e com média 0 / desvio 1.
-  5. comparação com amostras rotuladas (assets/glyphs/<char>/*.png) por NCC.
+Pipeline for one region (ROI):
+  1. text mask: bright, low-saturation pixels (white/gray text); yellow path
+     dots and colored terrain are left out.
+  2. column segmentation: each contiguous block of columns is one glyph.
+  3. height filter: only glyphs with digit height are kept (drops ':' and noise).
+  4. normalization: glyph centered in a box with a digit's aspect ratio,
+     resized to GLYPH_W×GLYPH_H with mean 0 / std 1.
+  5. comparison against labeled samples (assets/glyphs/<char>/*.png) by NCC.
 """
 
 from __future__ import annotations
@@ -21,19 +21,19 @@ from PIL import Image
 
 from .anchor import ASSETS
 
-GLYPH_W, GLYPH_H = 16, 24  # escolhido por leave-one-out (docs/DECISIONS.md)
-GLYPH_PAD = 1               # margem de contexto ao redor do glifo: reduz sensibilidade a subpixel
+GLYPH_W, GLYPH_H = 16, 24  # chosen by leave-one-out (docs/DECISIONS.md)
+GLYPH_PAD = 1               # context margin around the glyph: reduces subpixel sensitivity
 GLYPHS_DIR = ASSETS / "glyphs"
 
-SAT_MAX = 70          # texto é branco/cinza: saturação baixa
-MIN_THR = 50          # limiar mínimo de brilho (zeros "apagados" ficam ~90)
-PEAK_FRAC = 0.55      # limiar = fração do pico de brilho da ROI
-DIGIT_H_REF = 8.5     # altura de um dígito em px na referência (720p, UI 100%)
-H_RANGE = (0.8, 1.45) # tolerância de altura (a '/' é um pouco mais alta)
-MAX_W_REF = 7.5       # mais largo que isso são dígitos encostados ("40" em 720p)
-MIN_W_REF = 3         # largura mínima de cada pedaço ao quebrar um bloco
-LOCAL_DELTA = 60      # relógio: quanto o texto precisa ser mais claro que a vizinhança
-MIN_SCORE = 0.6       # abaixo disso o glifo é considerado não confiável
+SAT_MAX = 70          # text is white/gray: low saturation
+MIN_THR = 50          # minimum brightness threshold ("dimmed" zeros sit at ~90)
+PEAK_FRAC = 0.55      # threshold = fraction of the ROI's peak brightness
+DIGIT_H_REF = 8.5     # digit height in px at the reference (720p, 100% UI)
+H_RANGE = (0.8, 1.45) # height tolerance (the '/' is a bit taller)
+MAX_W_REF = 7.5       # wider than this means touching digits ("40" at 720p)
+MIN_W_REF = 3         # minimum width of each piece when splitting a block
+LOCAL_DELTA = 60      # clock: how much brighter the text must be than its surroundings
+MIN_SCORE = 0.6       # below this the glyph is considered unreliable
 
 CHAR_DIRS = {"/": "slash"}
 
@@ -44,11 +44,11 @@ class Glyph:
     y: int
     w: int
     h: int
-    vec: np.ndarray            # glifo normalizado, achatado
-    crop: np.ndarray           # recorte em cinza (com margem) usado na normalização
+    vec: np.ndarray            # normalized, flattened glyph
+    crop: np.ndarray           # grayscale crop (with margin) used for normalization
     char: str = "?"
     score: float = 0.0
-    margin: float = 0.0        # diferença para o melhor caractere diferente
+    margin: float = 0.0        # gap to the best different character
 
 
 @dataclass
@@ -67,9 +67,9 @@ class Reading:
 
 
 def text_mask(rgb: np.ndarray, colored: bool = False) -> tuple[np.ndarray, np.ndarray]:
-    """`colored`: para texto que muda de cor (população amarela perto do
-    limite, vermelha no limite). Usa o canal mais forte do pixel, então
-    branco, amarelo e vermelho viram o mesmo formato, e não exige texto neutro."""
+    """`colored`: for text that changes color (population turns yellow near the
+    cap, red at the cap). Uses the pixel's strongest channel, so white, yellow
+    and red all yield the same shape, and neutral text is not required."""
     f = rgb[..., :3].astype(np.float32)
     if colored:
         gray = f.max(axis=2)
@@ -83,7 +83,7 @@ def text_mask(rgb: np.ndarray, colored: bool = False) -> tuple[np.ndarray, np.nd
 
 
 def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
-    """Média numa janela k×k (k ímpar), via imagem integral."""
+    """Mean over a k×k window (k odd), via an integral image."""
     r = k // 2
     p = np.pad(a, r, mode="edge")
     s = np.pad(p.cumsum(0).cumsum(1), ((1, 0), (1, 0)))
@@ -91,11 +91,12 @@ def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
 
 
 def text_mask_local(rgb: np.ndarray, scale: float) -> tuple[np.ndarray, np.ndarray]:
-    """Máscara por contraste local, para texto sobre fundo semitransparente.
+    """Local-contrast mask, for text over a semi-transparent background.
 
-    O relógio fica numa caixa translúcida: com areia clara atrás, o brilho
-    absoluto da areia passa do limiar. O dígito, porém, é bem mais claro que
-    a vizinhança imediata; a areia é clara por igual e some na subtração.
+    The clock sits in a translucent box: with bright sand behind it, the
+    sand's absolute brightness exceeds the threshold. The digit, however, is
+    much brighter than its immediate surroundings; the sand is uniformly
+    bright and cancels out in the subtraction.
     """
     f = rgb[..., :3].astype(np.float32)
     gray = f.mean(axis=2)
@@ -106,7 +107,7 @@ def text_mask_local(rgb: np.ndarray, scale: float) -> tuple[np.ndarray, np.ndarr
 
 
 def normalize(gray_crop: np.ndarray) -> np.ndarray:
-    """Centraliza o glifo numa caixa com proporção de dígito e reduz a GLYPH_W×GLYPH_H."""
+    """Centers the glyph in a box with a digit's aspect ratio and shrinks it to GLYPH_W×GLYPH_H."""
     h, w = gray_crop.shape
     box_w = max(w, round(h * GLYPH_W / GLYPH_H))
     canvas = np.full((h, box_w), gray_crop.min(), np.float32)
@@ -119,7 +120,7 @@ def normalize(gray_crop: np.ndarray) -> np.ndarray:
 
 
 def _split(gray: np.ndarray, mask: np.ndarray, x0: int, x1: int, max_w: float, min_w: int) -> list[tuple[int, int]]:
-    """Quebra um bloco largo demais (dígitos encostados) na coluna mais fraca."""
+    """Splits a block that is too wide (touching digits) at the weakest column."""
     if x1 - x0 <= max_w or x1 - x0 < 2 * min_w:
         return [(x0, x1)]
     weight = (gray[:, x0:x1] * mask[:, x0:x1]).sum(axis=0)
@@ -128,7 +129,7 @@ def _split(gray: np.ndarray, mask: np.ndarray, x0: int, x1: int, max_w: float, m
 
 
 def segment(rgb: np.ndarray, scale: float, pre: tuple[np.ndarray, np.ndarray] | None = None) -> tuple[list[Glyph], np.ndarray]:
-    """`pre`: (cinza, máscara) já calculados, para quem usa outra máscara (relógio)."""
+    """`pre`: precomputed (gray, mask), for callers that use another mask (the clock)."""
     gray, mask = pre if pre is not None else text_mask(rgb)
     cols = mask.any(axis=0)
     exp_h = DIGIT_H_REF * scale
@@ -164,7 +165,7 @@ def segment(rgb: np.ndarray, scale: float, pre: tuple[np.ndarray, np.ndarray] | 
 
 @dataclass
 class GlyphBank:
-    """Amostras rotuladas: matriz (N, GLYPH_W*GLYPH_H) + o caractere de cada linha."""
+    """Labeled samples: an (N, GLYPH_W*GLYPH_H) matrix plus the character of each row."""
 
     chars: list[str]
     mat: np.ndarray
@@ -197,9 +198,9 @@ def default_bank() -> GlyphBank:
 
 def read(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None,
          pre: tuple[np.ndarray, np.ndarray] | None = None, trim_edges: bool = False) -> Reading:
-    """`trim_edges`: só para o relógio, onde terreno/marcadores aparecem nas
-    pontas da região. No painel não há ruído nas pontas: um glifo fraco ali
-    precisa invalidar a leitura, senão "7/10" vira um "7/1" com cara de válido."""
+    """`trim_edges`: only for the clock, where terrain/markers show up at the
+    edges of the region. The panel has no noise at the edges: a weak glyph
+    there must invalidate the reading, otherwise "7/10" becomes a valid-looking "7/1"."""
     bank = bank or default_bank()
     glyphs, mask = segment(rgb, scale, pre)
     for g in glyphs:

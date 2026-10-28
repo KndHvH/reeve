@@ -1,9 +1,10 @@
-"""Detecta a posição e a escala da UI procurando a âncora (coluna de ícones do painel).
+"""Detects the UI position and scale by locating the anchor (the panel's icon column).
 
-Funciona como os marcadores de um QR code: a coluna de ícones casa/comida/madeira/
-ouro/pedra está sempre no painel inferior esquerdo e tem forma única. Um template
-matching multi-escala (correlação cruzada normalizada via FFT, só numpy) devolve
-onde ela está e em que escala. Roda uma vez e só repete se a confiança cair.
+It works like the finder markers of a QR code: the house/food/wood/gold/stone
+icon column is always in the bottom-left panel and has a unique shape. A
+multi-scale template match (FFT-based normalized cross-correlation, numpy only)
+returns where it is and at what scale. It runs once and only repeats if the
+confidence drops.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from PIL import Image
 
 ASSETS = Path(__file__).resolve().parents[2] / "assets"
 
-# Faixa de escala da UI relativa à escala esperada pela altura da janela.
+# UI scale range relative to the scale expected from the window height.
 UI_SCALE_RANGE = (0.6, 1.6)
 COARSE_STEP = 0.05
 FINE_STEP = 0.01
@@ -27,10 +28,10 @@ MIN_SCORE = 0.7
 
 @dataclass(frozen=True)
 class AnchorMatch:
-    x: int          # canto superior esquerdo da âncora, em pixels da imagem
+    x: int          # top-left corner of the anchor, in image pixels
     y: int
-    scale: float    # escala em relação à referência (720p, UI 100%)
-    score: float    # NCC em [-1, 1]; ≥ MIN_SCORE é confiável
+    scale: float    # scale relative to the reference (720p, 100% UI)
+    score: float    # NCC in [-1, 1]; >= MIN_SCORE is reliable
 
     @property
     def ok(self) -> bool:
@@ -48,13 +49,13 @@ def _template() -> Image.Image:
 
 
 def _offset(scale: float) -> tuple[int, int]:
-    """Deslocamento do template em relação à origem da âncora, em pixels."""
+    """Template offset relative to the anchor origin, in pixels."""
     ox, oy = load_layout()["anchor"].get("template_offset", [0, 0])
     return round(ox * scale), round(oy * scale)
 
 
 def template_box(match: "AnchorMatch") -> tuple[int, int, int, int]:
-    """Onde o template da âncora está na imagem (x, y, w, h)."""
+    """Where the anchor template sits in the image (x, y, w, h)."""
     tpl = _template()
     ox, oy = _offset(match.scale)
     return match.x + ox, match.y + oy, round(tpl.width * match.scale), round(tpl.height * match.scale)
@@ -65,10 +66,10 @@ def to_gray(rgb: np.ndarray) -> np.ndarray:
 
 
 class _Matcher:
-    """NCC (modo 'valid') de vários templates contra a mesma imagem.
+    """NCC ('valid' mode) of several templates against the same image.
 
-    A FFT da imagem e as imagens integrais são calculadas uma vez só; cada escala
-    custa apenas a FFT do template e uma FFT inversa.
+    The image FFT and the integral images are computed only once; each scale
+    costs just the template FFT and one inverse FFT.
     """
 
     def __init__(self, image: np.ndarray, max_tmpl: tuple[int, int]):
@@ -116,16 +117,16 @@ def _best(matcher: _Matcher, scales) -> tuple[float, int, int, float]:
     return best
 
 
-# Altura (em px) em que a varredura grossa roda, independente da resolução real.
+# Height (in px) at which the coarse sweep runs, regardless of the actual resolution.
 COARSE_HEIGHT = 360
 
 
 def detect(gray: np.ndarray) -> AnchorMatch:
-    """Procura a âncora em `gray` (imagem inteira da área do jogo, tons de cinza).
+    """Searches for the anchor in `gray` (the whole game area, grayscale).
 
-    1. Varredura grossa de escalas numa versão reduzida (360p) da região de busca:
-       custo constante, seja a tela 720p ou 4K.
-    2. Refino de posição e escala na resolução original, numa janela pequena.
+    1. Coarse scale sweep on a downscaled (360p) version of the search region:
+       constant cost, whether the screen is 720p or 4K.
+    2. Position and scale refinement at the original resolution, in a small window.
     """
     H, W = gray.shape
     lay = load_layout()
@@ -138,7 +139,7 @@ def detect(gray: np.ndarray) -> AnchorMatch:
     lo, hi = UI_SCALE_RANGE
     tpl = _template()
 
-    q = min(1.0, COARSE_HEIGHT / H)  # fator de redução
+    q = min(1.0, COARSE_HEIGHT / H)  # downscale factor
     rh, rw = region.shape
     small = np.asarray(
         Image.fromarray(region).resize((max(1, round(rw * q)), max(1, round(rh * q))), Image.BOX),
@@ -149,7 +150,7 @@ def detect(gray: np.ndarray) -> AnchorMatch:
     _, sx, sy, s_small = _best(m, base * q * np.arange(lo, hi + 1e-9, COARSE_STEP))
     scale = s_small / q
 
-    # Refino na resolução original em torno do palpite.
+    # Refinement at the original resolution around the guess.
     err = COARSE_STEP / 2
     pad = round(2 / q) + 2
     th = round(tpl.height * scale * (1 + err)) + 1
@@ -164,13 +165,14 @@ def detect(gray: np.ndarray) -> AnchorMatch:
 
 
 def panel_state(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> tuple[float, float]:
-    """(forma, contraste) da âncora na posição conhecida (barato: só ±`slack` px).
+    """(shape, contrast) of the anchor at its known position (cheap: only ±`slack` px).
 
-    Menu, pausa e tela de fim escondem o painel ou passam um véu escuro ou
-    azulado por cima. A forma (NCC) não percebe um véu uniforme, e o brilho
-    médio pode até subir com o véu azulado; o que sempre cai é o contraste.
-    O contraste é dado em relação ao do próprio template (referência fixa):
-    em jogo normal fica em ~0,88, com menu/véu entre 0,03 e 0,38.
+    Menus, pause and the end screen hide the panel or lay a dark or bluish
+    veil over it. The shape (NCC) does not notice a uniform veil, and the mean
+    brightness can even rise with the bluish veil; what always drops is the
+    contrast. Contrast is given relative to the template's own (a fixed
+    reference): in normal play it sits at ~0.88, with a menu/veil between 0.03
+    and 0.38.
     """
     t = _resized_template(match.scale)
     th, tw = t.shape
@@ -193,7 +195,7 @@ def panel_visible(rgb: np.ndarray, match: AnchorMatch, slack: int = 2) -> float:
 
 
 def project_rois(match: AnchorMatch, width: int) -> dict[str, tuple[int, int, int, int]]:
-    """Converte as regiões de referência do layout em pixels reais (x, y, w, h)."""
+    """Converts the layout's reference regions into actual pixels (x, y, w, h)."""
     lay = load_layout()
     s = match.scale
     out: dict[str, tuple[int, int, int, int]] = {}

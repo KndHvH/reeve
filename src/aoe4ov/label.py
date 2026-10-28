@@ -1,8 +1,8 @@
-"""Rotulador: você confirma ou corrige o que o leitor leu.
+"""Labeler: you confirm or correct what the reader read.
 
-Cada imagem confirmada vira fixture de teste (tests/fixtures/<nome>.png + .json)
-e o banco de glifos é refeito. É assim que os seus rótulos viram a "verdade"
-que os testes garantem e a referência que o leitor usa.
+Each confirmed image becomes a test fixture (tests/fixtures/<name>.png + .json)
+and the glyph bank is rebuilt. This is how your labels become the "ground
+truth" the tests enforce and the reference the reader uses.
 """
 
 from __future__ import annotations
@@ -23,13 +23,13 @@ from .reader import _clock_y_hint, parse, read_frame
 
 BG, CARD, FG, MUTED = "#0f1115", "#171a21", "#e6e6e6", "#9aa4b2"
 GOOD, WARN, BAD = "#3ddc84", "#f5c542", "#ff5c5c"
-CROP_H = 40   # altura (px) de cada recorte na janela, qualquer que seja a resolução
-PROD_H = 300  # altura (px) do recorte da fila de produção
+CROP_H = 40   # height (px) of each crop in the window, whatever the resolution
+PROD_H = 300  # height (px) of the production queue crop
 FIELDS = ["clock", "pop", "idle", "food", "vil_food", "wood", "vil_wood", "gold", "vil_gold", "stone", "vil_stone"]
 NAMES = {
-    "clock": "Relógio", "pop": "População", "idle": "Ociosos",
-    "food": "Comida", "wood": "Madeira", "gold": "Ouro", "stone": "Pedra",
-    "vil_food": "Aldeões comida", "vil_wood": "Aldeões madeira", "vil_gold": "Aldeões ouro", "vil_stone": "Aldeões pedra",
+    "clock": "Clock", "pop": "Population", "idle": "Idle",
+    "food": "Food", "wood": "Wood", "gold": "Gold", "stone": "Stone",
+    "vil_food": "Villagers on food", "vil_wood": "Villagers on wood", "vil_gold": "Villagers on gold", "vil_stone": "Villagers on stone",
 }
 
 
@@ -48,7 +48,7 @@ def _photo(im: Image.Image, zoom: int) -> tk.PhotoImage:
 
 
 def validate(label: dict) -> list[str]:
-    """Campos vazios ou com formato inválido não podem virar teste."""
+    """Empty or malformed fields cannot become a test."""
     errors = []
     for name in FIELDS:
         text = label[name].replace(":", "") if name == "clock" else label[name]
@@ -73,7 +73,7 @@ class Labeler:
         self.i = 0
         self.saved = 0
         self.root = tk.Tk()
-        self.root.title("aoe4ov · rotulador")
+        self.root.title("aoe4ov · labeler")
         self.root.configure(bg=BG)
         self.body = tk.Frame(self.root, bg=BG)
         self.body.pack(padx=16, pady=16)
@@ -91,8 +91,8 @@ class Labeler:
         _clock_y_hint.clear()
         self.frame = read_frame(np.asarray(img))
         if not self.frame.match.ok:
-            # Ex.: captura com outra janela por cima (o navegador). Não há o que rotular.
-            print(f"ignorada (painel não encontrado): {png.name}")
+            # E.g. a capture with another window on top (the browser). Nothing to label.
+            print(f"skipped (panel not found): {png.name}")
             self.i += 1
             self.show()
             return
@@ -111,7 +111,7 @@ class Labeler:
             r = self.frame.readings[name]
             color = GOOD if r.conf >= 0.85 else WARN if r.conf >= MIN_SCORE else BAD
             if name == "clock" and r.glyphs:
-                # A região do relógio é alta (ele desce na troca de era): mostra só a faixa lida.
+                # The clock region is tall (the clock moves down on age-up): show only the band that was read.
                 gy0 = min(g.y for g in r.glyphs)
                 gy1 = max(g.y + g.h for g in r.glyphs)
                 pad = max(3, (gy1 - gy0) // 2)
@@ -128,24 +128,24 @@ class Labeler:
             tk.Label(self.body, text=f"{r.conf:.2f}", bg=BG, fg=color, font=("Consolas", 10)).grid(row=row, column=3)
             self.entries[name] = e
 
-        # Coluna da direita: fila de produção + a caixa de marcar, sempre visíveis.
+        # Right column: production queue + the checkbox, always visible.
         side = tk.Frame(self.body, bg=BG)
         side.grid(row=2, column=4, rowspan=len(FIELDS), sticky="n", padx=(24, 0))
-        tk.Label(side, text="Fila de produção", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        tk.Label(side, text="Production queue", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w")
         px, py, pw, ph_ = self.frame.production.region
         prod_img = img.crop((px, py, px + pw, py + ph_))
         prod = _photo(prod_img, max(1, round(PROD_H / max(1, prod_img.height))))
         self.photos.append(prod)
         tk.Label(side, image=prod, bg="#000").pack(anchor="w", pady=4)
         self.producing = tk.BooleanVar(value=self.frame.values["producing_villager"])
-        tk.Checkbutton(side, text=f"Aldeão em produção (score {self.frame.production.score:.2f})",
+        tk.Checkbutton(side, text=f"Villager in production (score {self.frame.production.score:.2f})",
                        variable=self.producing, bg=BG, fg=FG, selectcolor=CARD, activebackground=BG,
                        activeforeground=FG, font=("Segoe UI", 10)).pack(anchor="w")
 
         row = len(FIELDS) + 2
         bar = tk.Frame(self.body, bg=BG)
         bar.grid(row=row, column=0, columnspan=5, sticky="e", pady=(12, 0))
-        for text, cmd, color in (("Pular", self.skip, CARD), ("Salvar  ⏎", self.save, "#2a6df4")):
+        for text, cmd, color in (("Skip", self.skip, CARD), ("Save  ⏎", self.save, "#2a6df4")):
             tk.Button(bar, text=text, command=cmd, bg=color, fg=FG, relief="flat", padx=14, pady=6,
                       activebackground=color, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(side="left", padx=4)
         self.root.bind("<Return>", lambda _: self.save())
@@ -155,14 +155,14 @@ class Labeler:
         label = {name: self.entries[name].get().strip() for name in FIELDS}
         errors = validate(label)
         if errors:
-            self.error.config(text="Corrija antes de salvar: " + ", ".join(errors))
+            self.error.config(text="Fix before saving: " + ", ".join(errors))
             return
         label["producing_villager"] = bool(self.producing.get())
         label["source"] = self.paths[self.i].stem
         name = _fixture_name(self.paths[self.i], label, self.img.height)
         shutil.copy(self.paths[self.i], FIXTURES / f"{name}.png")
         (FIXTURES / f"{name}.json").write_text(json.dumps(label, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"salvo: tests/fixtures/{name}.png")
+        print(f"saved: tests/fixtures/{name}.png")
         self.saved += 1
         self.i += 1
         self.show()
@@ -174,7 +174,7 @@ class Labeler:
     def finish(self):
         if self.saved:
             counts = build()
-            print(f"banco de glifos refeito: {counts}")
+            print(f"glyph bank rebuilt: {counts}")
         self.root.destroy()
 
     def run(self):

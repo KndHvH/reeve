@@ -1,8 +1,8 @@
-"""Monta o banco de glifos a partir das fixtures rotuladas (tests/fixtures/*.json).
+"""Builds the glyph bank from the labeled fixtures (tests/fixtures/*.json).
 
-Cada glifo do painel cujo rótulo bate em quantidade de caracteres vira uma
-amostra. As amostras são salvas como PNG em assets/glyphs/<char>/ para que
-você possa abrir a pasta e ver exatamente o que o leitor usa como referência.
+Every panel glyph whose label matches in character count becomes a sample.
+Samples are saved as PNG in assets/glyphs/<char>/ so you can open the folder
+and see exactly what the reader uses as reference.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from .digits import CHAR_DIRS, GLYPHS_DIR, GlyphBank, normalize, segment
 from .reader import read_clock
 
 FIXTURES = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
-# Campos do painel; o relógio é tratado à parte em extract().
+# Panel fields; the clock is handled separately in extract().
 TRAIN_FIELDS = ["pop", "idle", "food", "wood", "gold", "stone", "vil_food", "vil_wood", "vil_gold", "vil_stone"]
 
 
@@ -34,7 +34,7 @@ def labeled_fixtures(folder: Path = FIXTURES) -> list[tuple[Path, dict]]:
 
 
 def extract(png: Path, label: dict) -> list[tuple[str, np.ndarray, str]]:
-    """(char, recorte em cinza, id) de cada glifo rotulado da imagem."""
+    """(char, grayscale crop, id) for each labeled glyph in the image."""
     rgb = np.asarray(Image.open(png).convert("RGB"))
     m = detect(to_gray(rgb))
     rois = project_rois(m, rgb.shape[1])
@@ -49,8 +49,8 @@ def extract(png: Path, label: dict) -> list[tuple[str, np.ndarray, str]]:
         for i, (g, ch) in enumerate(zip(glyphs, want)):
             out.append((ch, g.crop.copy(), f"{png.stem}_{name}_{i}"))
 
-    # Relógio: os glifos do painel desta imagem bastam para achar a faixa do
-    # relógio; os caracteres certos vêm do rótulo.
+    # Clock: this image's panel glyphs are enough to find the clock band;
+    # the correct characters come from the label.
     if "clock" in label and out:
         x, y, w, h = rois["clock"]
         panel_bank = GlyphBank.from_samples([(ch, normalize(c)) for ch, c, _ in out])
@@ -68,7 +68,7 @@ def bank_from(fixtures: list[tuple[Path, dict]]) -> GlyphBank:
 
 
 def build(folder: Path = FIXTURES) -> dict[str, int]:
-    """Regrava assets/glyphs/ a partir das fixtures. Amostras idênticas são deduplicadas."""
+    """Rewrites assets/glyphs/ from the fixtures. Identical samples are deduplicated."""
     if GLYPHS_DIR.exists():
         shutil.rmtree(GLYPHS_DIR)
     seen: set[str] = set()

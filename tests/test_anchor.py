@@ -36,7 +36,7 @@ def test_detects_scale_on_other_resolutions(factor):
 
 @pytest.mark.parametrize("ui", [0.8, 1.25])
 def test_detects_ui_scale_change(ui):
-    """Simula mudar a escala da UI: o painel muda de tamanho, a tela não."""
+    """Simulate changing the UI scale: the panel changes size, the screen does not."""
     im = Image.open(SHOTS[0]).convert("RGB")
     panel = im.crop((0, 555, 135, 720))
     scaled = panel.resize((round(135 * ui), round(165 * ui)), Image.BICUBIC)
@@ -55,7 +55,7 @@ def test_project_rois_scales_with_anchor():
 
 
 def test_other_window_size_same_ui():
-    """Janela 1280x768: a UI do AoE4 não cresce com a altura, a âncora acha mesmo assim."""
+    """1280x768 window: the AoE4 UI does not grow with the height; the anchor is still found."""
     m = detect(_gray(Image.open(FIX / "768p_0648_idle5.png")))
     assert m.ok
     assert abs(m.scale - 1.0) < 0.02
@@ -63,36 +63,36 @@ def test_other_window_size_same_ui():
 
 
 def test_rejects_non_game_screen():
-    """Captura com outra janela por cima (navegador): confiança tem que ficar baixa."""
+    """Capture with another window on top (browser): confidence must stay low."""
     m = detect(_gray(Image.open(FIX / "neg_not_game.png")))
     assert not m.ok
 
 
 def test_panel_visible_drops_when_panel_hidden():
-    """Menu/pausa escondem ou escurecem o painel: a checagem barata tem que perceber."""
+    """Menu/pause hide or darken the panel: the cheap check must notice."""
     from aoe4ov.anchor import panel_visible
 
     rgb = np.asarray(Image.open(SHOTS[0]).convert("RGB"))
     m = detect(to_gray(rgb))
     assert panel_visible(rgb, m) > 0.9
     menu = rgb.copy()
-    menu[m.y - 10:, :200] = 40  # painel coberto
+    menu[m.y - 10:, :200] = 40  # panel covered
     assert panel_visible(menu, m) < 0.7
 
 
 def test_panel_contrast_separates_game_from_menu():
-    """Menu/pausa passam um véu (escuro ou azulado) sobre o painel: a forma
-    continua, o brilho médio pode até subir, mas o contraste sempre cai.
-    Imagens reais das sessões do usuário."""
+    """Menu/pause draw a veil (dark or bluish) over the panel: the shape
+    remains, the mean brightness may even rise, but the contrast always drops.
+    Real images from the user's sessions."""
     from aoe4ov.anchor import panel_state
     from aoe4ov.glyphs import labeled_fixtures
 
     for png, _ in labeled_fixtures():
         rgb = np.asarray(Image.open(png).convert("RGB"))
         assert panel_state(rgb, detect(to_gray(rgb)))[1] > 0.8, png.name
-    for name in ["neg_menu_escuro.png", "neg_menu_veu.png"]:
+    for name in ["neg_menu_dark.png", "neg_menu_veil.png"]:
         rgb = np.asarray(Image.open(FIX / name).convert("RGB"))
         assert panel_state(rgb, detect(to_gray(rgb)))[1] < 0.5, name
-    # Tooltip passando por cima do número: o painel está visível de verdade.
-    rgb = np.asarray(Image.open(FIX / "tooltip_sobre_pop.png").convert("RGB"))
+    # Tooltip passing over the number: the panel is genuinely visible.
+    rgb = np.asarray(Image.open(FIX / "tooltip_over_pop.png").convert("RGB"))
     assert panel_state(rgb, detect(to_gray(rgb)))[1] > 0.8

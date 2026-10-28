@@ -1,32 +1,32 @@
 # aoe4-overlay
 
-Overlay leve para **Age of Empires IV**, no estilo Blitz/Mobalytics. O AoE4 não tem API de estado ao vivo, então o overlay **lê a própria UI do jogo** em regiões pequenas da tela, usando template matching de dígitos (sem OCR pesado), e dá dicas de macro:
+A lightweight overlay for **Age of Empires IV**. AoE4 exposes no live game-state API, so the overlay **reads the game's own UI** from small screen regions using digit template matching (no OCR) and provides macro tips:
 
-- aldeão ocioso
-- TC parado (não está produzindo aldeões)
-- housed (população no limite)
-- recursos acumulados demais
+- idle villagers
+- town center not producing villagers
+- housed (population at the cap)
+- floating resources
 
-No fim da partida ele gera um **relatório segundo a segundo**: aldeões em cada recurso, estoque, população.
+When the match ends, it produces a **per-second report**: villagers on each resource, resource stockpiles and population.
 
-## Princípios
-- **Barato**: 1 processo, meta < 50 MB de RAM e < 5 ms por ciclo, lendo 1× por segundo (configurável). Só captura regiões pequenas.
-- **Sem configuração**: a resolução vem do Windows e a escala da UI é detectada por âncoras (ícones de recurso e minimapa).
-- **Nada de blackbox**: cada etapa tem uma ferramenta de inspeção visual (veja `docs/DECISIONS.md` e o ROADMAP).
+## Principles
+- **Low cost**: a single process, targeting < 50 MB of RAM and < 5 ms per cycle, with one read every 2 s by default (configurable). Only small screen regions are captured.
+- **Zero configuration**: the resolution comes from Windows, and the UI scale is detected from an anchor (the resource icon column).
+- **No black boxes**: every stage has a visual inspection tool (see `docs/DECISIONS.md` and `ROADMAP.md`).
 
-## Requisitos
-- Windows 10/11, AoE4 em **Borderless** ou **Janela**. Overlays não aparecem em tela cheia exclusiva.
+## Requirements
+- Windows 10/11, with AoE4 running in **Borderless** or **Windowed** mode. Overlays are not visible in exclusive fullscreen.
 - [uv](https://docs.astral.sh/uv/)
 
-## Uso (até agora)
+## Usage
 ```powershell
-uv sync
-uv run aoe4ov window                    # mostra a janela do jogo detectada e a resolução
-uv run aoe4ov snap --count 6 --every 20 # salva screenshots da partida em captures/
-uv run aoe4ov inspect captures/*.png    # .inspect.html: cada estágio da leitura, campo a campo
-uv run aoe4ov label captures/*.png      # rotulador: confirme/corrija → vira fixture de teste + glifo
-uv run aoe4ov watch                     # leitura ao vivo no terminal (1×/s); grava sessions/<início>/log.jsonl e falha_*.png
-uv run aoe4ov glyphs                    # refaz o banco de glifos a partir das fixtures
-uv run aoe4ov overlay                   # overlay de debug por cima do jogo (detecção, valores, confiança, RAM/CPU)
-uv run pytest
+uv sync                                 # install dependencies
+uv run aoe4ov window                    # show the detected game window and its resolution
+uv run aoe4ov snap --count 6 --every 20 # save in-game screenshots to captures/
+uv run aoe4ov inspect captures/*.png    # write .inspect.html files showing every reading stage, field by field
+uv run aoe4ov label captures/*.png      # labeler: confirm or correct readings to create test fixtures and glyphs
+uv run aoe4ov glyphs                    # rebuild the glyph bank from the labeled fixtures
+uv run aoe4ov watch                     # live readings in the terminal; records sessions/<start>/log.jsonl and fail_*.png
+uv run aoe4ov overlay                   # debug overlay on top of the game (detection, values, confidence, RAM/CPU)
+uv run pytest                           # run the test suite
 ```

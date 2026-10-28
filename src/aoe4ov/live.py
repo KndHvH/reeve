@@ -1,9 +1,10 @@
-"""Leitura ao vivo de uma partida: o motor usado pelo `watch` e pelo overlay.
+"""Live reading of a match: the engine used by `watch` and by the overlay.
 
-Cada `step()` faz um ciclo: acha a janela, calibra a âncora quando precisa,
-captura só as regiões, confere se o painel está visível (menu/pausa) e lê.
-Também grava a partida em sessions/<início>/ (log.jsonl + imagens das
-leituras que falham), então quem usa o motor só cuida de mostrar o resultado.
+Each `step()` runs one cycle: finds the window, calibrates the anchor when
+needed, captures only the regions, checks whether the panel is visible
+(menu/pause) and reads. It also records the match in sessions/<start>/
+(log.jsonl + images of failed readings), so callers only have to display
+the result.
 """
 
 from __future__ import annotations
@@ -22,27 +23,27 @@ from .capture import Capture
 from .reader import Frame, read_frame
 from .window import GameWindow, find_game_window
 
-MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida
-HIDDEN_END_S = 30    # painel oculto por mais que isso = fim de partida
-MIN_CONTRAST = 0.7   # contraste da âncora ÷ do template: jogo ~0,88; menu/véu 0,03–0,38
-DOUBT_BAND = (0.55, 0.72)  # score da fila nessa faixa: salva a imagem para análise
+MAX_FAIL_SHOTS = 30  # failure images saved per match
+HIDDEN_END_S = 30    # panel hidden for longer than this = end of match
+MIN_CONTRAST = 0.7   # anchor contrast ÷ template contrast: game ~0.88; menu/veil 0.03–0.38
+DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analysis
 MAX_DOUBT_SHOTS = 20
-SHAPE_RATIO = 0.85   # forma da âncora abaixo de 85% da calibração = painel coberto/esmaecendo
-RECAL_EVERY = 3      # com o painel sumido, procura de novo a cada 3 ciclos (escala da UI mudou?)
+SHAPE_RATIO = 0.85   # anchor shape below 85% of calibration = panel covered/fading
+RECAL_EVERY = 3      # with the panel gone, search again every 3 cycles (did the UI scale change?)
 
 
 @dataclass
 class Step:
-    status: str                       # "sem_jogo" | "aguardando" | "oculto" | "lendo"
+    status: str                       # "no_game" | "waiting" | "hidden" | "reading"
     win: GameWindow | None = None
     match: AnchorMatch | None = None
     frame: Frame | None = None
     bad: list[str] = field(default_factory=list)
     grab_ms: float = 0.0
     read_ms: float = 0.0
-    shape: float = 0.0                # forma da âncora neste ciclo
-    contrast: float = 1.0             # contraste da âncora ÷ do template
-    events: list[str] = field(default_factory=list)  # mensagens para quem mostra
+    shape: float = 0.0                # anchor shape in this cycle
+    contrast: float = 1.0             # anchor contrast ÷ template contrast
+    events: list[str] = field(default_factory=list)  # messages for the display side
 
 
 class LiveReader:
@@ -59,51 +60,51 @@ class LiveReader:
         self.saved_fails = 0
         self.saved_doubts = 0
 
-    # --- sessão -----------------------------------------------------------
+    # --- session ----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
         if self.log is None:
             self.session = self.sessions_dir / f"{datetime.now():%Y%m%d-%H%M%S}"
             self.session.mkdir(parents=True, exist_ok=True)
             self.log = open(self.session / "log.jsonl", "a", encoding="utf-8")
             self.saved_fails = self.saved_doubts = 0
-            events.append(f"gravando em {self.session}")
+            events.append(f"recording to {self.session}")
 
     def close(self, events: list[str] | None = None) -> None:
         if self.log:
             self.log.close()
             if events is not None:
-                events.append(f"log salvo em {self.session}")
+                events.append(f"log saved to {self.session}")
         self.session, self.log = None, None
 
     def _write(self, obj: dict) -> None:
         self.log.write(json.dumps({"wall": f"{datetime.now():%H:%M:%S}", **obj}, ensure_ascii=False) + "\n")
         self.log.flush()
 
-    # --- ciclo ------------------------------------------------------------
+    # --- cycle ------------------------------------------------------------
     def step(self) -> Step:
         events: list[str] = []
         win = find_game_window()
         if win is None or not win.foreground:
-            return Step("sem_jogo", win)
+            return Step("no_game", win)
 
         if self.match is None or self.size != (win.width, win.height) or self.fails >= 3:
             self.match = self.cap.calibrate(win)
             self.size = (win.width, win.height)
             self.fails = 0
             if not self.match.ok:
-                # Menu, opções, carregamento ou fim de partida: sem painel na tela.
-                # Com uma partida aberta, só encerra depois de HIDDEN_END_S (ir às
-                # opções mudar a resolução não pode partir a partida em duas).
+                # Menu, options, loading screen or end of match: no panel on screen.
+                # With a match open, only end it after HIDDEN_END_S (going into
+                # the options to change the resolution must not split the match in two).
                 m, self.match = self.match, None
                 if self.log:
                     if self.hidden == 0:
-                        self._write({"event": "painel_oculto", "ancora": round(m.score, 3)})
+                        self._write({"event": "panel_hidden", "anchor": round(m.score, 3)})
                     self.hidden += 1
                     if self.hidden * self.every >= HIDDEN_END_S:
                         self.close(events)
                         self.hidden = 0
-                return Step("aguardando", win, m, events=events)
-            events.append(f"painel encontrado: score {self.match.score:.3f} escala {self.match.scale:.3f}")
+                return Step("waiting", win, m, events=events)
+            events.append(f"panel found: score {self.match.score:.3f} scale {self.match.scale:.3f}")
             self._open_session(events)
 
         match = self.match
@@ -111,32 +112,32 @@ class LiveReader:
         buf = self.cap.grab(win)
         grab_ms = (time.perf_counter() - t0) * 1000
 
-        # Menu, pausa ou tela de fim escondem o painel (forma some) ou passam um
-        # véu por cima (forma fica, contraste cai): pula a leitura em vez de
-        # registrar lixo.
+        # Menu, pause or the end screen either hide the panel (shape disappears)
+        # or draw a veil over it (shape stays, contrast drops): skip the reading
+        # instead of logging garbage.
         shape, contrast = panel_state(buf, match)
         if not (shape >= max(MIN_SCORE, SHAPE_RATIO * match.score) and contrast >= MIN_CONTRAST):
             if self.hidden == 0:
-                self._write({"event": "painel_oculto", "forma": round(shape, 3), "contraste": round(contrast, 2)})
+                self._write({"event": "panel_hidden", "shape": round(shape, 3), "contrast": round(contrast, 2)})
             self.hidden += 1
-            # Painel "sumido" pode ser só a escala da UI que mudou nas opções
-            # (a janela não muda de tamanho): procura de novo de tempos em tempos
-            # e, se achar em outro lugar/escala, segue na mesma partida.
+            # A "missing" panel may just be the UI scale changed in the options
+            # (the window keeps its size): search again every so often and,
+            # if it turns up at another position/scale, continue the same match.
             if self.hidden % RECAL_EVERY == 0:
                 new = self.cap.probe(win)
                 moved = abs(new.scale - match.scale) > 0.01 * match.scale or abs(new.x - match.x) + abs(new.y - match.y) > 2
                 if new.ok and moved:
                     self.cap.adopt(new, win)
                     self.match, self.hidden = new, 0
-                    self._write({"event": "recalibrado", "anchor": [new.x, new.y, round(new.scale, 3), round(new.score, 3)]})
-                    events.append(f"painel mudou: recalibrado (escala {new.scale:.3f})")
-                    return Step("oculto", win, new, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
+                    self._write({"event": "recalibrated", "anchor": [new.x, new.y, round(new.scale, 3), round(new.score, 3)]})
+                    events.append(f"panel moved: recalibrated (scale {new.scale:.3f})")
+                    return Step("hidden", win, new, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
             if self.hidden * self.every >= HIDDEN_END_S:
                 self.close(events)
                 self.match, self.hidden = None, 0
-            return Step("oculto", win, match, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
+            return Step("hidden", win, match, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)
         if self.hidden:
-            self._write({"event": "painel_visivel"})
+            self._write({"event": "panel_visible"})
             self.hidden = 0
 
         t1 = time.perf_counter()
@@ -156,11 +157,11 @@ class LiveReader:
         })
         if bad and self.saved_fails < MAX_FAIL_SHOTS:
             Image.fromarray(np.ascontiguousarray(buf)).save(
-                self.session / f"falha_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
+                self.session / f"fail_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
             self.saved_fails += 1
         if DOUBT_BAND[0] <= f.production.score <= DOUBT_BAND[1] and self.saved_doubts < MAX_DOUBT_SHOTS:
-            # Score da fila perto do limiar: guarda a imagem para entender o que é.
+            # Queue score close to the threshold: keep the image to understand what it is.
             Image.fromarray(np.ascontiguousarray(buf)).save(
-                self.session / f"duvida_fila_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
+                self.session / f"doubt_queue_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
             self.saved_doubts += 1
-        return Step("lendo", win, match, f, bad, grab_ms, read_ms, shape, contrast, events)
+        return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events)

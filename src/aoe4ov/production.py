@@ -1,8 +1,8 @@
-"""Detecta aldeão em produção pela fila de produção acima do painel.
+"""Detects villager production via the production queue above the panel.
 
-A fila aparece sem precisar selecionar o TC (dica do usuário). Basta saber se
-existe algum ícone de aldeão nela: NCC do template do ícone na região acima
-da âncora. Nas capturas reais: TC parado ≤ 0,43; produzindo ≥ 0,70.
+The queue is visible without selecting the town center. It is enough
+to know whether any villager icon is in it: NCC of the icon template in the
+region above the anchor. On real captures: idle TC ≤ 0.43; producing ≥ 0.70.
 """
 
 from __future__ import annotations
@@ -20,16 +20,16 @@ from .anchor import ASSETS, AnchorMatch, _Matcher, load_layout
 class Production:
     villager: bool
     score: float
-    box: tuple[int, int, int, int] | None    # melhor ícone (x, y, w, h) na imagem
-    region: tuple[int, int, int, int]         # onde procurou
+    box: tuple[int, int, int, int] | None    # best icon (x, y, w, h) in the image
+    region: tuple[int, int, int, int]         # where it searched
 
 
 @lru_cache(maxsize=4)
 def _templates(scale: float) -> list[np.ndarray]:
-    """Todos os ícones de aldeão do layout, levados à escala atual.
+    """All villager icons from the layout, brought to the current scale.
 
-    Cada template guarda a escala em que foi recortado: um ícone tirado em
-    1080p casa melhor em 1080p do que o de 720p ampliado.
+    Each template stores the scale it was cropped at: an icon taken at 1080p
+    matches better at 1080p than an upscaled 720p one.
     """
     out = []
     for file, tpl_scale in load_layout()["production"]["templates"]:
@@ -51,11 +51,11 @@ def region(match: AnchorMatch, shape: tuple[int, int]) -> tuple[int, int, int, i
 
 
 def detect_villager_in(sub: np.ndarray, origin: tuple[int, int], match: AnchorMatch) -> Production:
-    """`sub`: recorte em cinza de `region(...)`, cujo canto está em `origin`.
+    """`sub`: grayscale crop of `region(...)`, whose corner is at `origin`.
 
-    Em telas maiores que a referência, a região é reduzida para a escala de
-    referência antes da busca (ideia do usuário): ~2,3× mais barato em 1,49×,
-    e todos os templates são comparados nessa mesma escala.
+    On screens larger than the reference, the region is downscaled to the
+    reference scale before searching: ~2.3× cheaper at 1.49×,
+    and all templates are compared at that same scale.
     """
     x0, y0 = origin
     reg = (x0, y0, sub.shape[1], sub.shape[0])

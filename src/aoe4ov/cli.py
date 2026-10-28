@@ -1,4 +1,4 @@
-"""Entrada de linha de comando: `aoe4ov <comando>`."""
+"""Command-line entry point: `aoe4ov <command>`."""
 
 from __future__ import annotations
 
@@ -14,15 +14,15 @@ from .window import find_game_window
 def cmd_window(_args) -> int:
     win = find_game_window()
     if win is None:
-        print("AoE4 não encontrado. O jogo está aberto (borderless/janela)?")
+        print("AoE4 not found. Is the game running (borderless/windowed)?")
         return 1
-    print(f"Janela: {win.title!r}")
-    print(f"Área do jogo: {win.width}x{win.height} em ({win.left}, {win.top})")
+    print(f"Window: {win.title!r}")
+    print(f"Game area: {win.width}x{win.height} at ({win.left}, {win.top})")
     return 0
 
 
 def cmd_snap(args) -> int:
-    """Salva screenshots da área do jogo — matéria-prima para templates e fixtures."""
+    """Save screenshots of the game area — raw material for templates and fixtures."""
     import mss
     import mss.tools
 
@@ -32,10 +32,10 @@ def cmd_snap(args) -> int:
         for i in range(args.count):
             win = find_game_window()
             if win is None:
-                print("AoE4 não encontrado.")
+                print("AoE4 not found.")
                 return 1
             while not win.foreground:
-                print("  aguardando o AoE4 ficar em primeiro plano...", end="\r")
+                print("  waiting for AoE4 to be in the foreground...", end="\r")
                 time.sleep(1)
             shot = sct.grab(win.rect)
             path = out / f"{datetime.now():%Y%m%d-%H%M%S}_{win.width}x{win.height}.png"
@@ -56,7 +56,7 @@ def cmd_inspect(args) -> int:
 
 
 def cmd_label(args) -> int:
-    """Abre o rotulador; capturas que já viraram fixture são puladas."""
+    """Open the labeler; captures that are already fixtures are skipped."""
     import json
 
     from .glyphs import FIXTURES
@@ -65,7 +65,7 @@ def cmd_label(args) -> int:
     done = {json.loads(j.read_text(encoding="utf-8")).get("source") for j in FIXTURES.glob("*.json")}
     paths = [Path(p) for p in args.images if Path(p).suffix == ".png" and Path(p).stem not in done]
     if not paths:
-        print("Nada novo para rotular (todas já são fixtures).")
+        print("Nothing new to label (all are already fixtures).")
         return 0
     run(paths)
     return 0
@@ -86,49 +86,49 @@ def _fmt_clock(secs) -> str:
 
 
 def cmd_watch(args) -> int:
-    """Lê o jogo ao vivo e imprime uma linha por leitura (motor em live.py).
+    """Read the game live and print one line per reading (engine in live.py).
 
-    Cada partida também vai para sessions/<início>/log.jsonl e, quando algum
-    campo falha, a imagem das regiões capturadas vai para falha_*.png.
+    Each match is also written to sessions/<start>/log.jsonl and, when a
+    field fails, the image of the captured regions goes to fail_*.png.
     """
     from .live import LiveReader
 
     live = LiveReader(args.every)
-    print("Ctrl+C para sair.")
+    print("Ctrl+C to quit.")
     try:
         while True:
             t0 = time.perf_counter()
             s = live.step()
             for e in s.events:
-                print(f"[partida] {e}".ljust(100))
-            if s.status == "sem_jogo":
-                print("  aguardando o AoE4 em primeiro plano...".ljust(100), end="\r")
-            elif s.status == "aguardando":
-                print(f"  aguardando partida (painel não encontrado, score {s.match.score:.2f})...".ljust(100), end="\r")
-            elif s.status == "oculto":
-                print(f"  menu/pausa (painel oculto ou com véu: forma {s.shape:.2f}, contraste {s.contrast:.2f})...".ljust(100), end="\r")
+                print(f"[match] {e}".ljust(100))
+            if s.status == "no_game":
+                print("  waiting for AoE4 in the foreground...".ljust(100), end="\r")
+            elif s.status == "waiting":
+                print(f"  waiting for a match (panel not found, score {s.match.score:.2f})...".ljust(100), end="\r")
+            elif s.status == "hidden":
+                print(f"  menu/pause (panel hidden or veiled: shape {s.shape:.2f}, contrast {s.contrast:.2f})...".ljust(100), end="\r")
             else:
                 v = s.frame.values
                 pop = f"{v['pop'][0]}/{v['pop'][1]}" if v["pop"] else "?"
                 res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
-                tc = "TC produzindo" if v["producing_villager"] else "TC PARADO"
+                tc = "TC producing" if v["producing_villager"] else "TC IDLE"
                 warn = f"  ?? {','.join(s.bad)}" if s.bad else ""
-                print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | "
-                      f"{s.grab_ms + s.read_ms:.0f} ms (captura {s.grab_ms:.0f}){warn}")
+                print(f"{_fmt_clock(v['clock'])} | pop {pop} | idle {v['idle']} | {res} | {tc} | "
+                      f"{s.grab_ms + s.read_ms:.0f} ms (capture {s.grab_ms:.0f}){warn}")
             time.sleep(max(0.0, args.every - (time.perf_counter() - t0)))
     except KeyboardInterrupt:
         events: list[str] = []
         live.close(events)
         for e in events:
-            print(f"[partida] {e}".ljust(100))
+            print(f"[match] {e}".ljust(100))
         return 0
 
 
 def cmd_overlay(args) -> int:
-    """Overlay por cima do jogo. Por enquanto só existe o modo debug."""
+    """Overlay on top of the game. For now only the debug mode exists."""
     from .overlay import run
 
-    print("Overlay de debug ativo. Ctrl+C aqui para sair.")
+    print("Debug overlay active. Ctrl+C here to quit.")
     try:
         run(args.every)
     except KeyboardInterrupt:
@@ -141,26 +141,26 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="aoe4ov")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("window", help="mostra a janela do AoE4 detectada e sua resolução")
+    sub.add_parser("window", help="show the detected AoE4 window and its resolution")
 
-    s = sub.add_parser("snap", help="tira screenshots da área do jogo")
+    s = sub.add_parser("snap", help="take screenshots of the game area")
     s.add_argument("--count", type=int, default=1)
-    s.add_argument("--every", type=float, default=10.0, help="segundos entre screenshots")
+    s.add_argument("--every", type=float, default=10.0, help="seconds between screenshots")
     s.add_argument("--out", default="captures")
 
-    i = sub.add_parser("inspect", help="gera <imagem>.inspect.html com cada estágio da leitura")
+    i = sub.add_parser("inspect", help="generate <image>.inspect.html with every stage of the reading")
     i.add_argument("images", nargs="+")
 
-    lb = sub.add_parser("label", help="rotulador: confirme/corrija leituras e gere fixtures")
+    lb = sub.add_parser("label", help="labeler: confirm/correct readings and generate fixtures")
     lb.add_argument("images", nargs="+")
 
-    sub.add_parser("glyphs", help="refaz assets/glyphs/ a partir das fixtures rotuladas")
+    sub.add_parser("glyphs", help="rebuild assets/glyphs/ from the labeled fixtures")
 
-    w = sub.add_parser("watch", help="lê o jogo ao vivo e imprime os valores")
-    w.add_argument("--every", type=float, default=2.0, help="segundos entre leituras (padrão 2)")
+    w = sub.add_parser("watch", help="read the game live and print the values")
+    w.add_argument("--every", type=float, default=2.0, help="seconds between readings (default 2)")
 
-    o = sub.add_parser("overlay", help="overlay por cima do jogo (modo debug: detecção, valores, confiança, RAM/CPU)")
-    o.add_argument("--every", type=float, default=2.0, help="segundos entre leituras (padrão 2)")
+    o = sub.add_parser("overlay", help="overlay on top of the game (debug mode: detection, values, confidence, RAM/CPU)")
+    o.add_argument("--every", type=float, default=2.0, help="seconds between readings (default 2)")
 
     args = p.parse_args(argv)
     cmds = {

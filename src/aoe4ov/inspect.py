@@ -1,8 +1,8 @@
-"""Gera um HTML para inspecionar visualmente o pipeline sobre um screenshot.
+"""Generate an HTML page to visually inspect the pipeline on a screenshot.
 
-Mostra a âncora e as regiões sobre a imagem e, para cada região, os estágios
-da leitura: recorte → máscara de texto → glifos (caractere + score) → valor.
-Também mostra a busca do ícone de aldeão na fila de produção.
+Shows the anchor and the regions over the image and, for each region, the
+reading stages: crop → text mask → glyphs (character + score) → value.
+Also shows the search for the villager icon in the production queue.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def build(path: Path) -> str:
             f'<figure>{_img(np.clip(g.crop, 0, 255).astype(np.uint8), 5)}'
             f'<figcaption><b>{html.escape(g.char)}</b> <span style="color:{_color(g.score)}">{g.score:.2f}</span></figcaption></figure>'
             for g in r.glyphs
-        ) or '<span class="muted">nenhum glifo</span>'
+        ) or '<span class="muted">no glyphs</span>'
         val = f.values.get(name)
         rows.append(
             f"<tr><td><b>{name}</b></td><td>{_img(crop)}</td><td>{_img(mask)}</td>"
@@ -87,7 +87,7 @@ def build(path: Path) -> str:
         rects.append(f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" fill="none" stroke="{pc}" stroke-width="2"/>')
     prod_crop = _img(rgb[py:py + ph, px:px + pw], 3)
 
-    return f"""<!doctype html><html lang="pt-br"><meta charset="utf-8">
+    return f"""<!doctype html><html lang="en"><meta charset="utf-8">
 <title>Inspect · {html.escape(path.name)}</title>
 <style>
  body{{background:#0f1115;color:#e6e6e6;font:14px system-ui,Segoe UI,sans-serif;margin:24px}}
@@ -102,26 +102,26 @@ def build(path: Path) -> str:
 </style>
 <h1>{html.escape(path.name)} — {img.width}×{img.height}</h1>
 <div class="stats">
- <span>Âncora <b style="color:{acolor}">{"OK" if m.ok else "BAIXA CONFIANÇA"}</b> score {m.score:.3f}</span>
- <span>escala <b>{m.scale:.3f}</b>× referência</span>
- <span>detecção <b>{t_anchor:.0f} ms</b></span>
- <span>leitura <b>{t_read:.1f} ms</b></span>
+ <span>Anchor <b style="color:{acolor}">{"OK" if m.ok else "LOW CONFIDENCE"}</b> score {m.score:.3f}</span>
+ <span>scale <b>{m.scale:.3f}</b>× reference</span>
+ <span>detection <b>{t_anchor:.0f} ms</b></span>
+ <span>reading <b>{t_read:.1f} ms</b></span>
 </div>
-<p class="muted">Verde ≥ 0,85 · amarelo ≥ {MIN_SCORE} · vermelho = não confiável. Tracejado = onde a fila de produção é procurada.</p>
+<p class="muted">Green ≥ 0.85 · yellow ≥ {MIN_SCORE} · red = unreliable. Dashed = where the production queue is searched.</p>
 <div class="shot">
  <img src="data:image/png;base64,{_png_b64(img)}">
  <svg viewBox="0 0 {img.width} {img.height}" font-family="Segoe UI">{"".join(rects)}</svg>
 </div>
 
-<h2>Leitura por região</h2>
+<h2>Reading by region</h2>
 <table>
-<tr><th>campo</th><th>recorte</th><th>máscara de texto</th><th>glifos (caractere · score)</th><th>texto</th><th>valor</th></tr>
+<tr><th>field</th><th>crop</th><th>text mask</th><th>glyphs (character · score)</th><th>text</th><th>value</th></tr>
 {"".join(rows)}
 </table>
 
-<h2>Fila de produção</h2>
-<p>Aldeão em produção: <b style="color:{pc}">{"SIM" if p.villager else "NÃO"}</b> — melhor match do ícone {p.score:.2f}
-(limiar 0,6; parado fica ≤ 0,45 nas capturas reais)</p>
+<h2>Production queue</h2>
+<p>Villager in production: <b style="color:{pc}">{"YES" if p.villager else "NO"}</b> — best icon match {p.score:.2f}
+(threshold 0.6; idle stays ≤ 0.45 in real captures)</p>
 {prod_crop}
 </html>"""
 

@@ -1,7 +1,7 @@
-"""Lê o estado do jogo de uma imagem: âncora → regiões → números.
+"""Reads the game state from an image: anchor → regions → numbers.
 
-`read_frame` é usado tanto ao vivo (com a captura do mss) quanto offline
-(screenshots, testes, inspect), então o mesmo código é o que você valida.
+`read_frame` is used both live (with the mss capture) and offline
+(screenshots, tests, inspect), so the code you validate is the code that runs.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .digits import DIGIT_H_REF, H_RANGE, GlyphBank, Reading, read, text_mask, t
 from .production import Production, detect_villager_in
 from .production import region as production_region
 
-COLORED_FIELDS = {"pop"}  # amarela perto do limite, vermelha no limite
+COLORED_FIELDS = {"pop"}  # yellow near the cap, red at the cap
 PANEL_FIELDS = ["pop", "idle", "food", "wood", "gold", "stone", "vil_food", "vil_wood", "vil_gold", "vil_stone"]
 
 
@@ -31,7 +31,7 @@ class Frame:
 
 
 def clock_seconds(digits: str) -> int | None:
-    """'0036' → 36, '10217' → 3737 (1:02:17). Dois-pontos já foram descartados."""
+    """'0036' → 36, '10217' → 3737 (1:02:17). Colons have already been discarded."""
     if not digits.isdigit() or not 4 <= len(digits) <= 6:
         return None
     h = int(digits[:-4] or 0)
@@ -42,7 +42,7 @@ def clock_seconds(digits: str) -> int | None:
 
 
 def parse(name: str, text: str):
-    """Texto lido → valor. None se o formato não bate."""
+    """Read text → value. None if the format does not match."""
     if name == "pop":
         m = re.fullmatch(r"(\d+)/(\d+)", text)
         return (int(m[1]), int(m[2])) if m else None
@@ -51,18 +51,18 @@ def parse(name: str, text: str):
     return int(text) if text.isdigit() else None
 
 
-_clock_y_hint: dict[float, tuple[int, int]] = {}  # escala -> (y da faixa, altura dos dígitos)
+_clock_y_hint: dict[float, tuple[int, int]] = {}  # scale -> (band y, digit height)
 
 
 def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> Reading:
-    """O relógio muda de altura (ex.: na troca de era) e o fundo dele é
-    semitransparente. Uma janela da altura de um dígito desce pela região; em
-    cada posição ficam só os glifos alinhados com a maioria (mesmo topo e
-    altura): bordas da caixa contra fundo claro viram traços parecidos com '1',
-    mas desalinhados. Das posições lidas como relógio válido fica a de maior
-    confiança e, no empate, a que pega os dígitos mais altos (inteiros): uma
-    janela que corta 1 px do topo transforma '2' em '7'.
-    A última posição boa é tentada primeiro e aceita direto se for confiável."""
+    """The clock changes height (e.g. on age-up) and its background is
+    semi-transparent. A digit-high window slides down the region; at each
+    position only the glyphs aligned with the majority (same top and height)
+    are kept: box edges against a bright background turn into '1'-like
+    strokes, but misaligned. Among the positions read as a valid clock, the
+    one with the highest confidence wins and, on a tie, the one capturing the
+    tallest (whole) digits: a window that cuts 1 px off the top turns '2' into '7'.
+    The last good position is tried first and accepted directly if reliable."""
     band_h = round(DIGIT_H_REF * scale * H_RANGE[1]) + 2
     key_scale = round(scale, 3)
     tol = max(1, round(scale))
@@ -91,9 +91,10 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
                 cands.append((round(r.conf, 2), min(g.h for g in r.glyphs), -y0, r))
         return max(cands, key=lambda c: c[:3]) if cands else None
 
-    # Cache: posição anterior ±1 px. Vale se os dígitos têm a mesma altura da
-    # última leitura boa (janela cortando o topo dá altura menor) — assim não
-    # depende de confiança alta, que em resoluções sem amostras fica em ~0,7.
+    # Cache: previous position ±1 px. Valid if the digits have the same height
+    # as the last good reading (a window cutting the top gives a smaller
+    # height), so it does not depend on high confidence, which sits at ~0.7 at
+    # resolutions without samples.
     hint = _clock_y_hint.get(key_scale)
     if hint is not None:
         y_h, h_h = hint
@@ -110,7 +111,7 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
 
 
 def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None) -> Frame:
-    """`rgb`: área inteira do jogo. Com `match` conhecido, pula a detecção."""
+    """`rgb`: the whole game area. With a known `match`, detection is skipped."""
     gray = None
     if match is None:
         gray = to_gray(rgb)

@@ -9,7 +9,7 @@ from aoe4ov.window import GameWindow
 
 
 def test_roi_only_capture_reads_same_as_full_frame():
-    """Ao vivo só copiamos dois retângulos; a leitura tem que ser idêntica."""
+    """Live, we only copy two rectangles; the reading must be identical."""
     for png, _ in labeled_fixtures():
         rgb = np.asarray(Image.open(png).convert("RGB"))
         h, w = rgb.shape[:2]
@@ -27,4 +27,4 @@ def test_roi_only_capture_reads_same_as_full_frame():
         assert part == full, png.name
 
         captured = sum(rw * rh for _, _, rw, rh in rects)
-        assert captured < 0.1 * w * h, "captura deveria ser bem menor que a tela"
+        assert captured < 0.1 * w * h, "capture should be much smaller than the screen"

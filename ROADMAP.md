@@ -1,25 +1,25 @@
 # Roadmap
 
-## v0.1: MVP (dicas independentes de build)
-Cada marco termina com uma validação visual feita pelo usuário antes de seguir para o próximo.
+## v0.1: MVP (build-independent tips)
+Each milestone ends with a visual validation by the user before work on the next one begins.
 
-| # | Entrega | Validação | Status |
-|---|---------|-----------|--------|
-| M1 | Repo, scaffold, agentes, detecção da janela, `snap` | `aoe4ov window` mostra a resolução certa | ✅ |
-| M2 | Âncora + escala da UI (multi-escala) | `inspect.html` com a caixa da âncora nos screenshots | ✅ |
-| M3 | Leitura de dígitos (recursos, aldeões/recurso, pop, relógio, ociosos) + fila de produção | `inspect.html` por estágio + rotulador + `watch` ao vivo + testes | 🔎 aguardando validação |
-| M4 | Overlay `--debug` ao vivo | Caixas e valores por cima do jogo numa partida vs IA | 🚧 modo debug pronto, adiantado a pedido |
-| M5 | Regras: ocioso, TC parado, housed, banco flutuando | Forçar cada situação e ver o alerta | |
-| M6 | Recorder JSONL + `report.html` auditável | Conferir a timeline contra o replay | |
+| # | Deliverable | Validation | Status |
+|---|-------------|------------|--------|
+| M1 | Repository, scaffold, agents, game window detection, `snap` | `aoe4ov window` reports the correct resolution | ✅ |
+| M2 | Anchor and UI scale detection (multi-scale) | `inspect.html` shows the anchor box on screenshots | ✅ |
+| M3 | Digit reading (resources, villagers per resource, population, clock, idle villagers) and production queue | Per-stage `inspect.html`, labeler, live `watch` and tests | 🔎 awaiting validation |
+| M4 | Live `--debug` overlay | Boxes and values drawn over the game in a match against the AI | 🚧 debug mode done, brought forward on request |
+| M5 | Rules: idle villagers, idle town center, housed, floating resources | Trigger each situation and confirm the alert | |
+| M6 | JSONL recorder and auditable `report.html` | Check the timeline against the replay | |
 
-## v0.2: Execução vs build
-Diff por timestamp: aldeões e recursos esperados vs reais.
+## v0.2: Execution vs. build order
+Timestamped diff of expected vs. actual villagers and resources.
 
-## v0.3: Builds
-Importar (aoe4guides / JSON próprio), criar e editar.
+## v0.3: Build orders
+Import (aoe4guides or a native JSON format), create and edit.
 
-## v0.4: Build "inteligente"
-Simulador de economia: dado o nº de aldeões por recurso e as taxas de coleta (civ, techs como Wheelbarrow e Double Broadaxe), projeta os recursos disponíveis no tempo T. O editor valida se cada passo da build é alcançável.
+## v0.4: Smart build orders
+Economy simulator: given the number of villagers per resource and the gather rates (civilization, technologies such as Wheelbarrow and Double Broadaxe), project the resources available at time T. The editor validates whether each build step is achievable.
 
-## Depois
-- Idiomas (só afeta textos: dígitos e ícones são universais).
+## Later
+- Localization (affects text only; digits and icons are language-independent).

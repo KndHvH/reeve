@@ -1,5 +1,5 @@
 {
-  "_doc": "Coordenadas de referência medidas numa captura 1280x720 com UI 100%. Regiões do 'panel' são relativas ao canto superior esquerdo da âncora; as de 'top_center' são relativas ao centro do topo da tela. Formato: [x, y, largura, altura]. Origem: tests/fixtures/720p_0036.png. O relógio desce durante a troca de era: a região é alta e o reader procura a faixa de texto com formato de relógio.",
+  "_doc": "Reference coordinates measured on a 1280x720 capture with 100% UI. 'panel' regions are relative to the top-left corner of the anchor; 'top_center' regions are relative to the top center of the screen. Format: [x, y, width, height]. Source: tests/fixtures/720p_0036.png. The clock moves down during age-up: the region is tall and the reader searches for the text band shaped like a clock.",
   "ref_height": 720,
   "anchor": {
     "template": "anchors/resource_icons.png",
@@ -15,7 +15,7 @@
       0,
       38
     ],
-    "_doc": "Template = coluna comida/madeira/ouro/pedra (sem a casa: no limite de população ela fica vermelha com '!' e derrubava o score). template_offset = posição do template em relação à origem da âncora, que continua sendo o topo da casa (ref_pos)."
+    "_doc": "Template = food/wood/gold/stone column (without the house: at the population cap it turns red with a '!' and dragged the score down). template_offset = position of the template relative to the anchor origin, which is still the top of the house (ref_pos)."
   },
   "panel": {
     "pop": [
@@ -88,7 +88,7 @@
     ]
   },
   "production": {
-    "_doc": "Fila de produção acima do painel. Região relativa à âncora. templates: [arquivo, escala em que foi recortado]: linha de baixo (com barra) de 720p_0117 e ícone de resumo (linha de cima) de 20261028-164311_1920x1351.",
+    "_doc": "Production queue above the panel. Region relative to the anchor. templates: [file, scale at which it was cropped]: bottom row (with progress bar) from 720p_0117 and summary icon (top row) from 20261028-164311_1920x1351.",
     "region": [
       -6,
       -170,

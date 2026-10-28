@@ -1,14 +1,15 @@
 # aoe4-overlay
 
-Overlay para AoE4 que lê a UI do jogo por template matching. Veja `README.md`, `ROADMAP.md` e `docs/DECISIONS.md`.
+An AoE4 overlay that reads the game UI through template matching. See `README.md`, `ROADMAP.md` and `docs/DECISIONS.md`.
 
-## Regras do projeto
-- **Custo computacional é requisito**: sem deps pesadas (torch, OCR, Qt, Electron), sem captura de tela inteira no loop, loop padrão de 1 leitura/s (configurável até 1 a cada 2 s), redesenhar o overlay só quando o estado mudar. Em caso de dúvida, consulte o agente `perf-guardian`.
-- **Nada hardcoded por resolução**: ROIs ficam em `assets/layout.json` em coordenadas de referência (1080p, UI 100%) relativas a uma âncora, escaladas em runtime.
-- **Tudo inspecionável**: cada etapa nova do pipeline precisa de uma saída visual (`inspect.html`, `--debug`) para o usuário validar.
-- **Marcos com checkpoint**: entregar um marco do ROADMAP, pedir a validação do usuário e só então seguir.
-- Registrar decisões não óbvias em `docs/DECISIONS.md`.
-- Usar só ctypes para Win32 (sem pywin32). Comentários e mensagens em português.
+## Project rules
+- **Computational cost is a requirement**: no heavy dependencies (torch, OCR, Qt, Electron), no full-screen capture inside the loop, a default loop of one read every 2 s (configurable), and the overlay is redrawn only when state changes. When in doubt, consult the `perf-guardian` agent.
+- **Nothing hardcoded per resolution**: ROIs live in `assets/layout.json` in reference coordinates relative to an anchor and are scaled at runtime.
+- **Everything inspectable**: every new pipeline stage needs a visual output (`inspect.html`, `--debug`) for the user to validate.
+- **Milestone checkpoints**: deliver a ROADMAP milestone, ask the user to validate it, and only then move on.
+- Record non-obvious decisions in `docs/DECISIONS.md`.
+- Use only ctypes for Win32 (no pywin32).
+- **Language**: all code, comments, docs, CLI/UI text, log keys and commit messages are in English. Conversation with the user may be in Portuguese.
 
-## Comandos
+## Commands
 - `uv sync`, `uv run pytest`, `uv run aoe4ov <cmd>`

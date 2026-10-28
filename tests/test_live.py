@@ -14,9 +14,9 @@ class _FakeWin(GameWindow):
 
 
 def test_ui_scale_change_recalibrates_in_same_session(monkeypatch, tmp_path):
-    """Mudar a escala da UI nas opções não muda o tamanho da janela: o painel
-    "some" da posição esperada. O motor tem que achar de novo e seguir na
-    mesma partida, em vez de esperar 30 s e encerrar o log."""
+    """Changing the UI scale in the options does not change the window size: the
+    panel "disappears" from the expected position. The engine must find it again
+    and continue the same match, instead of waiting 30 s and closing the log."""
     a = np.asarray(Image.open(FIXTURES / "720p_0217.png").convert("RGB"))
     im = Image.fromarray(a)
     b = im.copy()
@@ -43,10 +43,10 @@ def test_ui_scale_change_recalibrates_in_same_session(monkeypatch, tmp_path):
         steps.append(reader.step())
     reader.close()
 
-    assert [s.status for s in steps[:2]] == ["lendo", "lendo"]
-    assert steps[2].status == "oculto"
+    assert [s.status for s in steps[:2]] == ["reading", "reading"]
+    assert steps[2].status == "hidden"
     assert abs(steps[-1].match.scale - 1.25) < 0.03
-    assert steps[-1].status == "lendo"
+    assert steps[-1].status == "reading"
     assert steps[-1].frame.values["pop"] == (10, 40)
     assert steps[-1].frame.values["food"] == 100
-    assert len(list(tmp_path.iterdir())) == 1, "deveria continuar na mesma sessão"
+    assert len(list(tmp_path.iterdir())) == 1, "should continue in the same session"

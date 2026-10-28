@@ -1,14 +1,14 @@
-"""Overlay transparente por cima do jogo (por enquanto só o modo debug).
+"""Transparent overlay on top of the game (debug mode only, for now).
 
-Mostra o que o leitor está vendo: âncora, regiões com valor e confiança, fila
-de produção e um HUD com janela, escala, tempos, RAM e CPU.
+Shows what the reader is seeing: anchor, regions with value and confidence,
+production queue, and a HUD with window, scale, timings, RAM and CPU.
 
-- A janela é excluída das capturas de tela (WDA_EXCLUDEFROMCAPTURE), senão o
-  próprio overlay apareceria na imagem lida. Como garantia extra, nada é
-  desenhado dentro das regiões lidas.
-- Cliques atravessam (WS_EX_TRANSPARENT) e a janela nunca pega o foco, então
-  o jogo continua em primeiro plano.
-- O canvas só é redesenhado a cada leitura (padrão 2 s), sem animação.
+- The window is excluded from screen captures (WDA_EXCLUDEFROMCAPTURE),
+  otherwise the overlay itself would show up in the image being read. As an
+  extra safeguard, nothing is drawn inside the regions that are read.
+- Clicks pass through (WS_EX_TRANSPARENT) and the window never takes focus,
+  so the game stays in the foreground.
+- The canvas is only redrawn on each reading (default 2 s), with no animation.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from .digits import MIN_SCORE
 from .live import LiveReader, Step
 from .metrics import CpuMeter, ram_mb
 
-KEY = "#010203"  # cor tratada como transparente
+KEY = "#010203"  # color treated as transparent
 BG, CARD, FG, MUTED = "#0f1115", "#14171d", "#e6e6e6", "#8b93a1"
 GOOD, WARN, BAD, ACCENT = "#3ddc84", "#f5c542", "#ff5c5c", "#4da3ff"
 FONT = "Segoe UI"
@@ -67,7 +67,7 @@ class DebugOverlay:
         s = self.live.step()
         if s.events:
             self.last_events = (self.last_events + s.events)[-3:]
-        if s.win is None or s.status == "sem_jogo":
+        if s.win is None or s.status == "no_game":
             self.root.withdraw()
         else:
             g = (s.win.width, s.win.height, s.win.left, s.win.top)
@@ -84,18 +84,18 @@ class DebugOverlay:
         finally:
             self.live.close()
 
-    # --- desenho ----------------------------------------------------------
+    # --- drawing ----------------------------------------------------------
     def draw(self, s: Step):
         c = self.canvas
         c.delete("all")
         k = s.match.scale if s.match else 1.0
         fs = max(8, round(8 * k))
-        if s.status == "lendo":
+        if s.status == "reading":
             self._draw_detection(s, k, fs)
         self._draw_hud(s, k, fs)
 
     def _box(self, x, y, w, h, color, width=1, dash=None):
-        # 2 px por fora da região: nada do overlay cai dentro do que é lido.
+        # 2 px outside the region: nothing from the overlay falls inside what is read.
         self.canvas.create_rectangle(x - 2, y - 2, x + w + 1, y + h + 1, outline=color, width=width, dash=dash)
 
     def _draw_detection(self, s: Step, k: float, fs: int):
@@ -108,12 +108,12 @@ class DebugOverlay:
             r = f.readings[name]
             self._box(x, y, w, h, _conf_color(r.conf) if r.glyphs else BAD)
 
-        # Valores à direita de tudo o que é capturado, alinhados às linhas do painel.
+        # Values to the right of everything captured, aligned with the panel rows.
         cap_right = max(x + w for x, y, w, h in self.live.cap.rects[:1])
         lx = cap_right + round(10 * k)
-        rows = [("pop", "idle", "pop", "ociosos"), ("food", "vil_food", "comida", "aldeões"),
-                ("wood", "vil_wood", "madeira", "aldeões"), ("gold", "vil_gold", "ouro", "aldeões"),
-                ("stone", "vil_stone", "pedra", "aldeões")]
+        rows = [("pop", "idle", "pop", "idle"), ("food", "vil_food", "food", "villagers"),
+                ("wood", "vil_wood", "wood", "villagers"), ("gold", "vil_gold", "gold", "villagers"),
+                ("stone", "vil_stone", "stone", "villagers")]
         for a, b, la, lb in rows:
             ra, rb = f.readings[a], f.readings[b]
             va = f.values[a]
@@ -127,7 +127,7 @@ class DebugOverlay:
         rc = f.readings["clock"]
         secs = f.values["clock"]
         clock = f"{secs // 60:02d}:{secs % 60:02d}" if secs is not None else "--:--"
-        self._label(x + w // 2, y + h + round(12 * k), f"relógio {clock} ({rc.conf:.2f})", _conf_color(rc.conf), fs, anchor="n")
+        self._label(x + w // 2, y + h + round(12 * k), f"clock {clock} ({rc.conf:.2f})", _conf_color(rc.conf), fs, anchor="n")
 
         p = f.production
         px, py, pw, ph = p.region
@@ -135,7 +135,7 @@ class DebugOverlay:
         if p.box:
             bx, by, bw, bh = p.box
             self._box(bx, by, bw, bh, GOOD if p.villager else MUTED, 2 if p.villager else 1)
-        text = f"aldeão na fila ({p.score:.2f})" if p.villager else f"TC parado? ({p.score:.2f})"
+        text = f"villager queued ({p.score:.2f})" if p.villager else f"TC idle? ({p.score:.2f})"
         self._label(lx, py + round(10 * k), text, GOOD if p.villager else WARN, fs)
 
     def _label(self, x, y, text, color, fs, anchor="w"):
@@ -149,24 +149,24 @@ class DebugOverlay:
         c = self.canvas
         cpu_total, cpu_core = self.cpu.sample()
         status = {
-            "aguardando": ("aguardando partida", MUTED),
-            "oculto": (f"menu/pausa · forma {s.shape:.2f} · contraste {s.contrast:.2f}", WARN),
-            "lendo": ("lendo", GOOD),
+            "waiting": ("waiting for a match", MUTED),
+            "hidden": (f"menu/pause · shape {s.shape:.2f} · contrast {s.contrast:.2f}", WARN),
+            "reading": ("reading", GOOD),
         }[s.status]
         lines = [
             ("AoE4 overlay · debug", FG, True),
             (status[0], status[1], False),
-            (f"janela {s.win.width}×{s.win.height}", MUTED, False),
+            (f"window {s.win.width}×{s.win.height}", MUTED, False),
         ]
         if s.match:
-            lines.append((f"UI {s.match.scale:.2f}× · âncora {s.match.score:.2f}", MUTED, False))
-        if s.status == "lendo":
-            lines.append((f"leitura {s.read_ms:.0f} ms · captura {s.grab_ms:.0f} ms · a cada {self.every:g} s", MUTED, False))
+            lines.append((f"UI {s.match.scale:.2f}× · anchor {s.match.score:.2f}", MUTED, False))
+        if s.status == "reading":
+            lines.append((f"read {s.read_ms:.0f} ms · capture {s.grab_ms:.0f} ms · every {self.every:g} s", MUTED, False))
             if s.bad:
-                lines.append(("falhou: " + ", ".join(s.bad), BAD, False))
-        lines.append((f"RAM {ram_mb():.0f} MB · CPU {cpu_total:.1f}% ({cpu_core:.0f}% de 1 núcleo)", MUTED, False))
+                lines.append(("failed: " + ", ".join(s.bad), BAD, False))
+        lines.append((f"RAM {ram_mb():.0f} MB · CPU {cpu_total:.1f}% ({cpu_core:.0f}% of 1 core)", MUTED, False))
         if not self.excluded:
-            lines.append(("aviso: overlay visível na captura", BAD, False))
+            lines.append(("warning: overlay visible in capture", BAD, False))
         for e in self.last_events:
             lines.append((e, MUTED, False))
 

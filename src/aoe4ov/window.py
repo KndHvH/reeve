@@ -1,7 +1,8 @@
-"""Localiza a janela do AoE4 e devolve a área cliente em pixels físicos de tela.
+"""Locates the AoE4 window and returns its client area in physical screen pixels.
 
-Usa só ctypes (sem pywin32). A resolução vem do próprio Windows, então não há
-nada fixo por perfil: funciona em janela, borderless e em monitor secundário.
+Uses only ctypes (no pywin32). The resolution comes from Windows itself, so
+nothing is hardcoded per profile: it works windowed, borderless and on a
+secondary monitor.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ GAME_TITLE = "Age of Empires IV"
 
 user32 = ctypes.windll.user32
 
-# Sem isso, em telas com escala do Windows != 100% as coordenadas vêm "virtualizadas".
+# Without this, on displays with Windows scaling != 100% the coordinates come back "virtualized".
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
 except (AttributeError, OSError):
@@ -32,12 +33,12 @@ class GameWindow:
 
     @property
     def foreground(self) -> bool:
-        """mss copia o que está visível na tela: só vale ler com o jogo na frente."""
+        """mss copies what is visible on screen: reading is only valid with the game in front."""
         return user32.GetForegroundWindow() == self.hwnd
 
     @property
     def rect(self) -> dict[str, int]:
-        """Formato aceito por `mss.grab`."""
+        """Format accepted by `mss.grab`."""
         return {"left": self.left, "top": self.top, "width": self.width, "height": self.height}
 
 
@@ -49,7 +50,7 @@ def _title(hwnd: int) -> str:
 
 
 def find_game_window(title: str = GAME_TITLE) -> GameWindow | None:
-    """Primeira janela visível cujo título contém `title`, ou None."""
+    """First visible window whose title contains `title`, or None."""
     found: list[int] = []
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)

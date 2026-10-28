@@ -1,7 +1,7 @@
 [project]
 name = "aoe4ov"
 version = "0.1.0"
-description = "Overlay leve para Age of Empires IV: lê a UI por template matching e dá dicas de macro."
+description = "Lightweight Age of Empires IV overlay: reads the game UI through template matching and provides macro tips."
 authors = [
     { name = "Matias Herklotz", email = "delend89@gmail.com" }
 ]

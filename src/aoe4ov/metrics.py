@@ -1,4 +1,4 @@
-"""RAM e CPU do próprio processo, via Win32 (sem psutil)."""
+"""RAM and CPU of the current process, via Win32 (no psutil)."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ _psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(_MemCoun
 
 
 def ram_mb() -> float:
-    """Working set do processo, em MB."""
+    """Process working set, in MB."""
     c = _MemCounters()
     c.cb = ctypes.sizeof(c)
     _psapi.GetProcessMemoryInfo(_kernel32.GetCurrentProcess(), ctypes.byref(c), c.cb)
@@ -47,7 +47,7 @@ def _cpu_seconds() -> float:
 
 
 class CpuMeter:
-    """CPU do processo entre duas chamadas: % da máquina e % de um núcleo."""
+    """Process CPU between two calls: % of the machine and % of one core."""
 
     def __init__(self):
         self.cores = os.cpu_count() or 1
