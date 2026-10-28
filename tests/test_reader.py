@@ -72,3 +72,14 @@ def test_pop_colored_near_cap(tint):
     f = read_frame(rgb.astype(np.uint8), m)
     a, b = label["pop"].split("/")
     assert f.values["pop"] == (int(a), int(b))
+
+
+def test_label_validation_rejects_empty_and_malformed():
+    from aoe4ov.label import FIELDS, validate
+
+    good = {"clock": "04:12", "pop": "9/10", "idle": "8", "food": "50", "wood": "150", "gold": "100", "stone": "0",
+            "vil_food": "0", "vil_wood": "0", "vil_gold": "0", "vil_stone": "0"}
+    assert validate(good) == []
+    assert len(validate({n: "" for n in FIELDS})) == len(FIELDS)
+    assert validate(good | {"pop": "910"}) == ["População"]
+    assert validate(good | {"clock": "4:72"}) == ["Relógio"]

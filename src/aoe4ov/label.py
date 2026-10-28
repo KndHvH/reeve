@@ -19,7 +19,7 @@ from PIL import Image
 
 from .digits import MIN_SCORE
 from .glyphs import FIXTURES, build
-from .reader import _clock_y_hint, read_frame
+from .reader import _clock_y_hint, parse, read_frame
 
 BG, CARD, FG, MUTED = "#0f1115", "#171a21", "#e6e6e6", "#9aa4b2"
 GOOD, WARN, BAD = "#3ddc84", "#f5c542", "#ff5c5c"
@@ -45,6 +45,16 @@ def _photo(im: Image.Image, zoom: int) -> tk.PhotoImage:
     return tk.PhotoImage(data=base64.b64encode(buf.getvalue()))
 
 
+def validate(label: dict) -> list[str]:
+    """Campos vazios ou com formato inválido não podem virar teste."""
+    errors = []
+    for name in FIELDS:
+        text = label[name].replace(":", "") if name == "clock" else label[name]
+        if not text or parse(name, text) is None:
+            errors.append(NAMES[name])
+    return errors
+
+
 def _fixture_name(png: Path, label: dict, height: int) -> str:
     base = f"{height}p_{label['clock'].replace(':', '')}"
     if int(label["idle"] or 0) > 0:
@@ -65,6 +75,7 @@ class Labeler:
         self.root.configure(bg=BG)
         self.body = tk.Frame(self.root, bg=BG)
         self.body.pack(padx=16, pady=16)
+        self.root.protocol("WM_DELETE_WINDOW", self.finish)
         self.show()
 
     def show(self):
@@ -77,15 +88,20 @@ class Labeler:
         img = Image.open(png).convert("RGB")
         _clock_y_hint.clear()
         self.frame = read_frame(np.asarray(img))
+        if not self.frame.match.ok:
+            # Ex.: captura com outra janela por cima (o navegador). Não há o que rotular.
+            print(f"ignorada (painel não encontrado): {png.name}")
+            self.i += 1
+            self.show()
+            return
         self.img = img
         self.photos = []
 
         head = tk.Label(self.body, text=f"{png.name}   ({self.i + 1}/{len(self.paths)})",
                         bg=BG, fg=FG, font=("Segoe UI Variable", 12, "bold"))
         head.grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
-        if not self.frame.match.ok:
-            tk.Label(self.body, text="Âncora não encontrada: essa imagem não parece o jogo.", bg=BG, fg=BAD,
-                     font=("Segoe UI", 10)).grid(row=1, column=0, columnspan=4, sticky="w")
+        self.error = tk.Label(self.body, text="", bg=BG, fg=BAD, font=("Segoe UI", 10))
+        self.error.grid(row=1, column=0, columnspan=4, sticky="w")
 
         self.entries: dict[str, tk.Entry] = {}
         for row, name in enumerate(FIELDS, start=2):
@@ -123,6 +139,10 @@ class Labeler:
 
     def save(self):
         label = {name: self.entries[name].get().strip() for name in FIELDS}
+        errors = validate(label)
+        if errors:
+            self.error.config(text="Corrija antes de salvar: " + ", ".join(errors))
+            return
         label["producing_villager"] = bool(self.producing.get())
         label["source"] = self.paths[self.i].stem
         name = _fixture_name(self.paths[self.i], label, self.img.height)
