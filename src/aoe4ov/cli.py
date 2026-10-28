@@ -10,6 +10,8 @@ from pathlib import Path
 
 from .window import find_game_window
 
+MAX_FAIL_SHOTS = 30  # imagens de falha salvas por partida no watch
+
 
 def cmd_window(_args) -> int:
     win = find_game_window()
@@ -86,7 +88,16 @@ def _fmt_clock(secs) -> str:
 
 
 def cmd_watch(args) -> int:
-    """Lê o jogo ao vivo e imprime uma linha por leitura: validação antes do overlay."""
+    """Lê o jogo ao vivo e imprime uma linha por leitura: validação antes do overlay.
+
+    Cada partida também vai para sessions/<início>/log.jsonl (uma linha por
+    leitura, com valores, textos e confiança) e, quando algum campo falha,
+    a imagem das regiões capturadas vai para sessions/<início>/falha_*.png.
+    """
+    import json
+
+    from PIL import Image
+
     from .capture import Capture
     from .reader import read_frame
 
@@ -94,6 +105,17 @@ def cmd_watch(args) -> int:
     match = None
     size = None
     fails = 0
+    session: Path | None = None
+    log = None
+    saved_fails = 0
+
+    def close_session():
+        nonlocal session, log
+        if log:
+            log.close()
+            print(f"[partida] log salvo em {session}".ljust(100))
+        session, log = None, None
+
     print("Ctrl+C para sair.")
     try:
         while True:
@@ -108,17 +130,39 @@ def cmd_watch(args) -> int:
                 fails = 0
                 if not match.ok:
                     # Menu, tela de carregamento ou fim de partida: sem painel na tela.
+                    close_session()
                     print(f"  aguardando partida (painel não encontrado, score {match.score:.2f})...".ljust(100), end="\r")
                     match = None
                     time.sleep(args.every)
                     continue
                 print(f"[partida] painel encontrado: score {match.score:.3f} escala {match.scale:.3f}".ljust(100))
+                if log is None:
+                    session = Path("sessions") / f"{datetime.now():%Y%m%d-%H%M%S}"
+                    session.mkdir(parents=True, exist_ok=True)
+                    log = open(session / "log.jsonl", "a", encoding="utf-8")
+                    saved_fails = 0
+                    print(f"[partida] gravando em {session}".ljust(100))
             t0 = time.perf_counter()
-            f = read_frame(cap.grab(win), match)
+            buf = cap.grab(win)
+            f = read_frame(buf, match)
             dt = (time.perf_counter() - t0) * 1000
             v = f.values
             bad = [n for n, r in f.readings.items() if not r.ok]
             fails = fails + 1 if len(bad) > 3 else 0
+
+            log.write(json.dumps({
+                "wall": f"{datetime.now():%H:%M:%S}",
+                "values": v,
+                "text": {n: r.text for n, r in f.readings.items()},
+                "conf": {n: round(r.conf, 3) for n, r in f.readings.items()},
+                "prod_score": round(f.production.score, 3),
+                "anchor": [match.x, match.y, round(match.scale, 3), round(match.score, 3)],
+                "ms": round(dt, 1),
+            }, ensure_ascii=False) + "\n")
+            log.flush()
+            if bad and saved_fails < MAX_FAIL_SHOTS:
+                Image.fromarray(buf).save(session / f"falha_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
+                saved_fails += 1
             pop = f"{v['pop'][0]}/{v['pop'][1]}" if v["pop"] else "?"
             res = "  ".join(f"{k[0].upper()} {v[k]}({v['vil_' + k]})" for k in ("food", "wood", "gold", "stone"))
             tc = "TC produzindo" if v["producing_villager"] else "TC PARADO"
@@ -126,6 +170,7 @@ def cmd_watch(args) -> int:
             print(f"{_fmt_clock(v['clock'])} | pop {pop} | ociosos {v['idle']} | {res} | {tc} | {dt:.1f} ms{warn}")
             time.sleep(max(0.0, args.every - dt / 1000))
     except KeyboardInterrupt:
+        close_session()
         return 0
 
 

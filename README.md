@@ -25,7 +25,7 @@ uv run aoe4ov window                    # mostra a janela do jogo detectada e a 
 uv run aoe4ov snap --count 6 --every 20 # salva screenshots da partida em captures/
 uv run aoe4ov inspect captures/*.png    # .inspect.html: cada estágio da leitura, campo a campo
 uv run aoe4ov label captures/*.png      # rotulador: confirme/corrija → vira fixture de teste + glifo
-uv run aoe4ov watch                     # leitura ao vivo no terminal (1×/s)
+uv run aoe4ov watch                     # leitura ao vivo no terminal (1×/s); grava sessions/<início>/log.jsonl e falha_*.png
 uv run aoe4ov glyphs                    # refaz o banco de glifos a partir das fixtures
 uv run pytest
 ```
