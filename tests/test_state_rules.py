@@ -4,7 +4,7 @@ from aoe4ov.state import StateTracker
 CFG = {
     "idle_villager": {"enabled": True, "persist_s": 4, "warn_at": 1, "critical_at": 3},
     "tc_idle": {"enabled": True, "persist_s": 0, "critical_after_s": 10},
-    "housed": {"enabled": True, "warn_ratio": 0.8, "critical_ratio": 0.9, "max_pop": 200},
+    "housed": {"enabled": True, "warn_ratio": 0.9, "critical_ratio": 1.0, "max_pop": 200},
     "floating": {"enabled": True, "persist_s": 6,
                  "bands": [{"until_s": 300, "max": 400}, {"until_s": 900, "max": 800}, {"until_s": None, "max": 1500}]},
 }
@@ -87,9 +87,9 @@ def test_housed_levels_by_population_ratio():
     def sev(pop):
         _, active, _ = _run([_values(100 + 2 * i, pop=pop, producing=True) for i in range(3)])
         return active[-1].get("housed")
-    assert sev((15, 20)) is None            # 75%
-    assert sev((16, 20)) == "warn"          # 80%
-    assert sev((18, 20)) == "critical"      # 90%
+    assert sev((17, 20)) is None            # 85%
+    assert sev((18, 20)) == "warn"          # 90%
+    assert sev((19, 20)) == "warn"          # 95%
     assert sev((20, 20)) == "critical"      # at the cap
     assert sev((199, 200)) is None          # max population: nothing to build
 

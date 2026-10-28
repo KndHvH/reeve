@@ -21,6 +21,7 @@ from __future__ import annotations
 import ctypes
 import time
 import tkinter as tk
+import traceback
 
 from . import __version__
 from .digits import MIN_SCORE
@@ -43,7 +44,21 @@ user32 = ctypes.windll.user32
 
 
 SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
-WATERMARK_STATE = {"reading": ("active", GOOD), "hidden": ("paused", WARN), "waiting": ("waiting for a match", MUTED)}
+LOW_CONF = 0.75  # watermark dot turns yellow when any field reads below this
+
+
+def _status_color(s: Step | None) -> str:
+    """Watermark dot: grey = no game / menu / waiting, red = error or a failed
+    field, yellow = some field with low confidence, green = all good."""
+    if s is None:
+        return BAD
+    if s.status != "reading":
+        return MUTED
+    if s.bad:
+        return BAD
+    if min(r.conf for r in s.frame.readings.values()) < LOW_CONF:
+        return WARN
+    return GOOD
 
 
 def _conf_color(c: float) -> str:
@@ -83,21 +98,33 @@ class Overlay:
 
     # --- loop -------------------------------------------------------------
     def tick(self):
-        s = self.live.step()
-        if s.events:
-            self.last_events = (self.last_events + s.events)[-3:]
-        if s.win is None or s.status == "no_game":
-            self.root.withdraw()
-        else:
-            g = (s.win.width, s.win.height, s.win.left, s.win.top)
-            if g != self.geom:
-                self.root.geometry("{}x{}+{}+{}".format(*g))
-                self.geom = g
-            self.root.deiconify()
-            self.draw(s)
-        # Sounds follow what is on screen: nothing while in a menu or alt-tabbed.
-        self.sounds.update(s.alerts if s.status == "reading" else [], time.monotonic())
-        self.root.after(int(self.every * 1000), self.tick)
+        try:
+            s = self.live.step()
+            if s.events:
+                self.last_events = (self.last_events + s.events)[-3:]
+            if s.win is None or s.status == "no_game":
+                self.root.withdraw()
+            else:
+                g = (s.win.width, s.win.height, s.win.left, s.win.top)
+                if g != self.geom:
+                    self.root.geometry("{}x{}+{}+{}".format(*g))
+                    self.geom = g
+                self.root.deiconify()
+                self.draw(s)
+            # Sounds follow what is on screen: nothing while in a menu or alt-tabbed.
+            self.sounds.update(s.alerts if s.status == "reading" else [], time.monotonic())
+        except Exception:
+            # Keep running: an unexpected error shows as a red dot instead of
+            # silently stopping the overlay.
+            traceback.print_exc()
+            self._show_error()
+        finally:
+            self.root.after(int(self.every * 1000), self.tick)
+
+    def _show_error(self) -> None:
+        self.canvas.delete("all")
+        self._shown = None
+        self._draw_watermark(1.0, BAD)
 
     def run(self):
         try:
@@ -108,21 +135,19 @@ class Overlay:
     def draw(self, s: Step):
         raise NotImplementedError
 
-    def _draw_watermark(self, s: Step, k: float) -> None:
-        """Tiny version + state tag in the top-left corner, above the game's own icons."""
+    def _draw_watermark(self, k: float, color: str) -> None:
+        """Tiny "aoe4ol <version>" tag in the top-left corner, above the game's
+        own icons; the dot carries the state (see _status_color)."""
         c = self.canvas
-        fs = max(7, round(7 * k))
-        label, color = WATERMARK_STATE.get(s.status, ("", MUTED))
-        x, y = round(6 * k), round(3 * k)
-        t = c.create_text(x + round(10 * k), y, text=f"aoe4-overlay {__version__} · {label}", fill=MUTED,
-                          anchor="nw", font=(FONT, fs))
+        x, y = round(5 * k), round(2 * k)
+        r = max(2, round(2 * k))
+        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"aoe4ol {__version__}", fill=MUTED,
+                          anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
-        r = max(2, round(2.5 * k))
         cy = (y0 + y1) // 2
-        dot = c.create_oval(x + round(3 * k) - r, cy - r, x + round(3 * k) + r, cy + r, fill=color, outline="")
-        bg = c.create_rectangle(x - round(2 * k), y0 - 1, x1 + round(4 * k), y1 + 1, fill=CARD, outline="")
+        bg = c.create_rectangle(x - 2, y0, x1 + 3, y1, fill=CARD, outline="")
+        c.create_oval(x + 1, cy - r, x + 1 + 2 * r, cy + r, fill=color, outline="")
         c.tag_lower(bg, t)
-        c.tag_raise(dot, bg)
 
     def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
         """One card per alert, stacked downwards from (x0, y0)."""
@@ -149,13 +174,14 @@ class CleanOverlay(Overlay):
 
     def draw(self, s: Step):
         alerts = s.alerts if s.status == "reading" else []
-        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom, s.status)
+        dot = _status_color(s)
+        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom, dot)
         if sig == self._shown:
             return
         self._shown = sig
         self.canvas.delete("all")
         k = s.match.scale if s.match else 1.0
-        self._draw_watermark(s, k)
+        self._draw_watermark(k, dot)
         self._draw_alerts(alerts, round(16 * k), round(s.win.height * 0.16), k, max(8, round(8 * k)))
 
 
@@ -166,7 +192,7 @@ class DebugOverlay(Overlay):
         c.delete("all")
         k = s.match.scale if s.match else 1.0
         fs = max(8, round(8 * k))
-        self._draw_watermark(s, k)
+        self._draw_watermark(k, _status_color(s))
         if s.status == "reading":
             self._draw_detection(s, k, fs)
         bottom = self._draw_hud(s, k, fs)
