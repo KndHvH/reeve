@@ -232,7 +232,10 @@ class LiveReader:
         if self._last_frame_clock is not None and c - self._last_frame_clock < FRAME_EVERY_S:
             return
         self._last_frame_clock = c
-        x, y, w, h = self.cap.rects[0]
         frames = self.session / "frames"
         frames.mkdir(exist_ok=True)
+        x, y, w, h = self.cap.rects[0]
         Image.fromarray(np.ascontiguousarray(buf[y:y + h, x:x + w])).save(frames / f"{c:05d}.jpg", quality=70)
+        if len(self.cap.rects) > 1:  # top center: clock, age numeral and age-up bar
+            x, y, w, h = self.cap.rects[1]
+            Image.fromarray(np.ascontiguousarray(buf[y:y + h, x:x + w])).save(frames / f"top_{c:05d}.jpg", quality=80)

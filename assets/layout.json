@@ -108,5 +108,14 @@
     ],
     "border_max_brightness": 80,
     "border_min_blue_minus_red": -5
+  },
+  "age_region": {
+    "_doc": "Age numeral (I-IV) and the age-up progress bar above the clock, relative to the top center (reference coordinates). Captured and kept in audit frames (frames/top_*.jpg) to build the age detector from real matches; not read yet.",
+    "rect": [
+      -75,
+      12,
+      150,
+      60
+    ]
   }
 }

@@ -78,7 +78,7 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
         })
     end = rows[-1]["t"] if rows else 0
     intervals += [a | {"end": end} for a in open_alerts.values()]
-    frames = sorted(int(p.stem) for p in (log_path.parent / "frames").glob("*.jpg"))
+    frames = sorted(int(p.stem) for p in (log_path.parent / "frames").glob("[0-9]*.jpg"))
     return {"rows": rows, "alerts": intervals, "frames": frames}
 
 

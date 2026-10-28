@@ -18,6 +18,7 @@ Each milestone ends with a visual validation by the user before work on the next
 | M4 | Live overlay: `--debug` view and clean alert mode | Boxes and values drawn over the game in a live match | ✅ |
 | M5 | State layer (two-read confirmation, clock plausibility) and rules with three severities and alert sounds: idle villagers, idle town center, housed, floating resources; `replay` | Trigger each situation and confirm the alert; replay recorded sessions | ✅ |
 | M6 | Post-match `report.html` (summary, villagers per resource, income per minute, stockpiles, population, alert timeline, audit frames); live income estimate | Check the timeline against the game's replay | ✅ |
+| M7 | Age detection: current age (numeral I–IV above the clock), age-up in progress with its progress bar; age-up start/finish times in the report and age bands on the charts (prerequisite for build-order comparison) | Play a match up to age III/IV with the overlay; check the detected times against the game's replay | 🧪 collecting data: top-center frames are now saved every 10 s |
 
 ## v0.2: App shell and distribution
 Turns the command-line tool into an installable app.
