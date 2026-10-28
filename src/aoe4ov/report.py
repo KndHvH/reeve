@@ -118,7 +118,7 @@ def render(tl: dict, title: str) -> str:
 
 
 TEMPLATE = r"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
