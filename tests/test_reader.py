@@ -9,6 +9,11 @@ FIXTURES = labeled_fixtures()
 IDS = [p.stem for p, _ in FIXTURES]
 
 
+def _fixture(stem):
+    """Fixture pelo nome: os testes com coordenadas fixas não podem depender da ordem dos arquivos."""
+    return next((p, lab) for p, lab in FIXTURES if p.stem == stem)
+
+
 def _rgb(png):
     return np.asarray(Image.open(png).convert("RGB"))
 
@@ -41,7 +46,7 @@ def test_parsed_values_with_shipped_bank(i):
 
 def test_clock_moved_down_is_still_found():
     """Na troca de era o relógio desce: simula deslocando a imagem 12 px."""
-    png, label = FIXTURES[0]
+    png, label = _fixture("720p_0036")
     rgb = _rgb(png).copy()
     top = rgb[60:100].copy()
     rgb[72:112] = top
@@ -64,7 +69,7 @@ def test_pop_colored_near_cap(tint):
     """A população fica amarela perto do limite e vermelha no limite."""
     from aoe4ov.anchor import detect, project_rois, to_gray
 
-    png, label = FIXTURES[0]
+    png, label = _fixture("720p_0036")
     rgb = _rgb(png).astype(np.float32)
     m = detect(to_gray(rgb))
     x, y, w, h = project_rois(m, rgb.shape[1])["pop"]
