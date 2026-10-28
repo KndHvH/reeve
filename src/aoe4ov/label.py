@@ -23,6 +23,8 @@ from .reader import _clock_y_hint, parse, read_frame
 
 BG, CARD, FG, MUTED = "#0f1115", "#171a21", "#e6e6e6", "#9aa4b2"
 GOOD, WARN, BAD = "#3ddc84", "#f5c542", "#ff5c5c"
+CROP_H = 40   # altura (px) de cada recorte na janela, qualquer que seja a resolução
+PROD_H = 300  # altura (px) do recorte da fila de produção
 FIELDS = ["clock", "pop", "idle", "food", "vil_food", "wood", "vil_wood", "gold", "vil_gold", "stone", "vil_stone"]
 NAMES = {
     "clock": "Relógio", "pop": "População", "idle": "Ociosos",
@@ -99,16 +101,23 @@ class Labeler:
 
         head = tk.Label(self.body, text=f"{png.name}   ({self.i + 1}/{len(self.paths)})",
                         bg=BG, fg=FG, font=("Segoe UI Variable", 12, "bold"))
-        head.grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
+        head.grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 8))
         self.error = tk.Label(self.body, text="", bg=BG, fg=BAD, font=("Segoe UI", 10))
-        self.error.grid(row=1, column=0, columnspan=4, sticky="w")
+        self.error.grid(row=1, column=0, columnspan=5, sticky="w")
 
         self.entries: dict[str, tk.Entry] = {}
         for row, name in enumerate(FIELDS, start=2):
             x, y, w, h = self.frame.rois[name]
             r = self.frame.readings[name]
             color = GOOD if r.conf >= 0.85 else WARN if r.conf >= MIN_SCORE else BAD
-            ph = _photo(img.crop((x, y, x + w, y + h)), 4 if name != "clock" else 3)
+            if name == "clock" and r.glyphs:
+                # A região do relógio é alta (ele desce na troca de era): mostra só a faixa lida.
+                gy0 = min(g.y for g in r.glyphs)
+                gy1 = max(g.y + g.h for g in r.glyphs)
+                pad = max(3, (gy1 - gy0) // 2)
+                y, h = y + max(0, gy0 - pad), gy1 - gy0 + 2 * pad
+            crop = img.crop((x, y, x + w, y + h))
+            ph = _photo(crop, max(1, round(CROP_H / max(1, crop.height))))
             self.photos.append(ph)
             tk.Label(self.body, text=NAMES[name], bg=BG, fg=MUTED, font=("Segoe UI", 10), anchor="w", width=16).grid(row=row, column=0, sticky="w")
             tk.Label(self.body, image=ph, bg="#000").grid(row=row, column=1, sticky="w", padx=8, pady=2)
@@ -119,18 +128,23 @@ class Labeler:
             tk.Label(self.body, text=f"{r.conf:.2f}", bg=BG, fg=color, font=("Consolas", 10)).grid(row=row, column=3)
             self.entries[name] = e
 
-        row = len(FIELDS) + 2
-        self.producing = tk.BooleanVar(value=self.frame.values["producing_villager"])
-        tk.Checkbutton(self.body, text=f"Aldeão em produção (score {self.frame.production.score:.2f})",
-                       variable=self.producing, bg=BG, fg=FG, selectcolor=CARD, activebackground=BG,
-                       activeforeground=FG, font=("Segoe UI", 10)).grid(row=row, column=0, columnspan=4, sticky="w", pady=8)
+        # Coluna da direita: fila de produção + a caixa de marcar, sempre visíveis.
+        side = tk.Frame(self.body, bg=BG)
+        side.grid(row=2, column=4, rowspan=len(FIELDS), sticky="n", padx=(24, 0))
+        tk.Label(side, text="Fila de produção", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w")
         px, py, pw, ph_ = self.frame.production.region
-        prod = _photo(img.crop((px, py, px + pw, py + ph_)), 2)
+        prod_img = img.crop((px, py, px + pw, py + ph_))
+        prod = _photo(prod_img, max(1, round(PROD_H / max(1, prod_img.height))))
         self.photos.append(prod)
-        tk.Label(self.body, image=prod, bg="#000").grid(row=row + 1, column=0, columnspan=4, sticky="w")
+        tk.Label(side, image=prod, bg="#000").pack(anchor="w", pady=4)
+        self.producing = tk.BooleanVar(value=self.frame.values["producing_villager"])
+        tk.Checkbutton(side, text=f"Aldeão em produção (score {self.frame.production.score:.2f})",
+                       variable=self.producing, bg=BG, fg=FG, selectcolor=CARD, activebackground=BG,
+                       activeforeground=FG, font=("Segoe UI", 10)).pack(anchor="w")
 
+        row = len(FIELDS) + 2
         bar = tk.Frame(self.body, bg=BG)
-        bar.grid(row=row + 2, column=0, columnspan=4, sticky="e", pady=(12, 0))
+        bar.grid(row=row, column=0, columnspan=5, sticky="e", pady=(12, 0))
         for text, cmd, color in (("Pular", self.skip, CARD), ("Salvar  ⏎", self.save, "#2a6df4")):
             tk.Button(bar, text=text, command=cmd, bg=color, fg=FG, relief="flat", padx=14, pady=6,
                       activebackground=color, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(side="left", padx=4)
