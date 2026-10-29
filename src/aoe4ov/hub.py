@@ -58,7 +58,10 @@ class HubApi:
     """Methods callable from the page as `await window.pywebview.api.<name>(...)`."""
 
     def __init__(self):
-        self.window = None
+        # Private on purpose: pywebview walks the public attributes of js_api to
+        # expose them, and a Window holds native WinForms objects whose
+        # references loop forever (RecursionError on SyncRoot/DefaultFont).
+        self._window = None
 
     def version(self) -> str:
         return __version__
@@ -113,7 +116,7 @@ def main() -> None:
     import webview
 
     api = HubApi()
-    api.window = webview.create_window("aoe4-overlay", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,
+    api._window = webview.create_window("aoe4-overlay", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,
                                        min_size=(900, 600), background_color="#0e1319")
     webview.start()
 
