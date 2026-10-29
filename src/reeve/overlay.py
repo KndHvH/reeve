@@ -45,6 +45,7 @@ CARD, RULE, FG, MUTED = "#151c25", "#263140", "#ece4d0", "#98a0a8"
 ACCENT, ACCENT_DIM, ACCENT_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
 GOOD, WARN, BAD, INFO = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
 RADIUS = 0          # card corner radius at k = 1 (0: square)
+ICON_PLATE = None   # dark plate behind the game icons on light cards (theme's card-icon)
 FONT = "Segoe UI"
 SERIF = "Palatino Linotype"
 ICONS = ROOT / "assets" / "report_icons"
@@ -62,12 +63,13 @@ SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": INFO}
 
 def apply_theme(config: dict | None = None) -> None:
     """Takes the colors and corner style of the chosen theme (settings)."""
-    global CARD, RULE, FG, MUTED, ACCENT, ACCENT_DIM, ACCENT_LIGHT, GOOD, WARN, BAD, INFO, RADIUS
+    global CARD, RULE, FG, MUTED, ACCENT, ACCENT_DIM, ACCENT_LIGHT, GOOD, WARN, BAD, INFO, RADIUS, ICON_PLATE
     from . import themes
 
     c = themes.colors(themes.current(config)[1])
     # A theme may give the in-game cards colors of their own (card, card-ink).
     CARD, RULE, FG, MUTED = c.get("card", c["panel"]), c["rule"], c.get("card-ink", c["ink"]), c["mist"]
+    ICON_PLATE = c.get("card-icon")
     ACCENT, ACCENT_DIM, ACCENT_LIGHT = c["accent"], c["accent-dim"], c["accent-light"]
     GOOD, WARN, BAD, INFO = c["good"], c["warn"], c["critical"], c["info"]
     SEVERITY_COLOR.update(critical=BAD, warn=WARN, info=INFO)
@@ -321,8 +323,14 @@ class Overlay:
         icon = self._icon(_alert_icon(a), icon_h)
         tx = x0 + bar_w + pad
         if icon is not None:
+            # The icons are cropped from the game's dark panel and keep dark
+            # edges: on a light card they sit on a small dark plate, as in game.
+            if ICON_PLATE:
+                m = round(3 * k)
+                _box(c, tx, y + pad - m, tx + icon.width() + 2 * m, y + pad + icon_h + m, round(RADIUS * k / 2), ICON_PLATE)
+                tx += m
             c.create_image(tx, y + pad, image=icon, anchor="nw")
-            tx += icon.width() + round(6 * k)
+            tx += icon.width() + round(6 * k) + (m if ICON_PLATE else 0)
         t = c.create_text(tx, y + pad + icon_h // 2, text=a.text, fill=FG, anchor="w",
                           font=(SERIF, fs + 2, "bold"))
         _, _, x1, _ = c.bbox(t)

@@ -114,6 +114,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pcard { display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px 7px 11px; border-left: 4px solid var(--sev);
   background: var(--card, var(--panel)); color: var(--card-ink, var(--ink)); font: 700 17px/1.2 var(--serif); }
 .pcard img { height: 26px; }
+.preview.plate .pcard img { padding: 5px; margin: -5px 0; background: var(--card-icon, transparent); border-radius: 3px; }
 .preview.rounded .pcard { border-radius: 8px; }
 .seg { display: inline-flex; border: 1px solid var(--accent-dim); border-radius: var(--radius); overflow: hidden; justify-self: start; }
 .seg button { all: unset; cursor: pointer; padding: 5px 14px; color: var(--ink-2); font: 13px var(--sans); }
@@ -359,7 +360,7 @@ function appearance() {
   }).join("");
   return `<section class="group" id="appearance"><header><h3>Appearance</h3></header>
     <div class="themes">${cards}</div>
-    <div class="preview ${a.corners === "rounded" ? "rounded" : ""}" id="preview" title="How the alert cards look in game">${previewCards()}</div>
+    <div class="preview ${a.corners === "rounded" ? "rounded" : ""} ${(themeList[a.theme] || {}).colors?.["card-icon"] ? "plate" : ""}" id="preview" title="How the alert cards look in game">${previewCards()}</div>
     <div class="row"><label>Corners<small>panels here and in reports, and the alert cards in game</small></label>
       <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div>
     ${motion}
