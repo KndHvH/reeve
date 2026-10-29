@@ -18,10 +18,10 @@ def _values(clock, pop=(20, 30), idle=0, producing=True, food=100, wood=100, gol
     }
 
 
-def _run(seq, every=2.0):
+def _run(seq, every=2.0, config=CFG):
     """Feeds readings every `every` seconds; returns (states, {alert id: severity}
     active after each step, transitions)."""
-    tracker, engine = StateTracker(), RuleEngine(config=CFG)
+    tracker, engine = StateTracker(), RuleEngine(config=config)
     states, active, log = [], [], []
     for i, v in enumerate(seq):
         wall = i * every
@@ -131,7 +131,14 @@ def test_floating_escalates_within_the_same_age():
     assert _floating_at(2, 900) == "info"
     assert _floating_at(2, 1600) == "warn"
     assert _floating_at(3, 1600) == "info"       # Age III: only its own limit
-    assert _floating_at(4, 1600) == "info"       # Age IV uses the Age III limit
+    assert _floating_at(4, 9000) is None         # Age IV: no limit by default
+
+
+def test_floating_age_iv_limit_when_set():
+    cfg = {**CFG, "floating": {**CFG["floating"], "age_limits": [400, 800, 1500, 3000]}}
+    _, active, _ = _run([_values(200 + 2 * i, food=3500, age=4) for i in range(8)], config=cfg)
+    assert active[-1].get("floating") == "info"
+    assert _floating_at(3, 3500) == "info"       # three limits (older config): Age III has no later one
 
 
 SOUND_CFG = {"enabled": True, "repeat_s": 5, "volume": 1.0, "info": "blip", "warn": "chime", "critical": "alarm_low"}

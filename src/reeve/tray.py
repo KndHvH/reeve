@@ -69,9 +69,10 @@ def latest_report():
 
 
 class TrayApp:
-    def __init__(self, every: float = 2.0, debug: bool = False, mute: bool = False):
+    def __init__(self, every: float = 2.0, debug: bool = False, mute: bool = False, startup: bool = False):
         import pystray
 
+        self.startup = startup   # started with Windows: no hub, just a notification
         self.overlay = Overlay(every, mute, debug)
         self._hub: subprocess.Popen | None = None
         item, menu = pystray.MenuItem, pystray.Menu
@@ -107,15 +108,23 @@ class TrayApp:
             pass
 
     def _on_ready(self, icon) -> None:
-        """Runs once the tray icon exists: welcome on first run, WebView2 check."""
+        """Runs once the tray icon exists. Every start shows something: started
+        by hand, the hub opens; started with Windows, a notification says
+        Reeve is in the tray (the first-run welcome, when due, says it)."""
         from .checks import webview2_version
 
         icon.visible = True
-        for title, message in self.overlay.notices.start():
-            self._notify(title, message)
+        notices = self.overlay.notices.start()
         if webview2_version() is None:
-            self._notify("The hub needs Microsoft Edge WebView2",
-                         "Alerts work without it. Choose \"Open hub\" to get the free runtime from Microsoft.")
+            notices.append(("The hub needs Microsoft Edge WebView2",
+                            "Alerts work without it. Choose \"Open hub\" to get the free runtime from Microsoft."))
+        elif not self.startup:
+            self._open_hub()
+        elif not notices:
+            notices.append(("Reeve is running",
+                            "Alerts appear over the game once a match starts. The hub is in the tray."))
+        for title, message in notices:
+            self._notify(title, message)
 
     def _open_hub(self):
         """The hub is its own process: it costs nothing while closed and does
@@ -197,9 +206,9 @@ class TrayApp:
             self.icon.stop()
 
 
-def main() -> None:
+def main(startup: bool = False) -> None:
     """Entry point of the windowless app (`reeve-app`)."""
     from .checks import use_app_identity
 
     use_app_identity()   # notifications from "Reeve", not "Python"
-    TrayApp().run()
+    TrayApp(startup=startup).run()

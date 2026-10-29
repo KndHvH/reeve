@@ -20,11 +20,12 @@
   "floating": {
     "enabled": true,
     "persist_s": 6,
-    "_doc": "One stockpile limit per age (I, II, III; the last also applies to Age IV). Above the current age's limit = info; above the next age's = warn; two ages ahead = critical.",
+    "_doc": "One stockpile limit per age (I, II, III, IV; null = no limit). Above the current age's limit = info; above the next age's = warn; two ages ahead = critical.",
     "age_limits": [
       400,
       800,
-      1500
+      1500,
+      null
     ]
   },
   "sound": {

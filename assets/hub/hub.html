@@ -322,9 +322,10 @@ async function showSettings() {
       h += `<p class="usage">${storage.matches} matches use ${storage.mb} MB. Applied when the app starts.</p>`;
     }
     if (g.bands) {
-      h += `<div class="row wide"><label>Limit per age<small>above the current age's limit is info; above a later age's limit escalates. Age IV uses the Age III limit</small></label><div class="bands">`;
-      v.age_limits.forEach((lim, i) => {
-        h += `<span class="age-limit"><i>${["I", "II", "III"][i]}</i><input type="number" min="0" step="50" data-age-limit="${i}" value="${lim}" aria-label="Age ${["I", "II", "III"][i]} limit"></span>`;
+      h += `<div class="row wide"><label>Limit per age<small>above the current age's limit is info; above a later age's limit escalates. Empty means no limit</small></label><div class="bands">`;
+      ["I", "II", "III", "IV"].forEach((age, i) => {
+        const lim = v.age_limits[i];
+        h += `<span class="age-limit"><i>${age}</i><input type="number" min="0" step="50" data-age-limit="${i}" value="${lim ?? ""}" placeholder="none" aria-label="Age ${age} limit"></span>`;
       });
       h += `</div></div>`;
     }
@@ -493,7 +494,7 @@ function collect() {
     out[a][b] = v;
   });
   document.querySelectorAll("[data-age-limit]").forEach(el => {
-    out.floating.age_limits[Number(el.dataset.ageLimit)] = Number(el.value);
+    out.floating.age_limits[Number(el.dataset.ageLimit)] = el.value === "" ? null : Number(el.value);
   });
   out.sound.repeat = [...document.querySelectorAll("[data-repeat]")].filter(c => c.checked).map(c => c.dataset.repeat);
   return out;
