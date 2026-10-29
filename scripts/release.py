@@ -9,9 +9,11 @@
 Branch model: day-to-day work goes to `unstable`; `main` only receives it
 through a pull request, merged by the maintainer with squash (one commit per
 version). After that merge, `publish` builds the release from `main`, tags it,
-and merges `main` back into `unstable` (a squash leaves the two histories
-apart; the merge reconnects them without changing any file). Nothing here
-merges into main, force-pushes or rewrites history.
+and realigns `unstable` on `main`: the squash leaves the released commits
+outside main's history, so `unstable` is moved onto `main` with any commit
+made after the release PR replayed on top, and pushed with
+--force-with-lease (the maintainer's choice, so GitHub shows `unstable` with
+only the new work after each release). Nothing here merges into main.
 """
 
 from __future__ import annotations
@@ -41,6 +43,10 @@ def git(*args: str, **kw) -> str:
     return run("git", *args, **kw)
 
 
+def git_ok(*args: str) -> bool:
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True).returncode == 0
+
+
 def version() -> str:
     return re.search(r'__version__ = "([^"]+)"', INIT.read_text(encoding="utf-8")).group(1)
 
@@ -63,7 +69,8 @@ def unreleased(fmt: str | None = None, branch: str = "origin/unstable") -> str:
     """The work on unstable that is not in main yet. A squash merge puts a new
     commit on main and leaves the original ones outside its history, so
     `tag..unstable` would count every released commit again; the ancestry path
-    from main only reaches what came after main was merged back."""
+    from main only reaches what came after it (also for older releases, which
+    merged main back into unstable instead of realigning it)."""
     args = ["--no-merges", "--ancestry-path", f"origin/main..{branch}"]
     return git("log", f"--format={fmt}", *args) if fmt else git("rev-list", "--count", *args)
 
@@ -146,12 +153,31 @@ def cmd_publish(_args) -> None:
         print("note: unstable has changes that are not in main; only main is released")
     print(f"building and publishing v{v} from main ({git('rev-parse', '--short', 'HEAD')})...")
     run(sys.executable, "scripts/build.py", "--release", capture=False)
+    realign_unstable(v)
+
+
+def realign_unstable(v: str) -> None:
+    """Moves unstable onto main after the squash: what the release PR held is
+    in main as one commit; anything committed after the PR is replayed on top.
+    The old unstable stays in a local backup branch."""
     git("checkout", "-q", "unstable")
     git("pull", "-q", "--ff-only")
-    if git("rev-list", "--count", "unstable..main") != "0":
-        git("merge", "-q", "--no-ff", "main", "-m", f"Merge main (release {v}) back into unstable\n\n{ATTRIBUTION}")
-        git("push", "-q")
-    print(f"released v{v}; unstable is in step with main")
+    old = git("rev-parse", "HEAD")
+    merged = json.loads(run("gh", "pr", "list", "--base", "main", "--head", "unstable", "--state", "merged",
+                            "--limit", "1", "--json", "headRefOid") or "[]")
+    released = merged[0]["headRefOid"] if merged else None
+    git("branch", "-f", "backup/unstable-before-realign", old)
+    if released and git_ok("merge-base", "--is-ancestor", released, old):
+        if not git_ok("rebase", "--onto", "main", released, "unstable"):
+            git_ok("rebase", "--abort")
+            sys.exit("unstable could not be replayed onto main and was left as it was; realign it by hand")
+    elif git("diff", "main", "unstable"):
+        sys.exit("unstable has changes not in main and the merged release PR was not found; realign it by hand")
+    else:
+        git("reset", "-q", "--hard", "main")
+    git("push", "-q", f"--force-with-lease=unstable:{old}", "origin", "unstable")
+    after = git("rev-list", "--count", "main..unstable")
+    print(f"released v{v}; unstable realigned on main ({after} commit(s) of new work)")
 
 
 def cmd_test_installer(args) -> None:

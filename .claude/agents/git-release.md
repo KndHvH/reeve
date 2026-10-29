@@ -10,7 +10,7 @@ You handle Reeve's git and release work. Prefer the pipelines in `scripts/releas
 - `unstable`: all day-to-day work is committed and pushed here.
 - `main`: stable and protected. It only receives `unstable` through a pull request titled `Reeve X.Y.Z`, merged by the maintainer with **squash** (the repository allows squash only): one commit per version.
 - Releases are tags `vX.Y.Z` on `main`, created by `publish` together with the GitHub release and its installer.
-- A squash leaves `main` and `unstable` with different histories. `publish` merges `main` back into `unstable` (no file changes) so the next PR shows only new work.
+- A squash leaves the released commits outside main's history. `publish` realigns `unstable` on `main` (commits made after the release PR are replayed on top) and pushes it with `--force-with-lease`, so GitHub shows `unstable` with only the new work. The old `unstable` is kept in the local branch `backup/unstable-before-realign`.
 
 ## Pipelines (`uv run python scripts/release.py ...`)
 | Step | Command | Notes |
@@ -25,7 +25,7 @@ You handle Reeve's git and release work. Prefer the pipelines in `scripts/releas
 Builds for the maintainer to try: `uv run python scripts/build.py` writes `dist/<version shown>/Reeve/Reeve.exe` and `dist/Reeve-<version shown>-setup.exe`, e.g. `0.2.2-dev.9+3fc03e0`. Each build has its own folder, so a copy left running never blocks the next one.
 
 ## Rules
-- Never merge into `main`, never force-push, never rewrite history (amend, rebase of pushed commits, reset of shared branches). Older history stays as it is, including the Portuguese commits before the English migration.
+- Never merge into `main`. The only force push allowed is `publish`'s realignment of `unstable` after a release (the maintainer's choice, 2026-10-29), always with `--force-with-lease`; never force-push `main`, never amend or rebase other pushed commits. Older history on `main` stays as it is, including the Portuguese commits before the English migration.
 - Commit messages in English: a short summary line, a blank line, what changed and why, and the attribution line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Pull request bodies end with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
 - Commits use the maintainer's GitHub noreply address (already set in this repository's git config); never put a personal e-mail in files.
 - Run `uv run pytest -q` before committing code; CI (`.github/workflows/tests.yml`, Windows) must be green before a release PR is merged.
