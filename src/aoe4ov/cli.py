@@ -236,6 +236,14 @@ def cmd_app(args) -> int:
     return 0
 
 
+def cmd_hub(_args) -> int:
+    """Match history, reports and settings in a native window."""
+    from .hub import main as hub_main
+
+    hub_main()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="aoe4ov")
@@ -276,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
     mg = sub.add_parser("migrate", help="move recorded sessions from an old folder into the data folder")
     mg.add_argument("source", nargs="?", default="sessions", help="old sessions folder (default: ./sessions)")
 
+    sub.add_parser("hub", help="match history, reports and settings")
+
     ap = sub.add_parser("app", help="overlay with a tray icon (default)")
     ap.add_argument("--every", type=float, default=2.0)
     ap.add_argument("--debug", action="store_true")
@@ -286,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
         args = p.parse_args(["app"])
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate, "app": cmd_app,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate, "app": cmd_app, "hub": cmd_hub,
     }
     return cmds[args.cmd](args)
 

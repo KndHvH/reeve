@@ -9,6 +9,8 @@ tick, since Tk must only be touched from the thread that created it.
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
 
 from PIL import Image, ImageDraw
@@ -45,14 +47,16 @@ class TrayApp:
         import pystray
 
         self.overlay = Overlay(every, mute, debug)
+        self._hub: subprocess.Popen | None = None
         item, menu = pystray.MenuItem, pystray.Menu
         self.icon = pystray.Icon(
             "aoe4ov", _tray_image(), f"aoe4-overlay {__version__}",
             menu=menu(
                 item("Overlay", self._toggle_enabled, checked=lambda _: self.overlay.enabled),
                 item("Debug view", self._toggle_debug, checked=lambda _: self.overlay.debug),
-                item("Mute", self._toggle_mute, checked=lambda _: not self.overlay.sounds.enabled),
+                item("Mute", self._toggle_mute, checked=lambda _: self.overlay.muted),
                 menu.SEPARATOR,
+                item("Open hub", self._open_hub, default=True),
                 item("Open last report", self._open_report, enabled=lambda _: latest_report() is not None),
                 item("Open data folder", lambda: os.startfile(data_dir())),
                 menu.SEPARATOR,
@@ -68,7 +72,13 @@ class TrayApp:
         self.overlay.debug = not self.overlay.debug
 
     def _toggle_mute(self):
-        self.overlay.sounds.enabled = not self.overlay.sounds.enabled
+        self.overlay.set_muted(not self.overlay.muted)
+
+    def _open_hub(self):
+        """The hub is its own process: it costs nothing while closed and does
+        not compete with the overlay's Tk loop for the main thread."""
+        if self._hub is None or self._hub.poll() is not None:
+            self._hub = subprocess.Popen([sys.executable, "-m", "aoe4ov.hub"])
 
     def _open_report(self):
         r = latest_report()

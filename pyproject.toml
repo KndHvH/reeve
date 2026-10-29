@@ -11,6 +11,7 @@ dependencies = [
     "numpy>=2.1",
     "pillow>=13.0.0",
     "pystray>=0.19.5",
+    "pywebview>=6.2.1",
 ]
 
 [project.scripts]

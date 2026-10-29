@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aoe4-overlay</title>
+<style>
+:root {
+  color-scheme: dark;
+  --night: #0e1319; --panel: #151c25; --panel-2: #1a2330; --rule: #263140;
+  --gold: #c9a45c; --gold-dim: #6b5734; --gold-light: #ead39a;
+  --ink: #ece4d0; --ink-2: #c4bfb2; --mist: #98a0a8;
+  --info: #7fb2c9; --warn: #f0b429; --critical: #e5484d;
+  --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --sans: "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--night); color: var(--ink); font: 14px/1.5 var(--sans); display: grid;
+  grid-template-columns: 200px minmax(0, 1fr); height: 100vh; overflow: hidden; }
+nav { border-right: 1px solid var(--gold-dim); padding: 22px 0; display: flex; flex-direction: column; height: 100vh; }
+.scroll { overflow-y: auto; height: 100vh; }
+nav h1 { font: 600 20px/1.1 var(--serif); color: var(--gold-light); margin: 0 20px 22px; }
+nav button { all: unset; cursor: pointer; padding: 9px 20px; color: var(--ink-2); font: 16px var(--serif); border-left: 3px solid transparent; }
+nav button:hover { color: var(--ink); }
+nav button[aria-current="page"] { color: var(--gold-light); border-left-color: var(--gold); background: var(--panel); }
+nav button:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+nav .foot { margin-top: auto; padding: 0 20px; color: var(--mist); font-size: 12px; }
+nav .foot a { color: var(--mist); cursor: pointer; text-decoration: underline; }
+main { padding: 26px 30px 60px; max-width: 980px; }
+h2 { font: 600 24px/1.2 var(--serif); color: var(--gold-light); margin: 0 0 4px; }
+.lede { color: var(--mist); margin: 0 0 20px; }
+h3 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
+
+/* Matches */
+.match { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 170px 90px 1fr 210px; gap: 16px;
+  align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.match:hover, .match:focus-visible { background: var(--panel); outline: none; }
+.match .when b { display: block; font-family: var(--serif); font-size: 16px; }
+.match .when span, .match .dur span { color: var(--mist); font-size: 12px; }
+.match .dur span { margin-left: 5px; }
+.match .dur b { font: 600 18px var(--serif); font-variant-numeric: tabular-nums; }
+.ages { display: flex; gap: 14px; flex-wrap: wrap; }
+.ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.ages i { font: normal 600 15px var(--serif); color: var(--gold); margin-right: 4px; }
+.probs { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.prob { font-size: 12px; padding: 1px 7px; border-radius: 3px; background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.prob.warn { box-shadow: inset 3px 0 0 var(--warn); } .prob.critical { box-shadow: inset 3px 0 0 var(--critical); } .prob.info { box-shadow: inset 3px 0 0 var(--info); }
+.empty { color: var(--mist); padding: 30px 0; }
+
+/* Settings */
+.group { background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 16px 18px; margin-bottom: 14px; }
+.group header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.group header h3 { margin: 0; }
+.row { display: grid; grid-template-columns: 1fr 180px; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--rule); }
+.row label { color: var(--ink-2); }
+.row small { display: block; color: var(--mist); font-size: 12px; }
+input[type=number], select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 8px; font: 14px var(--sans); width: 100%; }
+input[type=number]:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 0; }
+input[type=range] { width: 100%; accent-color: var(--gold); }
+.switch { appearance: none; width: 38px; height: 20px; border-radius: 10px; background: var(--rule); position: relative; cursor: pointer; margin: 0; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--mist); transition: left .15s; }
+.switch:checked { background: var(--gold-dim); } .switch:checked::after { left: 21px; background: var(--gold-light); }
+.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pair { display: flex; gap: 6px; align-items: center; }
+.pair button, .actions button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--gold-dim); border-radius: 3px; padding: 5px 10px; cursor: pointer; font: 13px var(--sans); }
+.pair button:hover, .actions button:hover { border-color: var(--gold); }
+.bands { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.actions { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--night); padding: 12px 0; border-top: 1px solid var(--gold-dim); }
+.actions .primary { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); font-weight: 600; }
+.status { color: var(--mist); font-size: 13px; }
+</style>
+</head>
+<body>
+<nav aria-label="Sections">
+  <h1>aoe4-overlay</h1>
+  <button id="nav-matches" aria-current="page">Matches</button>
+  <button id="nav-settings">Settings</button>
+  <div class="foot"><span id="ver"></span><br><a id="data-folder">Open data folder</a></div>
+</nav>
+<div class="scroll"><main id="main"></main></div>
+<script>
+const api = () => window.pywebview.api;
+const $ = s => document.querySelector(s);
+const fmt = s => s == null ? "–" : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+const ROMAN = { 2: "II", 3: "III", 4: "IV" };
+const PROB = { tc_idle: "TC idle", housed: "Housed", idle_villager: "Idle", floating: "Floating" };
+let current = "matches";
+
+function navTo(page) {
+  current = page;
+  for (const [id, name] of [["#nav-matches", "matches"], ["#nav-settings", "settings"]]) {
+    if (name === page) $(id).setAttribute("aria-current", "page"); else $(id).removeAttribute("aria-current");
+  }
+  document.querySelector(".scroll").scrollTop = 0;
+  page === "matches" ? showMatches() : showSettings();
+}
+
+async function showMatches() {
+  const list = await api().matches();
+  const rows = list.map(m => {
+    const ages = (m.ages || []).map(a => `<span><i>${ROMAN[a.age] || a.age}</i>${fmt(a.reached)}</span>`).join("");
+    const probs = Object.entries(m.problems || {}).filter(([, p]) => p.seconds > 0)
+      .map(([id, p]) => `<span class="prob ${p.severity || ""}" title="${PROB[id]}">${PROB[id]} ${fmt(p.seconds)}</span>`).join("");
+    const vil = m.villagers_at || {};
+    return `<button class="match" data-session="${m.session}" title="Open the report">
+      <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
+      <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
+      <div class="ages">${ages || '<span style="color:var(--mist)">age I</span>'}</div>
+      <div class="probs">${probs || '<span class="prob">no problems</span>'}</div></button>`;
+  }).join("");
+  $("#main").innerHTML = `<h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p>
+    ${rows || '<p class="empty">No matches yet. Play a match with the overlay on and it will show up here.</p>'}`;
+  document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => api().open_report(b.dataset.session)));
+}
+
+// Settings form: each field maps to a path in the config.
+const GROUPS = [
+  { key: "idle_villager", title: "Idle villagers", fields: [
+    ["warn_at", "Warn from", "idle villagers", "int"], ["critical_at", "Critical from", "idle villagers", "int"],
+    ["persist_s", "Show after", "seconds", "int"] ] },
+  { key: "tc_idle", title: "Town center idle", fields: [
+    ["persist_s", "Show after", "seconds", "int"], ["critical_after_s", "Critical after", "seconds idle", "int"] ] },
+  { key: "housed", title: "Housed", fields: [
+    ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
+  { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
+];
+const SEV = [["info", "Info"], ["warn", "Warning"], ["critical", "Critical"]];
+let cfg = null;
+
+function input(path, value, kind) {
+  if (kind === "pct") return `<input type="number" min="1" max="100" step="1" data-path="${path}" data-kind="pct" value="${Math.round(value * 100)}">`;
+  return `<input type="number" min="0" step="1" data-path="${path}" data-kind="int" value="${value}">`;
+}
+
+async function showSettings() {
+  const s = await api().settings();
+  cfg = s.values;
+  let h = `<h2>Settings</h2><p class="lede">Changes apply to the running overlay within a few seconds. Only what differs from the defaults is saved.</p>`;
+  GROUPS.forEach(g => {
+    const v = cfg[g.key];
+    h += `<section class="group"><header><h3>${g.title}</h3><input type="checkbox" class="switch" data-path="${g.key}.enabled" ${v.enabled ? "checked" : ""} aria-label="${g.title} on or off"></header>`;
+    g.fields.forEach(([k, label, unit, kind]) => {
+      h += `<div class="row"><label>${label}<small>${unit}</small></label>${input(`${g.key}.${k}`, v[k], kind)}</div>`;
+    });
+    if (g.bands) {
+      h += `<div class="row"><label>Limits by game phase<small>stockpile above the limit of the current phase is info; above a later phase's limit escalates</small></label><div class="bands">`;
+      v.bands.forEach((b, i) => {
+        h += `<input type="number" min="0" step="60" data-band="${i}" data-field="until_s" value="${b.until_s ?? ""}" placeholder="end" title="phase ends at (seconds), empty = rest of the match">`;
+        h += `<input type="number" min="0" step="50" data-band="${i}" data-field="max" value="${b.max}" title="limit">`;
+      });
+      h += `</div></div>`;
+    }
+    h += `</section>`;
+  });
+  const snd = cfg.sound, options = name => s.sounds.map(n => `<option ${n === name ? "selected" : ""}>${n}</option>`).join("");
+  h += `<section class="group"><header><h3>Sounds</h3><input type="checkbox" class="switch" data-path="sound.enabled" ${snd.enabled ? "checked" : ""} aria-label="Sounds on or off"></header>
+    <div class="row"><label>Volume</label><input type="range" min="0" max="1" step="0.05" data-path="sound.volume" data-kind="float" value="${snd.volume ?? 1}"></div>`;
+  SEV.forEach(([sev, label]) => {
+    h += `<div class="row"><label>${label}<small><input type="checkbox" data-repeat="${sev}" ${(snd.repeat || []).includes(sev) ? "checked" : ""}> repeat while unresolved</small></label>
+      <div class="pair"><select data-path="sound.${sev}"><option value="">none</option>${options(snd[sev])}</select><button type="button" data-preview="${sev}" title="Play">▶</button></div></div>`;
+  });
+  h += `<div class="row"><label>Repeat every<small>seconds</small></label>${input("sound.repeat_s", snd.repeat_s, "int")}</div></section>
+    <div class="actions"><button class="primary" id="save">Save changes</button><button id="reset">Restore defaults</button><span class="status" id="status"></span></div>`;
+  $("#main").innerHTML = h;
+  document.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
+    const name = document.querySelector(`[data-path="sound.${b.dataset.preview}"]`).value;
+    if (name) api().preview_sound(name);
+  }));
+  $("#save").addEventListener("click", save);
+  $("#reset").addEventListener("click", async () => { await api().reset_settings(); await showSettings(); $("#status").textContent = "Defaults restored."; });
+}
+
+function collect() {
+  const out = JSON.parse(JSON.stringify(cfg));
+  document.querySelectorAll("[data-path]").forEach(el => {
+    const [a, b] = el.dataset.path.split(".");
+    let v;
+    if (el.type === "checkbox") v = el.checked;
+    else if (el.dataset.kind === "pct") v = Number(el.value) / 100;
+    else if (el.dataset.kind === "int") v = parseInt(el.value, 10);
+    else if (el.dataset.kind === "float") v = Number(el.value);
+    else v = el.value;
+    out[a][b] = v;
+  });
+  document.querySelectorAll("[data-band]").forEach(el => {
+    const band = out.floating.bands[Number(el.dataset.band)];
+    band[el.dataset.field] = el.value === "" ? null : Number(el.value);
+  });
+  out.sound.repeat = [...document.querySelectorAll("[data-repeat]")].filter(c => c.checked).map(c => c.dataset.repeat);
+  return out;
+}
+
+async function save() {
+  const changed = await api().save_settings(collect());
+  const n = Object.keys(changed).length;
+  $("#status").textContent = n ? "Saved. The overlay picks it up within a few seconds." : "Saved. Everything is at its default.";
+}
+
+window.addEventListener("pywebviewready", async () => {
+  $("#ver").textContent = "version " + await api().version();
+  $("#nav-matches").addEventListener("click", () => navTo("matches"));
+  $("#nav-settings").addEventListener("click", () => navTo("settings"));
+  $("#data-folder").addEventListener("click", () => api().open_data_folder());
+  showMatches();
+});
+</script>
+</body>
+</html>

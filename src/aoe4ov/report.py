@@ -234,10 +234,29 @@ def _ages_html(ages: list[dict]) -> str:
 
 
 def write_report(session: Path) -> Path:
+    """Writes report.html and summary.json (the small digest the hub lists)."""
     tl = build_timeline(session / "log.jsonl")
     out = session / "report.html"
     out.write_text(render(tl, session.name), encoding="utf-8")
+    write_summary(session, tl)
     return out
+
+
+def write_summary(session: Path, tl: dict | None = None) -> dict:
+    tl = tl or build_timeline(session / "log.jsonl")
+    s = summarize(tl)
+    digest = {
+        "session": session.name,
+        "started": _session_label(session.name),
+        "duration": s.get("duration"),
+        "villagers_at": s.get("villagers_at", {}),
+        "final_pop": list(s.get("final_pop", (None, None))),
+        "ages": s.get("ages", []),
+        "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"]} for p in s.get("problems", [])},
+        "income": s.get("income", {}),
+    }
+    (session / "summary.json").write_text(json.dumps(digest, ensure_ascii=False), encoding="utf-8")
+    return digest
 
 
 def _session_label(name: str) -> str:

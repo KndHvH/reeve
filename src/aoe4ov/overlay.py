@@ -93,10 +93,9 @@ class Overlay:
         self.quit_requested = False
         self._shown = None          # clean view: last drawn signature
         self.live = LiveReader(every)
-        sound_cfg = dict(self.live.rules.config.get("sound", {}))
-        if mute:
-            sound_cfg["enabled"] = False
-        self.sounds = AlertSounds(sound_cfg)
+        self.muted = mute           # tray mute, on top of the config's sound switch
+        self._config_stamp = self._config_mtime()
+        self._apply_sounds()
         self.cpu = CpuMeter()
         self.root = tk.Tk()
         self.root.overrideredirect(True)
@@ -111,6 +110,36 @@ class Overlay:
         self.last_events: list[str] = []
         self._icon_cache: dict[tuple[str, int], ImageTk.PhotoImage] = {}
         self.root.after(100, self.tick)
+
+    @staticmethod
+    def _config_mtime() -> float:
+        from .paths import user_config_path
+
+        p = user_config_path()
+        return p.stat().st_mtime if p.exists() else 0.0
+
+    def _apply_sounds(self) -> None:
+        cfg = dict(self.live.rules.config.get("sound", {}))
+        if self.muted:
+            cfg["enabled"] = False
+        self.sounds = AlertSounds(cfg)
+
+    def set_muted(self, muted: bool) -> None:
+        self.muted = muted
+        self.sounds.enabled = not muted and self.live.rules.config.get("sound", {}).get("enabled", True)
+
+    def _reload_config_if_changed(self) -> None:
+        """Settings saved in the hub apply without restarting: the rule
+        thresholds change in place (active alerts are kept) and the sounds are
+        rebuilt."""
+        stamp = self._config_mtime()
+        if stamp != self._config_stamp:
+            from .rules import load_config
+
+            self._config_stamp = stamp
+            self.live.rules.config = load_config()
+            self._apply_sounds()
+            self._shown = None
 
     def _win32_setup(self) -> bool:
         hwnd = user32.GetParent(self.root.winfo_id())
@@ -130,6 +159,7 @@ class Overlay:
             self.root.after(int(self.every * 1000), self.tick)
             return
         try:
+            self._reload_config_if_changed()
             s = self.live.step()
             if s.events:
                 self.last_events = (self.last_events + s.events)[-3:]
