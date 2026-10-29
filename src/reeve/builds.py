@@ -37,6 +37,7 @@ SLOTS = RESOURCES + ("builder",)   # villager places in a step, in aoe4guides' o
 VILLAGER_S = {"French": 19}
 VILLAGER_DEFAULT_S = 20
 LATE_START_S = 20   # a first reading after this game time joined the match late
+RALLY = "rally"     # aoe4guides' rally point picture (resource/rally.webp)
 MAX_GAP_S = 6       # longest gap between readings counted as production (a menu or alt-tab is not)
 TIMEOUT_S = 15
 
@@ -288,6 +289,8 @@ class BuildTracker:
         self.builders = 0                    # villagers estimated to be building (not on the panel)
         self._last: int | None = None        # previous count: a count must be read twice to raise the peak
         self.reached_at: int | None = None   # game clock when the current step was reached
+        self.clock: int | None = None        # latest game clock
+        self.end_after_s = 30                # the last step stays this long, then the build is over
 
     def _production(self, s: GameState) -> None:
         if s.clock is not None and self._clock is not None and s.producing_villager:
@@ -331,6 +334,8 @@ class BuildTracker:
         if seen is not None and seen == self._last:   # two reads in a row: one misread never moves the build
             self.peak = max(self.peak, seen)
         self._last = seen
+        if s.clock is not None:
+            self.clock = s.clock
         if self.reached_at is None and s.clock is not None:
             self.reached_at = s.clock
         steps, i = self.build.steps, self.index
@@ -345,6 +350,25 @@ class BuildTracker:
         """Previous, current and next step."""
         steps, i = self.build.steps, self.index
         return (steps[i - 1] if i else None, steps[i], steps[i + 1] if i + 1 < len(steps) else None)
+
+    @property
+    def finished(self) -> bool:
+        """The last step has been up for end_after_s: the panel and the
+        build's alerts are done."""
+        return (self.index == len(self.build.steps) - 1 and self.clock is not None
+                and self.reached_at is not None and self.clock - self.reached_at >= self.end_after_s)
+
+    def rally(self) -> str | None:
+        """Where the town center's rally point should be: the picture the
+        current step's notes put it on (\"@rally@ on @sheep@\"), or, when a
+        step does not say, the last one that did. None before any does."""
+        for step in reversed(self.build.steps[:self.index + 1]):
+            for note in step.notes:
+                icons = [v for kind, v in tokens(note) if kind == "icon"]
+                for a, b in zip(icons, icons[1:]):
+                    if Path(a).stem == RALLY:
+                        return b
+        return None
 
 
 def instructions(targets: dict[str, int | None], actual: dict[str, int | None]) -> list[tuple]:

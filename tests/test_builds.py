@@ -242,3 +242,25 @@ def test_joined_late_the_starting_villagers_come_from_the_population():
     t = BuildTracker(_mali())
     t.update(_pop_state(11, 89, food=9))
     assert t.start == 10
+
+
+def test_rally_follows_the_notes_and_stays_until_changed():
+    t = BuildTracker(_mali())
+    seen = []
+    for i in range(len(t.build.steps)):
+        t.index = i
+        seen.append(t.rally())
+    assert seen[:5] == [None, "resource/sheep.webp", "resource/resource_food.webp",
+                        "resource/resource_wood.webp", "resource/resource_wood.webp"]
+    assert seen[-1] == "resource/resource_gold.webp"
+
+
+def test_the_build_is_over_a_while_after_its_last_step():
+    t = BuildTracker(_mali())
+    last = len(t.build.steps) - 1
+    t.index, t.reached_at, t.clock = last, 500, 520
+    assert not t.finished
+    t.clock = 530
+    assert t.finished
+    t.end_after_s = 60
+    assert not t.finished

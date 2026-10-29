@@ -38,6 +38,20 @@ class StepCard:
     step: BuildStep
     current: bool
 
+    @property
+    def sig(self):
+        return self.current
+
+
+@dataclass(frozen=True)
+class RallyCard:
+    id: str            # changes with the target, so a new rally comes in as a new card
+    target: str        # aoe4guides picture the rally point goes on (sheep, wood...)
+
+    @property
+    def sig(self):
+        return self.target
+
 
 class BuildPanel:
     def __init__(self, root: tk.Tk, key: str, setup_window, box):
@@ -45,7 +59,7 @@ class BuildPanel:
         `box(canvas, x0, y0, x1, y1, radius, fill)` draws a block (overlay._box)."""
         self.root, self.box = root, box
         self.stack = CardStack(root, key, setup_window, self._paint_card, side="right",
-                               signature=lambda card: card.current)
+                               signature=lambda card: card.sig)
         self._k, self._look = 1.0, {}
         self._images: dict[tuple, ImageTk.PhotoImage] = {}
         self._fonts: dict[tuple, tkfont.Font] = {}
@@ -60,20 +74,48 @@ class BuildPanel:
                look: dict, show_prev: bool = True, show_next: bool = True) -> None:
         """Shows the tracker's steps on the right of the game window at
         `origin` (its top-left on screen), `margin` from its right edge and
-        from `top` down; `look`: theme colors and radius."""
+        from `top` down, under a card with where the rally point goes;
+        `look`: theme colors and radius. A finished build leaves the screen."""
         if tracker is None:
             self.hide()
             return
         prev, cur, nxt = tracker.window()
         i, bid = tracker.index, tracker.build.id
-        cards = ([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +                 [StepCard(f"{bid}:{i}", cur, True)] +                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else [])
+        rally = tracker.rally()
+        cards = ([RallyCard(f"{bid}:rally:{rally}", rally)] if rally else []) +                 ([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +                 [StepCard(f"{bid}:{i}", cur, True)] +                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else [])
+        if tracker.finished:
+            cards = []
         self._k, self._look = k, look
         self.stack.update(cards, origin, margin, top, round(5 * k), None, (round(k, 3), tuple(sorted(look.items()))),
                           right=game_width)
 
-    def _paint_card(self, c: tk.Canvas, card: StepCard, x: int, y: int) -> tuple[int, int]:
+    def _paint_card(self, c: tk.Canvas, card, x: int, y: int) -> tuple[int, int]:
+        if isinstance(card, RallyCard):
+            return self._rally(c, card.target, x, y, self._k, self._look)
         width = round(WIDTH * self._k)
         return x + width, self._block(c, card.step, card.current, x, y, width, self._k, self._look)
+
+    def _rally(self, c: tk.Canvas, target: str, x0: int, y0: int, k: float, look: dict) -> tuple[int, int]:
+        """Rally point icon, an arrow and what it goes on (its name if the icon is missing)."""
+        pad, h = round(6 * k), round(22 * k)
+        x, cy = x0 + pad, y0 + pad + h // 2
+        flag = self._image(ICONS / "rally.png", h, False)
+        if flag is not None:
+            c.create_image(x, cy, image=flag, anchor="w")
+            x += flag.width() + round(4 * k)
+        arrow = c.create_text(x, cy, text="›", fill=look["accent"], anchor="w", font=self._font(max(8, round(12 * k)), True))
+        x = c.bbox(arrow)[2] + round(4 * k)
+        img = self._image(icon_file(target), h, False)
+        if img is not None:
+            c.create_image(x, cy, image=img, anchor="w")
+            x += img.width()
+        else:
+            name = c.create_text(x, cy, text=Path(target).stem.replace("-", " "), fill=look["ink"], anchor="w",
+                                 font=self._font(max(7, round(9 * k))))
+            x = c.bbox(name)[2]
+        x1, y1 = x + pad, y0 + 2 * pad + h
+        c.tag_lower(self.box(c, x0, y0, x1, y1, round(look["radius"] * k), look["card"]))
+        return x1, y1
 
     # --- drawing --------------------------------------------------------------
     def _font(self, size: int, bold: bool = False, family: str = "Segoe UI") -> tkfont.Font:

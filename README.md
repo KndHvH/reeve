@@ -32,6 +32,8 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - When Reeve starts, it updates the builds their author changed on aoe4guides.com.
 - In the game's menus, a card on the right of the screen picks the build for the next match, or None to show nothing.
 - Steps come in, leave and move with the same animations as the alert cards.
+- Above the steps, the rally point icon and where the build puts it (sheep, wood, gold...), taken from the step's notes.
+- 30 seconds after the last step, the build leaves the screen and its alerts stop.
 - The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
 
 ### Match reports

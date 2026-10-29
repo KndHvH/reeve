@@ -248,7 +248,8 @@ class HubApi:
         bo = load_config().get("build_order") or {}
         return {"builds": [b.summary() for b in builds.stored()], "active": bo.get("active"),
                 "show": bo.get("show", True), "auto_update": bo.get("auto_update", True),
-                "previous_s": bo.get("previous_s", 10), "next_after_s": bo.get("next_after_s", 10)}
+                "previous_s": bo.get("previous_s", 10), "next_after_s": bo.get("next_after_s", 10),
+                "end_after_s": bo.get("end_after_s", 30)}
 
     def import_build(self, text: str) -> dict:
         """A link to a build on aoe4guides.com, or its JSON. The first build
@@ -317,7 +318,11 @@ class HubApi:
                     "notes": [[piece(k, v) for k, v in builds.tokens(n)] for n in s.notes]}
 
         window = [(b.steps[n], n == i) for n in (i - 1, i, i + 1) if 0 <= n < len(b.steps)]
-        return {"name": b.name, "steps": [step(s, cur) for s, cur in window], "icons": icons}
+        tracker = builds.BuildTracker(b)
+        tracker.index = i
+        rally = tracker.rally()
+        return {"name": b.name, "steps": [step(s, cur) for s, cur in window], "icons": icons,
+                "rally": piece("icon", rally) if rally else None}
 
     def open_url(self, url: str) -> bool:
         if url.startswith(("https://github.com/", "https://aoe4guides.com/")):

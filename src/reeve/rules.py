@@ -115,7 +115,7 @@ def _build(s: GameState, cfg: dict, held: float, tracker=None):
     villagers takes a moment); at most two instructions, in one card."""
     from .builds import describe, instructions
 
-    if tracker is None or s.clock is None or tracker.reached_at is None:
+    if tracker is None or s.clock is None or tracker.reached_at is None or tracker.finished:
         return None
     if s.clock - tracker.reached_at < cfg.get("grace_s", 2):
         return None
@@ -155,6 +155,8 @@ class RuleEngine:
             self._build_id = want
             b = load(want)
             self.build = BuildTracker(b) if b else None
+        if self.build is not None:
+            self.build.end_after_s = bo.get("end_after_s", 30)
 
     def evaluate(self, s: GameState, wall: float) -> list[Transition]:
         """Updates active alerts; returns what turned on, changed severity or turned off."""
