@@ -598,7 +598,7 @@ function drawLanes(c) {
     el("rect", { x: PAD.l, y: yy, width: W - PAD.l - PAD.r, height: lane, fill: "var(--panel-2)", rx: 2 }, c.svg);
     D.alerts.filter(a => a.id === id).forEach(a => {
       const r = el("rect", { x: x(a.start), y: yy, width: Math.max(2, x(a.end) - x(a.start) - 2), height: lane, rx: 2,
-        fill: `var(--status-${a.severity})` }, c.svg);
+        fill: `var(--${a.severity})` }, c.svg);
       el("title", {}, r).textContent = `${a.text} (${fmt(a.start)}–${fmt(a.end)})`;
     });
   });

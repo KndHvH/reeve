@@ -50,3 +50,21 @@ def test_hub_rewrites_a_report_drawn_with_another_look():
     api.set_appearance("kitty", "square")
     api.report_url(folder.name)
     assert 'content="kitty/square"' in (folder / "report.html").read_text(encoding="utf-8")
+
+
+def test_every_css_variable_used_by_the_report_and_the_hub_is_defined():
+    """A renamed token left as an undefined var() draws black: the alert
+    timeline did after --status-warn became --warn."""
+    import re
+
+    from reeve.hub import HUB_HTML
+
+    defined = {f"--{k}" for k in themes.colors(themes.themes()["age"])} | {"--radius", "--radius-sm", "--serif", "--sans"}
+    # Names built at runtime, e.g. var(--${severity}): what each prefix is completed with.
+    runtime = {"--": {"info", "warn", "critical"}, "--series-": {"food", "wood", "stone", "gold", "idle"}}
+    for name, text in (("report", report.TEMPLATE), ("hub", HUB_HTML.read_text(encoding="utf-8"))):
+        used = set(re.findall(r"var\((--[\w-]+)\)", text))
+        assert used <= defined, (name, used - defined)
+        for prefix in re.findall(r"var\((--[\w-]*)\$\{", text):
+            assert prefix in runtime, (name, prefix)
+            assert {prefix + s for s in runtime[prefix]} <= defined, (name, prefix)
