@@ -173,8 +173,9 @@ def _pop_state(pop, clock, producing=True, idle=0, **vils):
 
 
 def _producing(t, pop, start, end, **vils):
-    """Readings every 2 s from `start` to `end` with the town center producing."""
-    for clock in range(start, end + 1, 2):
+    """Readings every 2 s from `start` (still idle) to `end` with the town center producing."""
+    t.update(_pop_state(pop, start, producing=False, **vils))
+    for clock in range(start + 2, end + 1, 2):
         t.update(_pop_state(pop, clock, **vils))  # one reading
 
 
@@ -233,3 +234,11 @@ def test_refresh_updates_only_builds_their_author_changed():
         assert builds.load("hXttcVQcMxTniZjgS79s").steps[2].targets["food"] == 7
     finally:
         builds.delete("hXttcVQcMxTniZjgS79s")
+
+
+def test_joined_late_the_starting_villagers_come_from_the_population():
+    """Live session split by a pause: the first reading came at 1:29 with one
+    villager building (pop 11 = 9 seen + scout + builder)."""
+    t = BuildTracker(_mali())
+    t.update(_pop_state(11, 89, food=9))
+    assert t.start == 10

@@ -29,7 +29,9 @@ from .state import GameState, StateTracker
 from .window import GameWindow, find_game_window
 
 MAX_FAIL_SHOTS = 30  # failure images saved per match
-HIDDEN_END_S = 30    # panel hidden for longer than this = end of match
+# Panel hidden for longer than this = end of match. Long, since a pause or a
+# menu must not split a match; a new match is told by the clock going back.
+HIDDEN_END_S = 600
 REPORT_AFTER_S = 10  # a match not being read for this long gets its report written (end screen, menu, alt-tab)
 MIN_CONTRAST = 0.7   # anchor contrast ÷ template contrast: game ~0.88; menu/veil 0.03–0.38
 DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analysis

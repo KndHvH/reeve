@@ -9,10 +9,11 @@ Three moments, each with its own effect (settings, overlay.animation):
 - enter: a new alert's card appears;
 - exit: its alert clears;
 - move: the cards below take the freed place (or make room).
-Effects: none, short_fade, long_fade, slide. Sliding in comes from the left
-edge of the game and sliding out goes back there; the window starts at that
-edge and the card moves inside it, so it never shows on a neighbouring
-monitor. For `move`, a fade fades out, jumps and fades back in.
+Effects: none, short_fade, long_fade, slide. Sliding in comes from the
+stack's edge of the game (left for the alert cards, right for the build
+order steps) and sliding out goes back there; the window reaches that edge
+and the card moves inside it, so it never shows on a neighbouring monitor.
+For `move`, a fade fades out, jumps and fades back in.
 
 Cost: a frame every ~15 ms only while something is animating (at most
 ~0.45 s per change), one opacity or position call per card per frame; the
@@ -97,15 +98,19 @@ class Card:
     def paint(self, alert, sig) -> None:
         c = self.canvas
         c.delete("all")
-        x1, y1 = self.stack.paint(c, alert, self.stack.x0, 0)
-        self.w, self.h = x1 + 1, y1 + 1
-        c.configure(width=self.w, height=self.h)
+        right = self.stack.side == "right"
+        x1, y1 = self.stack.paint(c, alert, 0 if right else self.stack.x0, 0)
+        self.h = y1 + 1
+        # The window reaches the stack's edge of the game: x0 is the margin there.
+        self.w = x1 + 1 + (self.stack.x0 if right else 0)
+        c.configure(width=x1 + 1, height=self.h)
         self.sig = sig
         self.place()
 
     def place(self) -> None:
         left, top = self.stack.origin
-        self.win.geometry(f"{self.w}x{self.h}+{left}+{top + round(self.y)}")
+        x = left + self.stack.right - self.w if self.stack.side == "right" else left
+        self.win.geometry(f"{self.w}x{self.h}+{x}+{top + round(self.y)}")
 
     def set_y(self, y: float) -> None:
         self.y = y
@@ -131,13 +136,20 @@ class Card:
 class CardStack:
     """The alert cards on screen, kept in step with the active alerts.
 
-    `paint(canvas, alert, x, y) -> (right, bottom)` draws one card;
+    `paint(canvas, item, x, y) -> (right, bottom)` draws one card;
     `setup_window(toplevel) -> hwnd` makes a window click-through and applies
-    the capture setting. Positions are relative to the game window."""
+    the capture setting. Positions are relative to the game window. Items
+    have an `id`; `signature(item)` tells when a card must be repainted
+    (an alert's severity and text by default). `side`: the game edge the
+    cards sit at and slide from ("left", or "right" with `right` set to
+    the game window's width on each update)."""
 
-    def __init__(self, root: tk.Tk, key: str, setup_window, paint):
+    def __init__(self, root: tk.Tk, key: str, setup_window, paint, side: str = "left",
+                 signature=lambda a: (a.severity, a.text)):
         self.root, self.key = root, key
         self.setup_window, self.paint = setup_window, paint
+        self.side, self.signature = side, signature
+        self.right = 0
         self.effects = dict(DEFAULTS)
         self.cards: dict[str, Card] = {}
         self.leaving: list[Card] = []
@@ -151,13 +163,13 @@ class CardStack:
         return [c.hwnd for c in [*self.cards.values(), *self.leaving]]
 
     def update(self, alerts: list, origin: tuple[int, int], x0: int, top: int, gap: int,
-               limit: int | None, look) -> None:
+               limit: int | None, look, right: int = 0) -> None:
         """Shows `alerts` (in order) as cards stacked down from (x0, top).
         `look` changes when the theme or scale does, to repaint every card.
         Cheap when nothing changed: no drawing, no window call."""
         now = time.monotonic()
-        if origin != self.origin or x0 != self.x0:
-            self.origin, self.x0 = origin, x0
+        if origin != self.origin or x0 != self.x0 or right != self.right:
+            self.origin, self.x0, self.right = origin, x0, right
             for c in self.cards.values():
                 c.sig = None                      # repaint at the new place
         wanted = {a.id: a for a in alerts}
@@ -168,7 +180,7 @@ class CardStack:
             card = self.cards.get(a.id)
             if card is None:
                 card = fresh[a.id] = Card(self)
-            sig = (a.severity, a.text, look)
+            sig = (self.signature(a), look)
             if card.sig != sig:
                 card.paint(a, sig)
         ordered = [self.cards.get(a.id) or fresh[a.id] for a in alerts]
@@ -200,7 +212,7 @@ class CardStack:
         card.set_y(y)
         effect = self.effects["enter"]
         if effect == "slide":
-            self._tween(card, "dx", card.set_dx, -card.w, 0, now, DURATION_S["slide"])
+            self._tween(card, "dx", card.set_dx, self._away(card), 0, now, DURATION_S["slide"])
         elif effect in ("short_fade", "long_fade"):
             self._tween(card, "alpha", card.set_alpha, 0.0, 1.0, now, DURATION_S[effect])
         card.show()
@@ -217,11 +229,15 @@ class CardStack:
 
         effect = self.effects["exit"]
         if effect == "slide":
-            self._tween(card, "dx", card.set_dx, card.dx, -card.w, now, DURATION_S["slide"], gone)
+            self._tween(card, "dx", card.set_dx, card.dx, self._away(card), now, DURATION_S["slide"], gone)
         elif effect in ("short_fade", "long_fade"):
             self._tween(card, "alpha", card.set_alpha, card.alpha, 0.0, now, DURATION_S[effect], gone)
         else:
             gone()
+
+    def _away(self, card: Card) -> int:
+        """Where a sliding card is out of sight: past the stack's edge."""
+        return card.w if self.side == "right" else -card.w
 
     def _move(self, card: Card, y: int, now: float) -> None:
         card.target = y

@@ -36,6 +36,7 @@ SLOTS = RESOURCES + ("builder",)   # villager places in a step, in aoe4guides' o
 # bounds the builders estimate from above.
 VILLAGER_S = {"French": 19}
 VILLAGER_DEFAULT_S = 20
+LATE_START_S = 20   # a first reading after this game time joined the match late
 MAX_GAP_S = 6       # longest gap between readings counted as production (a menu or alt-tab is not)
 TIMEOUT_S = 15
 
@@ -303,12 +304,17 @@ class BuildTracker:
         if s.pop is not None and seen > s.pop:
             return None     # more villagers than population: a misread (the landmark builders read 51 for 5)
         if self.start is None:
-            self.start = seen
+            # At the start of a match everyone is visible; joined later (the
+            # app started mid-match), builders hide: the population less the scout.
+            late = s.clock is not None and s.clock > LATE_START_S and s.pop is not None
+            self.start = max(seen, s.pop - 1) if late else seen
         if s.pop is None:
             return seen
         hidden = s.pop - seen
         self.base = hidden if self.base is None else min(self.base, hidden)
-        can_exist = self.start + int(self.producing_s // VILLAGER_S.get(self.build.civ, VILLAGER_DEFAULT_S))
+        # Rounded: production is confirmed over two readings, so each villager is
+        # seen a few seconds short.
+        can_exist = self.start + round(self.producing_s / VILLAGER_S.get(self.build.civ, VILLAGER_DEFAULT_S))
         self.builders = max(0, min(hidden - self.base, can_exist - seen))
         return seen + self.builders
 

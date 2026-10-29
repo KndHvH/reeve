@@ -31,6 +31,7 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
 - When Reeve starts, it updates the builds their author changed on aoe4guides.com.
 - In the game's menus, a card on the right of the screen picks the build for the next match, or None to show nothing.
+- Steps come in, leave and move with the same animations as the alert cards.
 - The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
 
 ### Match reports

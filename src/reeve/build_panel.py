@@ -1,22 +1,25 @@
 """The build order panel: previous, current and next step, on the right of the screen.
 
-A click-through window of its own (like each alert card, see cards.py),
-redrawn only when the step, the theme or the size changes. Each step is a
-block: its age and planned time, the villager count and the five villager
-places (food, wood, gold, stone, builder), then its notes with aoe4guides'
-icons inline, wrapped to the panel's width. The current step stands out
-(accent bar, full ink); the other two are dimmed.
+Each step is a card of its own (cards.CardStack, as the alert cards), on the
+right edge of the game: when a step is reached the previous one leaves, the
+others move up and the next one comes in, with the alert cards' animations.
+A step is a block: its age and planned time, the villager count and the five
+villager places (food, wood, gold, stone, builder), then its notes with
+aoe4guides' icons inline, wrapped to the panel's width. The current step
+stands out (accent bar, full ink); the other two are dimmed.
 """
 
 from __future__ import annotations
 
 import tkinter as tk
 import tkinter.font as tkfont
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageTk
 
-from .builds import SLOTS, icon_file, tokens
+from .builds import SLOTS, BuildStep, icon_file, tokens
+from .cards import CardStack
 from .paths import ROOT
 
 ICONS = ROOT / "assets" / "report_icons"
@@ -29,59 +32,48 @@ def _fmt(t: int | None) -> str:
     return "" if t is None else f"{t // 60}:{t % 60:02d}"
 
 
+@dataclass(frozen=True)
+class StepCard:
+    id: str            # build id and step index: a step keeps its card as the build advances
+    step: BuildStep
+    current: bool
+
+
 class BuildPanel:
     def __init__(self, root: tk.Tk, key: str, setup_window, box):
-        """`box(canvas, x0, y0, x1, y1, radius, fill)` draws a block (overlay._box)."""
-        self.root, self.key, self.setup_window, self.box = root, key, setup_window, box
-        self.win: tk.Toplevel | None = None
-        self.hwnd: int | None = None
-        self.canvas: tk.Canvas | None = None
-        self._sig = None
-        self._pos = None
+        """`setup_window(toplevel) -> hwnd` makes a card window click-through;
+        `box(canvas, x0, y0, x1, y1, radius, fill)` draws a block (overlay._box)."""
+        self.root, self.box = root, box
+        self.stack = CardStack(root, key, setup_window, self._paint_card, side="right",
+                               signature=lambda card: card.current)
+        self._k, self._look = 1.0, {}
         self._images: dict[tuple, ImageTk.PhotoImage] = {}
         self._fonts: dict[tuple, tkfont.Font] = {}
 
-    # --- window -------------------------------------------------------------
-    def _ensure(self) -> None:
-        if self.win is not None:
-            return
-        w = tk.Toplevel(self.root)
-        w.overrideredirect(True)
-        w.attributes("-topmost", True)
-        w.attributes("-transparentcolor", self.key)
-        w.configure(bg=self.key)
-        self.canvas = tk.Canvas(w, bg=self.key, highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True)
-        w.update_idletasks()
-        self.hwnd = self.setup_window(w)
-        self.win = w
-
     def windows(self) -> list[int]:
-        return [self.hwnd] if self.hwnd else []
+        return self.stack.windows()
 
     def hide(self) -> None:
-        if self.win is not None:
-            self.win.withdraw()
-        self._sig = None
+        self.stack.clear()
 
-    def update(self, tracker, right: int, top: int, k: float, look: dict,
-               show_prev: bool = True, show_next: bool = True) -> None:
-        """Shows the tracker's steps with the panel's top-right corner at
-        (right, top) in screen coordinates; `look`: theme colors and radius."""
+    def update(self, tracker, origin: tuple[int, int], game_width: int, margin: int, top: int, k: float,
+               look: dict, show_prev: bool = True, show_next: bool = True) -> None:
+        """Shows the tracker's steps on the right of the game window at
+        `origin` (its top-left on screen), `margin` from its right edge and
+        from `top` down; `look`: theme colors and radius."""
         if tracker is None:
             self.hide()
             return
-        self._ensure()
-        sig = (tracker.build.id, tracker.index, round(k, 3), tuple(sorted(look.items())), show_prev, show_next)
-        if sig != self._sig:
-            self._sig = sig
-            self._w, self._h = self._paint(tracker, k, look, show_prev, show_next)
-            self._pos = None
-        pos = (right - self._w, top)
-        if pos != self._pos:
-            self._pos = pos
-            self.win.geometry(f"{self._w}x{self._h}+{pos[0]}+{pos[1]}")
-        self.win.deiconify()
+        prev, cur, nxt = tracker.window()
+        i, bid = tracker.index, tracker.build.id
+        cards = ([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +                 [StepCard(f"{bid}:{i}", cur, True)] +                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else [])
+        self._k, self._look = k, look
+        self.stack.update(cards, origin, margin, top, round(5 * k), None, (round(k, 3), tuple(sorted(look.items()))),
+                          right=game_width)
+
+    def _paint_card(self, c: tk.Canvas, card: StepCard, x: int, y: int) -> tuple[int, int]:
+        width = round(WIDTH * self._k)
+        return x + width, self._block(c, card.step, card.current, x, y, width, self._k, self._look)
 
     # --- drawing --------------------------------------------------------------
     def _font(self, size: int, bold: bool = False, family: str = "Segoe UI") -> tkfont.Font:
@@ -102,20 +94,6 @@ class BuildPanel:
                 im.putalpha(im.getchannel("A").point(lambda a: round(a * DIM_ALPHA)))
             self._images[key] = ImageTk.PhotoImage(im)
         return self._images[key]
-
-    def _paint(self, tracker, k: float, look: dict, show_prev: bool, show_next: bool) -> tuple[int, int]:
-        c = self.canvas
-        c.delete("all")
-        width, gap = round(WIDTH * k), round(5 * k)
-        y = 0
-        prev, cur, nxt = tracker.window()
-        prev, nxt = prev if show_prev else None, nxt if show_next else None
-        for step, current in ((prev, False), (cur, True), (nxt, False)):
-            if step is not None:
-                y = self._block(c, step, current, 0, y, width, k, look) + gap
-        h = max(1, y - gap)
-        c.configure(width=width, height=h)
-        return width, h
 
     def _block(self, c: tk.Canvas, step, current: bool, x0: int, y0: int, width: int, k: float, look: dict) -> int:
         """One step; returns its bottom y."""

@@ -147,6 +147,7 @@ class Overlay:
         self.cards = CardStack(self.root, KEY, self._setup_card_window, self._paint_card)
         self.cards.effects = animation_settings(self.live.rules.config)
         self.build_panel = BuildPanel(self.root, KEY, self._setup_card_window, _box)
+        self.build_panel.stack.effects = self.cards.effects
         self.build_picker = BuildPicker(self.root, KEY, self._setup_picker_window, _box)
         self._builds_stamp, self._builds = None, []
         self.geom = None
@@ -189,7 +190,7 @@ class Overlay:
             self._config_stamp = stamp
             self.live.rules.config = load_config()
             apply_theme(self.live.rules.config)
-            self.cards.effects = animation_settings(self.live.rules.config)
+            self.cards.effects = self.build_panel.stack.effects = animation_settings(self.live.rules.config)
             self._apply_sounds()
             self._shown = None
 
@@ -414,7 +415,7 @@ class Overlay:
         show_prev = not bo.get("previous_s", 10) or on_step < bo.get("previous_s", 10)
         show_next = on_step >= bo.get("next_after_s", 10)
         look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
-        self.build_panel.update(s.build, s.win.left + s.win.width - round(16 * k), s.win.top + round(s.win.height * 0.16),
+        self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, round(16 * k), round(s.win.height * 0.16),
                                 k * bo.get("scale", 1.0), look, show_prev, show_next)
 
     def _draw_picker(self, s: Step) -> None:
