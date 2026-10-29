@@ -123,6 +123,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .banner button.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
 .banner button:hover, .upd button:hover { border-color: var(--accent); }
 .upd { display: flex; gap: 10px; align-items: center; }
+/* Matches: select and delete */
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.tools { display: flex; gap: 8px; align-items: center; color: var(--mist); font-size: 13px; padding-top: 4px; }
+.tools button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--accent-dim); border-radius: var(--radius);
+  padding: 5px 12px; cursor: pointer; font: 13px var(--sans); }
+.tools button:hover { border-color: var(--accent); }
+.tools button:disabled { opacity: .45; cursor: default; }
+button.danger { border-color: var(--critical) !important; color: var(--critical) !important; }
+.bar .danger { margin-left: 8px; background: none; border: 1px solid; border-radius: var(--radius); padding: 3px 10px; font: 13px var(--sans); }
+.match.sel { grid-template-columns: 26px 170px 90px 1fr 210px; }
+.match .tick { width: 18px; height: 18px; border: 1px solid var(--accent-dim); border-radius: var(--radius-sm);
+  display: grid; place-items: center; color: var(--accent-light); font-size: 13px; }
+.match[aria-pressed="true"] { background: var(--panel); }
+.match[aria-pressed="true"] .tick { background: var(--accent-dim); border-color: var(--accent); }
 </style>
 <style id="look"></style>
 </head>
@@ -141,6 +155,8 @@ const fmt = s => s == null ? "–" : `${String(Math.floor(s / 60)).padStart(2, "
 const ROMAN = { 2: "II", 3: "III", 4: "IV" };
 const PROB = { tc_idle: "TC idle", housed: "Housed", idle_villager: "Idle", floating: "Floating" };
 let current = "matches";
+let selecting = false;          // Matches: select mode for deleting
+const picked = new Set();
 
 function navTo(page) {
   current = page;
@@ -159,23 +175,63 @@ async function showMatches() {
     const probs = Object.entries(m.problems || {}).filter(([, p]) => p.seconds > 0)
       .map(([id, p]) => `<span class="prob ${p.severity || ""}" title="${PROB[id]}">${PROB[id]} ${fmt(p.seconds)}</span>`).join("");
     const vil = m.villagers_at || {};
-    return `<button class="match" data-session="${m.session}" data-started="${m.started}" title="Open the report">
+    const on = picked.has(m.session);
+    return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
+      ${selecting ? `aria-pressed="${on}" title="Select"` : 'title="Open the report"'}>
+      ${selecting ? `<span class="tick" aria-hidden="true">${on ? "✓" : ""}</span>` : ""}
       <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
       <div class="probs">${probs || '<span class="prob">no problems</span>'}</div></button>`;
   }).join("");
-  $("#main").innerHTML = `<h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p>
+  const tools = !list.length ? "" : selecting
+    ? `<div class="tools"><span>${picked.size} selected</span>
+        <button type="button" id="sel-all">${picked.size === list.length ? "Select none" : "Select all"}</button>
+        <button type="button" class="danger" id="sel-delete" ${picked.size ? "" : "disabled"}>Delete ${picked.size || ""} match${picked.size === 1 ? "" : "es"}</button>
+        <button type="button" id="sel-cancel">Done</button></div>`
+    : `<div class="tools"><button type="button" id="sel-start">Select</button></div>`;
+  $("#main").innerHTML = `<div class="head"><div><h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p></div>${tools}</div>
     ${rows || '<p class="empty">No matches yet. Play a match with the overlay on and it will show up here.</p>'}`;
-  document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => showReport(b.dataset.session, b.dataset.started)));
+  document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => {
+    if (!selecting) return showReport(b.dataset.session, b.dataset.started);
+    picked.has(b.dataset.session) ? picked.delete(b.dataset.session) : picked.add(b.dataset.session);
+    showMatches();
+  }));
+  if (!list.length) return;
+  if (!selecting) { $("#sel-start").addEventListener("click", () => { selecting = true; showMatches(); }); return; }
+  $("#sel-cancel").addEventListener("click", () => { selecting = false; picked.clear(); showMatches(); });
+  $("#sel-all").addEventListener("click", () => {
+    picked.size === list.length ? picked.clear() : list.forEach(m => picked.add(m.session));
+    showMatches();
+  });
+  confirmDelete($("#sel-delete"), () => [...picked], async () => { picked.clear(); selecting = false; showMatches(); });
+}
+
+// Deleting asks once more on the button itself: the first click arms it.
+function confirmDelete(button, sessions, after) {
+  let armed = false;
+  button.addEventListener("click", async () => {
+    const list = sessions();
+    if (!list.length) return;
+    if (!armed) {
+      armed = true;
+      button.textContent = `Delete ${list.length} match${list.length === 1 ? "" : "es"}? Click to confirm`;
+      setTimeout(() => { if (armed) { armed = false; button.textContent = `Delete ${list.length} match${list.length === 1 ? "" : "es"}`; } }, 4000);
+      return;
+    }
+    armed = false;
+    await api().delete_matches(list);
+    after();
+  });
 }
 
 async function showReport(session, started) {
   const main = $("#main");
   main.className = "report";
   main.innerHTML = `<div class="bar"><button id="back">← Matches</button><span class="title">Match of ${started}</span>
-    <button class="ext" id="ext">Open in browser</button></div><p class="lede" style="padding:20px">Building the report…</p>`;
+    <button class="ext" id="ext">Open in browser</button><button class="danger" id="del-match">Delete match</button></div><p class="lede" style="padding:20px">Building the report…</p>`;
   $("#back").addEventListener("click", () => navTo("matches"));
+  confirmDelete($("#del-match"), () => [session], () => navTo("matches"));
   $("#ext").addEventListener("click", () => api().open_report_external(session));
   const url = await api().report_url(session);
   main.querySelector(".lede").outerHTML = `<iframe src="${url}" title="Match report"></iframe>`;
@@ -220,16 +276,23 @@ function appearance() {
   }).join("");
   const seg = [["square", "Square"], ["rounded", "Rounded"]].map(([v, l]) =>
     `<button type="button" role="radio" data-corners="${v}" aria-checked="${a.corners === v}">${l}</button>`).join("");
+  const rec = (cfg.overlay || {}).show_in_recordings !== false;
   return `<section class="group" id="appearance"><header><h3>Appearance</h3></header>
     <div class="themes">${cards}</div>
     <div class="row"><label>Corners<small>panels here and in reports, and the alert cards in game</small></label>
-      <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div></section>`;
+      <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div>
+    <div class="row"><label>Show alerts in recordings and streams<small>clips, screen recordings and streaming apps capture the alert cards</small></label>
+      <input type="checkbox" class="switch" id="show-rec" ${rec ? "checked" : ""} aria-label="Show alerts in recordings and streams"></div></section>`;
 }
 
 function bindAppearance() {
   const a = () => cfg.appearance || { theme: "age", corners: "square" };
   document.querySelectorAll("[data-theme]").forEach(b => b.addEventListener("click", () => setLook(b.dataset.theme, a().corners)));
   document.querySelectorAll("[data-corners]").forEach(b => b.addEventListener("click", () => setLook(a().theme, b.dataset.corners)));
+  $("#show-rec").addEventListener("change", e => {
+    cfg.overlay = { ...(cfg.overlay || {}), show_in_recordings: e.target.checked };
+    api().set_setting("overlay", "show_in_recordings", e.target.checked);
+  });
 }
 
 async function setLook(theme, corners) {
