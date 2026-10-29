@@ -75,3 +75,7 @@ Uninstalling Reeve (Windows Settings, Apps) keeps this folder, so your history i
 
 ## Development
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), the [roadmap](ROADMAP.md) and the [decision log](docs/DECISIONS.md).
+
+---
+
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/kndhvh)
