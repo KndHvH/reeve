@@ -59,11 +59,20 @@ def release_pr() -> dict | None:
     return prs[0] if prs else None
 
 
+def unreleased(fmt: str | None = None, branch: str = "origin/unstable") -> str:
+    """The work on unstable that is not in main yet. A squash merge puts a new
+    commit on main and leaves the original ones outside its history, so
+    `tag..unstable` would count every released commit again; the ancestry path
+    from main only reaches what came after main was merged back."""
+    args = ["--no-merges", "--ancestry-path", f"origin/main..{branch}"]
+    return git("log", f"--format={fmt}", *args) if fmt else git("rev-list", "--count", *args)
+
+
 def cmd_status(_args) -> None:
     git("fetch", "-q")
     v = version()
     last = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "origin/main", check=False)
-    ahead = git("rev-list", "--count", f"{last}..origin/unstable") if last else "?"
+    ahead = unreleased()
     print(f"version in code:   {v}")
     print(f"last release tag:  {last or 'none'}")
     print(f"branch:            {git('rev-parse', '--abbrev-ref', 'HEAD')}"
@@ -94,7 +103,7 @@ def cmd_prepare(args) -> None:
     notes = NOTES / f"v{new}.md"
     if not notes.exists():
         last = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "origin/main", check=False)
-        log = git("log", "--no-merges", "--format=- %s", f"{last}..HEAD") if last else ""
+        log = unreleased("- %s", "HEAD")
         notes.write_text(f"<!-- Release notes for players: what is new, improved and fixed. Commits since {last}:\n"
                          f"{log}\n-->\n\n## New\n\n## Improved\n\n## Fixed\n\n## Install\n"
                          f"Download `Reeve-{new}-setup.exe` below and run it, or use Update now in the hub.\n",

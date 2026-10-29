@@ -36,6 +36,7 @@ Turns the command-line tool into an installable app.
 | A9 | Themes for the alert cards, the hub and the report: Age (gold on night blue, default), Dark, Dracula and Kitty (light pink), plus square or rounded corners; chosen in the hub, applied at once everywhere | ✅ |
 | A10 | GitHub releases: each version is a tag `vX.Y.Z` with the installer attached and its notes in `docs/releases/`; `scripts/build.py --release` publishes it. Versions: `0.MINOR.PATCH`, patch releases for fixes and small additions; a fourth number (`0.2.2.1`) for a fix to a release that just shipped | ✅ (v0.2.0) |
 | A11 | Updates from the hub: at most one check a day against the latest GitHub release (stdlib HTTPS, no new dependency); a tray notice and a banner in the hub when a newer version exists, never during a match; "Update" downloads the installer and runs it silently (it closes and reopens Reeve). Needs public releases (see Public launch) |  |
+| A12 | Light animation for the alert cards: a short fade in when a card appears and fade out when it clears (and, to evaluate, a small slide as the stack moves). Lightweight by design: a few opacity steps over ~150-250 ms through the window's alpha, only at those moments, with no continuous redraw; an option to turn it off |  |
 
 ## Public launch
 The repository goes public once the project feels complete enough.
