@@ -18,9 +18,13 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+# Program files (assets/, config/): the repository, or the bundle folder of the
+# packaged app, where PyInstaller unpacks its data files.
+FROZEN = getattr(sys, "frozen", False)
+ROOT = Path(sys._MEIPASS) if FROZEN else Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / "config" / "rules.json"
 
 

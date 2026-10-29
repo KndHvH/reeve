@@ -13,3 +13,4 @@ Reeve (formerly aoe4-overlay / `aoe4ov`) is a macro assistant for AoE4: an overl
 
 ## Commands
 - `uv sync`, `uv run pytest`, `uv run reeve <cmd>`
+- `uv run python scripts/build.py`: PyInstaller one-folder app (`packaging/reeve.spec`) plus the Inno Setup installer (`packaging/reeve.iss`)

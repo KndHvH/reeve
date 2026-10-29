@@ -103,7 +103,9 @@ class TrayApp:
             os.startfile(WEBVIEW2_DOWNLOAD)
             return
         if self._hub is None or self._hub.poll() is not None:
-            self._hub = subprocess.Popen([sys.executable, "-m", "reeve.hub"])
+            # Packaged, the app's executable starts the hub with an argument (no -m there).
+            args = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
+            self._hub = subprocess.Popen(args)
 
     def _open_report(self):
         r = latest_report()

@@ -31,7 +31,7 @@ Turns the command-line tool into an installable app.
 | A4 | Session retention: keep everything 7 days, then only log + report up to 90 days, plus a total size cap; configurable in the hub; runs at startup | ✅ |
 | A5 | Custom sounds from the hub: import any audio/video file into the sound library (the existing `import_sound.py` flow behind a UI) | ✅ |
 | A6 | First-run checks: game in Borderless/Windowed mode, WebView2 present, first calibration | ✅ |
-| A7 | Packaging: PyInstaller (one-folder build, fewer antivirus false positives than one-file) + Inno Setup installer; version shown in the hub and watermark |  |
+| A7 | Packaging: PyInstaller (one-folder build, fewer antivirus false positives than one-file) + Inno Setup installer; version shown in the hub and watermark | ✅ |
 | A8 | Performance review against the targets (RAM currently ~60 MB vs. 50 MB target) with `perf-guardian` |  |
 | A9 | Themes for the overlay and the report: the current Age-inspired gold theme (default), a neutral dark mode, and community palettes such as Dracula and Kitty; chosen in the hub |  |
 

@@ -23,6 +23,7 @@ from pathlib import Path
 
 from . import __version__
 from .income import IncomeTracker
+from .paths import ROOT
 from .replay import _wall_seconds
 from .rules import SEVERITIES, RuleEngine, _fmt_clock, load_config
 from .state import RESOURCES, StateTracker
@@ -34,7 +35,7 @@ from .state import RESOURCES, StateTracker
 # the game's icons mark every legend and line end, and stacked bands are
 # separated by gaps.
 SERIES_ORDER = ["food", "wood", "stone", "gold", "idle"]
-ICONS = Path(__file__).resolve().parents[2] / "assets" / "report_icons"
+ICONS = ROOT / "assets" / "report_icons"
 PROBLEMS = [("tc_idle", "Town center idle"), ("housed", "Housed"),
             ("idle_villager", "Idle villagers"), ("floating", "Floating resources")]
 

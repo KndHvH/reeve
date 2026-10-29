@@ -32,6 +32,7 @@ from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
 from .sound import AlertSounds
 from .metrics import CpuMeter, ram_mb
+from .paths import ROOT
 
 KEY = "#010203"  # color treated as transparent
 # Same visual language as the post-match report: night-blue panels, gold
@@ -41,7 +42,7 @@ GOLD, GOLD_DIM, GOLD_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
 GOOD, WARN, BAD, ACCENT = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
 FONT = "Segoe UI"
 SERIF = "Palatino Linotype"
-ICONS = Path(__file__).resolve().parents[2] / "assets" / "report_icons"
+ICONS = ROOT / "assets" / "report_icons"
 
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT = 0x80000, 0x20

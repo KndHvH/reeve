@@ -22,9 +22,19 @@ Settings, recorded matches and your own sounds live in `%APPDATA%\reeve`: `confi
 
 Old matches are trimmed when the app starts: everything is kept for 7 days, then only the log, report and summary (the audit images go) up to 90 days, and older matches are deleted; above 500 MB in total the oldest are trimmed first. All three limits are in the hub's settings; `reeve clean --dry-run` shows what would be removed.
 
-## Requirements
-- Windows 10/11, with AoE4 running in **Borderless** or **Windowed** mode. Overlays are not visible in exclusive fullscreen.
-- [uv](https://docs.astral.sh/uv/)
+## Install
+Run `Reeve-<version>-setup.exe`. It installs for your user only (no admin rights) into `%LOCALAPPDATA%\Programs\Reeve`, adds Reeve to the Start menu and, if you keep that option, starts it with Windows. Starting Reeve again while it runs opens the hub. Uninstalling keeps your matches and settings in `%APPDATA%eeve`.
+
+Requirements: Windows 10/11 (64-bit), AoE4 in **Borderless** or **Windowed** mode (no overlay is visible in exclusive fullscreen), and the Microsoft Edge WebView2 Runtime for the hub (included in Windows 11 and most Windows 10 installs).
+
+## Development
+Requires [uv](https://docs.astral.sh/uv/). To build the app folder and the installer (Inno Setup 6 for the installer):
+
+```powershell
+uv run python scripts/build.py          # dist/Reeve/Reeve.exe and dist/Reeve-<version>-setup.exe
+```
+
+The version comes from `src/reeve/__init__.py`. The packaged app has no console: its output and errors go to `reeve.log` in the data folder.
 
 ## Usage
 Run `uv run reeve` (or the windowless `reeve-app`): the overlay starts with a tray icon whose menu turns the overlay on/off, switches to the debug view, mutes the sounds, opens the hub (double-click the icon), the last report or the data folder, and quits. The hub lists every recorded match with its report and holds the settings (alert thresholds, sounds, repetition, volume); saved settings apply to the running overlay within a few seconds.

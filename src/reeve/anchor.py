@@ -17,7 +17,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-ASSETS = Path(__file__).resolve().parents[2] / "assets"
+from .paths import ROOT
+
+ASSETS = ROOT / "assets"
 
 # UI scale range relative to the scale expected from the window height.
 UI_SCALE_RANGE = (0.6, 1.6)

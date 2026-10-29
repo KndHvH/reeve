@@ -56,6 +56,19 @@ def match_summaries() -> list[dict]:
     return out
 
 
+def _code_mtime(module) -> float:
+    """When a module's code last changed: its source file, or the app's own
+    executable once packaged (the source is not on disk there)."""
+    import sys
+
+    for p in (getattr(module, "__file__", None), sys.executable if getattr(sys, "frozen", False) else None):
+        try:
+            return Path(p).stat().st_mtime
+        except (OSError, TypeError):
+            continue
+    return 0.0
+
+
 def _user_sounds() -> list[str]:
     return sorted(p.stem for p in user_sounds_dir().glob("*.wav"))
 
@@ -83,7 +96,7 @@ class HubApi:
 
         folder = sessions_dir() / session
         report = folder / "report.html"
-        newest = max((folder / "log.jsonl").stat().st_mtime, Path(report_module.__file__).stat().st_mtime)
+        newest = max((folder / "log.jsonl").stat().st_mtime, _code_mtime(report_module))
         if not report.exists() or report.stat().st_mtime < newest:
             report = write_report(folder)
         return report.as_uri()

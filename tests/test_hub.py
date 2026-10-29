@@ -118,3 +118,13 @@ def test_remove_sound_puts_its_severities_back_to_default():
     assert not (paths.user_sounds_dir() / f"{name}.wav").exists()
     assert "error" in api.remove_sound("blip")            # built-ins cannot be removed
     assert "error" in api.remove_sound("../config/rules")  # nor anything outside the folder
+
+
+def test_code_mtime_falls_back_when_the_source_is_not_on_disk():
+    import types
+
+    from reeve.hub import _code_mtime
+    from reeve import report
+
+    assert _code_mtime(report) > 0
+    assert _code_mtime(types.SimpleNamespace(__file__="Z:/nowhere/report.pyc")) == 0.0
