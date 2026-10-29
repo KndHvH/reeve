@@ -72,6 +72,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--mist); transition: left .15s; }
 .switch:checked { background: var(--accent-dim); } .switch:checked::after { left: 21px; background: var(--accent-light); }
 .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row > .switch, .row > .seg { justify-self: end; }
 .pair { display: flex; gap: 6px; align-items: center; }
 .pair button, .actions button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--accent-dim); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font: 13px var(--sans); }
 .pair button:hover, .actions button:hover { border-color: var(--accent); }
@@ -292,10 +293,9 @@ function appearance() {
   const rec = (cfg.overlay || {}).show_in_recordings !== false;
   const anim = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}) };
   const motion = ANIM_MOMENTS.map(([moment, label, hint]) => {
-    const opts = ANIM_EFFECTS.map(([v, l]) =>
-      `<button type="button" role="radio" data-anim="${moment}" data-effect="${v}" aria-checked="${anim[moment] === v}">${l}</button>`).join("");
+    const opts = ANIM_EFFECTS.map(([v, l]) => `<option value="${v}" ${anim[moment] === v ? "selected" : ""}>${l}</option>`).join("");
     return `<div class="row"><label>${label}<small>${hint}</small></label>
-      <div class="seg" role="radiogroup" aria-label="${label}">${opts}</div></div>`;
+      <select data-anim="${moment}" aria-label="${label}">${opts}</select></div>`;
   }).join("");
   return `<section class="group" id="appearance"><header><h3>Appearance</h3></header>
     <div class="themes">${cards}</div>
@@ -314,11 +314,10 @@ function bindAppearance() {
     cfg.overlay = { ...(cfg.overlay || {}), show_in_recordings: e.target.checked };
     api().set_setting("overlay", "show_in_recordings", e.target.checked);
   });
-  document.querySelectorAll("[data-anim]").forEach(b => b.addEventListener("click", () => {
-    const animation = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}), [b.dataset.anim]: b.dataset.effect };
+  document.querySelectorAll("[data-anim]").forEach(s => s.addEventListener("change", () => {
+    const animation = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}), [s.dataset.anim]: s.value };
     cfg.overlay = { ...(cfg.overlay || {}), animation };
     api().set_setting("overlay", "animation", animation);
-    document.querySelectorAll(`[data-anim="${b.dataset.anim}"]`).forEach(o => o.setAttribute("aria-checked", o === b));
   }));
 }
 
