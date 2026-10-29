@@ -180,7 +180,7 @@ class Overlay:
 
     def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
         """One card per alert, stacked downwards from (x0, y0): severity bar,
-        game icon and the alert text, framed in gold like the report."""
+        game icon and the alert text on the report's night-blue card (no outline)."""
         c = self.canvas
         pad, gap, bar_w = round(8 * k), round(6 * k), round(4 * k)
         icon_h = round((fs + 2) * 1.9)
@@ -195,7 +195,7 @@ class Overlay:
                               font=(SERIF, fs + 2, "bold"))
             _, _, x1, _ = c.bbox(t)
             y1 = y + pad + icon_h
-            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline=GOLD_DIM)
+            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline="")
             bar = c.create_rectangle(x0 + 1, y + 1, x0 + bar_w, y1 + pad, fill=SEVERITY_COLOR[a.severity], outline="")
             c.tag_lower(bar)
             c.tag_lower(card)

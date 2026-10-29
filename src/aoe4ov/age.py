@@ -8,13 +8,16 @@
   template carries empty space where the other numerals have strokes.
 - Age-up: while a landmark is being built a bar appears under the numeral.
   Its band is made of dark track and bright striped fill only; progress is the
-  share of fill from the left. The number right of the bar is the count of
-  villagers building the landmark, read with the digit reader; a bar only
-  counts when that number is readable (terrain never passes both checks).
+  share of fill from the left. Two checks tell it from terrain: the empty
+  track is truly black (mean brightness 2–17 vs ≥ 24 for terrain) and the
+  fill is regularly striped (mean step ≤ 12 vs ≥ 15). The number right of
+  the bar is the count of villagers building the landmark; some
+  civilizations age up without builders, so it is optional.
 
-Measured on a full match (I → IV, 96 frames): numeral right in 94/96 frames
-(the two misses are isolated and rejected by the state layer); bars found in
-every age-up frame with no false positives after both checks.
+Measured on two full matches with different civilizations (168 frames):
+numeral right in all but a few isolated frames, which the state layer
+rejects; bars found in every age-up frame with or without builders, no false
+positives.
 """
 
 from __future__ import annotations
@@ -28,8 +31,10 @@ from PIL import Image
 from .anchor import ASSETS, AnchorMatch, _Matcher, load_layout
 from .digits import read
 
-BAR_SHARE = 0.94    # columns that must be dark track or bright fill
+BAR_SHARE = 0.88    # columns that must be dark track or bright fill (0.91-1.0 on real bars)
 DARK, BRIGHT = 55, 120
+TRACK_MAX = 20      # mean brightness of the empty track: black on real bars (2-17), terrain >= 24
+STRIPE_MAX = 14     # mean brightness step inside the fill: regular stripes (<= 12), terrain >= 15
 
 
 @dataclass(frozen=True)
@@ -87,10 +92,13 @@ def read_age(rgb: np.ndarray, match: AnchorMatch, width: int) -> AgeReading:
     if band.size:
         col = band.max(axis=2).mean(axis=0)
         dark, bright = col < DARK, col > BRIGHT
-        if (dark | bright).mean() >= BAR_SHARE:
+        track_ok = not dark.any() or col[dark].mean() < TRACK_MAX
+        stripes_ok = bright.sum() <= 4 or np.abs(np.diff(col[bright])).mean() < STRIPE_MAX
+        has_bar_shape = dark.any() or bright.mean() > 0.9   # an empty track, or a (nearly) full bar
+        if (dark | bright).mean() >= BAR_SHARE and has_bar_shape and track_ok and stripes_ok:
+            fill = int(np.argmin(bright)) if not bright.all() else len(bright)
+            progress = fill / len(bright)
             bx, by, bw, bh = _rect(cfg["builders"], match, width)
             r = read(rgb[by:by + bh, bx:bx + bw], match.scale)
-            if r.ok and r.text.isdigit():
-                fill = int(np.argmin(bright)) if not bright.all() else len(bright)
-                progress, builders = fill / len(bright), int(r.text)
+            builders = int(r.text) if r.ok and r.text.isdigit() else None
     return AgeReading(age, score, progress, builders)

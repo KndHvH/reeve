@@ -110,7 +110,7 @@
     "border_min_blue_minus_red": -5
   },
   "age_region": {
-    "_doc": "Age numeral (I-IV) and age-up bar above the clock, relative to the top center (reference coordinates). Numeral: bright-gold mask matched against equal-width templates (assets/age, cropped at scale 1.485 from session 20261028-200819). Bar: columns of the band must be dark track or bright fill; builders = white digits right of the bar.",
+    "_doc": "Age numeral (I-IV) and age-up bar above the clock, relative to the top center (reference coordinates). Numeral: bright-gold mask matched against equal-width templates (assets/age, cropped at scale 1.485 from session 20261028-200819). Bar: columns of the band must be dark track or bright fill; builders = white digits right of the bar (not every civilization has them).",
     "rect": [
       -75,
       12,
@@ -126,9 +126,9 @@
     "templates_scale": 1.485,
     "min_score": 0.5,
     "bar": [
-      -35,
+      -33,
       74,
-      75,
+      73,
       3
     ],
     "builders": [

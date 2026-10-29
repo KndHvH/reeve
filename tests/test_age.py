@@ -96,3 +96,19 @@ def test_age_needs_longer_confirmation_without_a_bar():
     advance the age when no landmark bar was seen."""
     assert _ages([2, 2, 3, 3, 2, 2])[-1] == 2
     assert _ages([2, 2, 3, 3, 3, 3, 3])[-1] == 3   # five reads: accepted (e.g. overlay started mid age-up)
+
+
+@pytest.mark.parametrize("name,age", [("ageup_no_builders_late.jpg", 1), ("ageup_no_builders_early.jpg", 2)])
+def test_ageup_bar_without_builders(name, age):
+    """Some civilizations age up without villagers building the landmark: the
+    bar has no builder count and is longer. It must still be detected."""
+    r = read_age(_canvas(name), MATCH, WIDTH)
+    assert r.age == age
+    assert r.progress is not None
+    assert r.builders is None
+
+
+def test_dark_terrain_is_not_a_bar():
+    """Dark terrain under the numeral nearly passed as an empty track; the fill
+    stripes check rejects it."""
+    assert read_age(_canvas("age1_dark_terrain_no_bar.jpg"), MATCH, WIDTH).progress is None

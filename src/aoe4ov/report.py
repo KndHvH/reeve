@@ -44,17 +44,54 @@ def _icons() -> dict[str, str]:
             for p in sorted(ICONS.glob("*.png"))}
 
 
+def _ages_from_frames(session: Path, scale: float) -> dict[int, object]:
+    """Age readings from the saved top-center frames (game second -> AgeReading),
+    for sessions logged before age detection existed."""
+    import numpy as np
+    from PIL import Image
+
+    from .age import read_age
+    from .anchor import AnchorMatch
+
+    out = {}
+    match = AnchorMatch(0, 0, scale, 1.0)
+    for f in sorted((session / "frames").glob("top_*.jpg")):
+        crop = np.asarray(Image.open(f).convert("RGB"))
+        width = 2 * crop.shape[1]  # any width works: the crop is placed where the capture took it
+        x0, y0 = round(width / 2 - 75 * scale), round(12 * scale)
+        canvas = np.zeros((y0 + crop.shape[0], width, 3), np.uint8)
+        canvas[y0:y0 + crop.shape[0], x0:x0 + crop.shape[1]] = crop
+        out[int(f.stem[4:])] = read_age(canvas, match, width)
+    return out
+
+
 def build_timeline(log_path: Path, config: dict | None = None) -> dict:
-    """One row per reading (game time), plus alert intervals and frames."""
+    """One row per reading (game time), plus alert intervals and frames.
+
+    Logs written before age detection have no age values; if the session kept
+    top-center frames, the age is read from them and applied to the readings
+    within a few seconds of each frame."""
+    import bisect
+
     tracker, engine, income = StateTracker(), RuleEngine(config=config or load_config()), IncomeTracker()
     rows, intervals, open_alerts = [], [], {}
-    for raw in log_path.read_text(encoding="utf-8").splitlines():
-        row = json.loads(raw)
-        if "values" not in row:
-            continue
+    lines = [json.loads(raw) for raw in log_path.read_text(encoding="utf-8").splitlines()]
+    readings = [r for r in lines if "values" in r]
+    backfill, keys = {}, []
+    if readings and not any("age" in r["values"] for r in readings):
+        scale = next((r["anchor"][2] for r in readings if r.get("anchor")), None)
+        if scale:
+            backfill = _ages_from_frames(log_path.parent, scale)
+            keys = sorted(backfill)
+    for row in readings:
         values = dict(row["values"])
         if isinstance(values.get("pop"), list):
             values["pop"] = tuple(values["pop"])
+        if keys and values.get("clock") is not None:
+            i = bisect.bisect_right(keys, values["clock"]) - 1
+            if i >= 0 and values["clock"] - keys[i] <= 3:
+                a = backfill[keys[i]]
+                values.update(age=a.age, ageup_progress=a.progress, ageup_builders=a.builders)
         wall = _wall_seconds(row)
         s = tracker.update(values, wall)
         if s.clock is None:
