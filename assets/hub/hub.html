@@ -327,8 +327,15 @@ async function showBuilds() {
       <div class="row"><label>Show the build panel in matches<small>off: no panel and no build alerts</small></label>
         <input type="checkbox" class="switch" id="bo-show" ${r.show ? "checked" : ""} aria-label="Show the build panel in matches"></div>
       <div class="row"><label>Update builds when Reeve starts<small>checks aoe4guides.com for changes their author made</small></label>
-        <input type="checkbox" class="switch" id="bo-auto" ${r.auto_update ? "checked" : ""} aria-label="Update builds when Reeve starts"></div></section>
-    <section class="group"><header><h3>Your builds</h3></header>${list || '<p class="usage">None yet. Import one above; the first one you import is put in use.</p>'}</section>`;
+        <input type="checkbox" class="switch" id="bo-auto" ${r.auto_update ? "checked" : ""} aria-label="Update builds when Reeve starts"></div>
+      <div class="row"><label>Show the previous step for<small>seconds after a step is reached; 0 keeps it on screen</small></label>
+        <input type="number" min="0" step="1" id="bo-prev" value="${r.previous_s}" aria-label="Show the previous step for, in seconds"></div>
+      <div class="row"><label>Show the next step after<small>seconds on a step; 0 shows it at once</small></label>
+        <input type="number" min="0" step="1" id="bo-next" value="${r.next_after_s}" aria-label="Show the next step after, in seconds"></div>
+      <p class="usage">In the game's menus, a card on the right of the screen picks the build for the next match.</p></section>
+    <section class="group"><header><h3>Your builds</h3></header>
+      <div class="bo${r.active ? "" : " active"}"><div><b>None</b><small>no build panel and no build alerts</small></div>
+        <div class="acts">${r.active ? '<button type="button" data-use="">Use none</button>' : '<span class="using">In use</span>'}</div></div>${list || '<p class="usage">None yet. Import one above; the first one you import is put in use.</p>'}</section>`;
   $("#bo-form").addEventListener("submit", async e => {
     e.preventDefault();
     const text = $("#bo-url").value.trim();
@@ -342,7 +349,14 @@ async function showBuilds() {
   });
   $("#bo-show").addEventListener("change", e => api().set_setting("build_order", "show", e.target.checked));
   $("#bo-auto").addEventListener("change", e => api().set_setting("build_order", "auto_update", e.target.checked));
-  document.querySelectorAll("[data-use]").forEach(b => b.addEventListener("click", async () => { await api().use_build(b.dataset.use); showBuilds(); }));
+  for (const [id, key] of [["#bo-prev", "previous_s"], ["#bo-next", "next_after_s"]]) {
+    $(id).addEventListener("change", e => {
+      const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+      e.target.value = v;
+      api().set_setting("build_order", key, v);
+    });
+  }
+  document.querySelectorAll("[data-use]").forEach(b => b.addEventListener("click", async () => { await api().use_build(b.dataset.use || null); showBuilds(); }));
   document.querySelectorAll("[data-src]").forEach(b => b.addEventListener("click", () => api().open_url(b.dataset.src)));
   document.querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", async () => {
     b.disabled = true;

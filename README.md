@@ -30,6 +30,8 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - When your villagers are not where the step puts them, a warning says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
 - When Reeve starts, it updates the builds their author changed on aoe4guides.com.
+- In the game's menus, a card on the right of the screen picks the build for the next match, or None to show nothing.
+- The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
 
 ### Match reports
 When a match ends, Reeve writes its report:

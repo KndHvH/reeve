@@ -16,25 +16,11 @@ import os
 import threading
 from pathlib import Path
 
-from .paths import (DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir,
-                    user_config_path, user_sounds_dir)
+from .paths import (DEFAULT_CONFIG, ROOT, data_dir, diff, load_config, save_overrides, sessions_dir,
+                    set_setting, user_config_path, user_sounds_dir)
 
 HUB_HTML = ROOT / "assets" / "hub" / "hub.html"
 APP_ICON = ROOT / "assets" / "app.ico"   # the tray icon (tray._tray_image), all sizes
-
-
-def diff(defaults: dict, values: dict) -> dict:
-    """Only what differs from the defaults (nested dicts compared key by key)."""
-    out = {}
-    for k, v in values.items():
-        d = defaults.get(k)
-        if isinstance(v, dict) and isinstance(d, dict):
-            sub = diff(d, v)
-            if sub:
-                out[k] = sub
-        elif v != d:
-            out[k] = v
-    return out
 
 
 def match_summaries() -> list[dict]:
@@ -220,9 +206,7 @@ class HubApi:
 
     def set_setting(self, section: str, key: str, value) -> bool:
         """Saves one setting at once (used by switches that apply instantly)."""
-        values = load_config()
-        values[section] = dict(values.get(section) or {}, **{key: value})
-        save_overrides(diff(json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")), values))
+        set_setting(section, key, value)
         return True
 
     def update_status(self, force: bool = False) -> dict:
@@ -263,7 +247,8 @@ class HubApi:
 
         bo = load_config().get("build_order") or {}
         return {"builds": [b.summary() for b in builds.stored()], "active": bo.get("active"),
-                "show": bo.get("show", True), "auto_update": bo.get("auto_update", True)}
+                "show": bo.get("show", True), "auto_update": bo.get("auto_update", True),
+                "previous_s": bo.get("previous_s", 10), "next_after_s": bo.get("next_after_s", 10)}
 
     def import_build(self, text: str) -> dict:
         """A link to a build on aoe4guides.com, or its JSON. The first build

@@ -31,6 +31,7 @@ from PIL import Image, ImageTk
 
 from .version import shown as shown_version
 from .build_panel import BuildPanel
+from .build_picker import BuildPicker
 from .cards import CardStack, settings as animation_settings
 from .digits import MIN_SCORE
 from .live import LOW_CONF, LiveReader, Step
@@ -146,6 +147,8 @@ class Overlay:
         self.cards = CardStack(self.root, KEY, self._setup_card_window, self._paint_card)
         self.cards.effects = animation_settings(self.live.rules.config)
         self.build_panel = BuildPanel(self.root, KEY, self._setup_card_window, _box)
+        self.build_picker = BuildPicker(self.root, KEY, self._setup_picker_window, _box)
+        self._builds_stamp, self._builds = None, []
         self.geom = None
         self.last_events: list[str] = []
         self.last_status = "no_game"
@@ -208,6 +211,16 @@ class Overlay:
         user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE if self.excluded else WDA_NONE)
         return hwnd
 
+    @staticmethod
+    def _setup_picker_window(win: tk.Toplevel) -> int:
+        """The build picker takes clicks but never the focus (the game stays in
+        front), has no taskbar button and stays out of screen captures."""
+        hwnd = user32.GetParent(win.winfo_id())
+        style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
+        user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+        return hwnd
+
     def _set_excluded(self, excluded: bool) -> bool:
         """Hides the overlay and its cards from screen captures (recordings,
         streams, and Reeve's own reading) or shows them; returns whether hidden."""
@@ -235,6 +248,7 @@ class Overlay:
             self.root.withdraw()
             self.cards.clear()
             self.build_panel.hide()
+            self.build_picker.hide()
             self._shown = None
             self.root.after(int(self.every * 1000), self.tick)
             return
@@ -258,6 +272,7 @@ class Overlay:
                     self.geom = g
                 self.root.deiconify()
                 self.draw(s)
+            self._draw_picker(s)
             # Sounds follow what is on screen: nothing while in a menu or alt-tabbed.
             self.sounds.update(s.alerts if s.status == "reading" else [], time.monotonic())
         except Exception:
@@ -271,6 +286,7 @@ class Overlay:
     def _show_error(self) -> None:
         self.cards.clear()
         self.build_panel.hide()
+        self.build_picker.hide()
         self.canvas.delete("all")
         self._shown = None
         self._draw_watermark(1.0, BAD)
@@ -391,10 +407,32 @@ class Overlay:
         if s.status != "reading" or s.build is None:
             self.build_panel.hide()
             return
-        scale = (self.live.rules.config.get("build_order") or {}).get("scale", 1.0)
+        bo = self.live.rules.config.get("build_order") or {}
+        # The previous step only for a while after the step changed; the next
+        # one once the current step has been up for a while (0: always).
+        on_step = (s.state.clock - s.build.reached_at) if s.state and s.state.clock is not None             and s.build.reached_at is not None else 0
+        show_prev = not bo.get("previous_s", 10) or on_step < bo.get("previous_s", 10)
+        show_next = on_step >= bo.get("next_after_s", 10)
         look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
         self.build_panel.update(s.build, s.win.left + s.win.width - round(16 * k), s.win.top + round(s.win.height * 0.16),
-                                k * scale, look)
+                                k * bo.get("scale", 1.0), look, show_prev, show_next)
+
+    def _draw_picker(self, s: Step) -> None:
+        """Over the game's menus (AoE4 in front, no match read): the build order picker."""
+        if s.win is None or s.status != "waiting":
+            self.build_picker.hide()
+            return
+        from . import builds
+
+        stamp = max((p.stat().st_mtime for p in builds.builds_dir().glob("*.json")), default=0.0)
+        if stamp != self._builds_stamp:                  # imported, updated or deleted in the hub
+            self._builds_stamp = stamp
+            self._builds = [(b.id, b.name, b.civ) for b in builds.stored()]
+        k = s.win.height / 1080
+        look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "rule": RULE, "radius": RADIUS}
+        active = (self.live.rules.config.get("build_order") or {}).get("active")
+        self.build_picker.update(self._builds, active, s.win.left + s.win.width - round(16 * k),
+                                 s.win.top + round(s.win.height * 0.16), k, look)
 
 
     # --- debug view ---------------------------------------------------------

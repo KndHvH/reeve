@@ -64,17 +64,18 @@ class BuildPanel:
             self.win.withdraw()
         self._sig = None
 
-    def update(self, tracker, right: int, top: int, k: float, look: dict) -> None:
+    def update(self, tracker, right: int, top: int, k: float, look: dict,
+               show_prev: bool = True, show_next: bool = True) -> None:
         """Shows the tracker's steps with the panel's top-right corner at
         (right, top) in screen coordinates; `look`: theme colors and radius."""
         if tracker is None:
             self.hide()
             return
         self._ensure()
-        sig = (tracker.build.id, tracker.index, round(k, 3), tuple(sorted(look.items())))
+        sig = (tracker.build.id, tracker.index, round(k, 3), tuple(sorted(look.items())), show_prev, show_next)
         if sig != self._sig:
             self._sig = sig
-            self._w, self._h = self._paint(tracker, k, look)
+            self._w, self._h = self._paint(tracker, k, look, show_prev, show_next)
             self._pos = None
         pos = (right - self._w, top)
         if pos != self._pos:
@@ -102,12 +103,13 @@ class BuildPanel:
             self._images[key] = ImageTk.PhotoImage(im)
         return self._images[key]
 
-    def _paint(self, tracker, k: float, look: dict) -> tuple[int, int]:
+    def _paint(self, tracker, k: float, look: dict, show_prev: bool, show_next: bool) -> tuple[int, int]:
         c = self.canvas
         c.delete("all")
         width, gap = round(WIDTH * k), round(5 * k)
         y = 0
         prev, cur, nxt = tracker.window()
+        prev, nxt = prev if show_prev else None, nxt if show_next else None
         for step, current in ((prev, False), (cur, True), (nxt, False)):
             if step is not None:
                 y = self._block(c, step, current, 0, y, width, k, look) + gap
