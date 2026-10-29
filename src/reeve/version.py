@@ -35,6 +35,13 @@ def from_git() -> str:
     tag, ahead, commit = described.removesuffix("-dirty").rsplit("-", 2)
     if tag == f"v{__version__}" and ahead == "0" and not dirty:
         return __version__
+    # Releases are squash-merged into main: the original commits never join
+    # the tag's history, so describe counts every one of them again. Count
+    # only what descends from the tag (main merged back, then new work).
+    try:
+        ahead = _git("rev-list", "--count", "--no-merges", "--ancestry-path", f"{tag}..HEAD") or ahead
+    except (OSError, subprocess.SubprocessError):
+        pass
     return f"{__version__}-dev.{ahead}+{commit.removeprefix('g')}" + (".dirty" if dirty else "")
 
 

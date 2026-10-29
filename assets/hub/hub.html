@@ -107,6 +107,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .theme b { font: 600 15px var(--serif); }
 .theme small { font-size: 12px; }
 .theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.preview { position: relative; overflow: hidden; height: 132px; margin: 2px 0 10px; padding: 14px 0 0 16px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: linear-gradient(135deg, #4f5d3f, #6b6a45 55%, #56634a); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.preview::after { content: "Preview"; position: absolute; right: 10px; bottom: 6px; font: 12px var(--sans); color: #f1ead8; opacity: .7; }
+.pcard { display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px 7px 11px; border-left: 4px solid var(--sev);
+  background: var(--card, var(--panel)); color: var(--card-ink, var(--ink)); font: 700 17px/1.2 var(--serif); }
+.pcard img { height: 26px; }
+.preview.rounded .pcard { border-radius: 8px; }
 .seg { display: inline-flex; border: 1px solid var(--accent-dim); border-radius: var(--radius); overflow: hidden; justify-self: start; }
 .seg button { all: unset; cursor: pointer; padding: 5px 14px; color: var(--ink-2); font: 13px var(--sans); }
 .seg button[aria-checked="true"] { background: var(--accent-dim); color: var(--accent-light); }
@@ -279,6 +287,58 @@ const ANIM_MOMENTS = [
   ["move", "Alerts rearrange", "when one clears, the others move to their new place"],
 ];
 
+const PREVIEW = [["critical", "villager", "Town center idle: queue a villager"], ["warn", "villager", "2 idle villagers"]];
+const previewCards = () => PREVIEW.map(([sev, icon, text]) =>
+  `<div class="pcard" style="--sev: var(--${sev})"><img src="../report_icons/${icon}.png" alt=""><span>${text}</span></div>`).join("");
+const ANIM_MS = { short_fade: 150, long_fade: 450, slide: 250 };
+const EASE_OUT = "cubic-bezier(.33, 1, .68, 1)";       // cubic ease out, as in game
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
+// One card in or out with an effect; slides go to and from the left edge.
+function animateCard(el, effect, leaving) {
+  if (!ANIM_MS[effect]) return Promise.resolve();
+  const away = effect === "slide" ? { transform: `translateX(${-(el.offsetLeft + el.offsetWidth)}px)` } : { opacity: 0 };
+  const here = effect === "slide" ? { transform: "none" } : { opacity: 1 };
+  return el.animate(leaving ? [here, away] : [away, here], { duration: ANIM_MS[effect], easing: EASE_OUT, fill: "forwards" }).finished;
+}
+
+// Plays one moment on the preview: an alert appears, clears, or clears and
+// the one below moves into its place (as the cards do in game).
+async function playPreview(moment) {
+  const box = $("#preview");
+  if (!box || box.dataset.busy) return;
+  box.dataset.busy = "1";
+  const anim = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}) };
+  box.innerHTML = previewCards();
+  const [first, second] = box.children;
+  try {
+    if (moment === "enter") {
+      await animateCard(first, anim.enter, false);
+    } else if (moment === "exit") {
+      await animateCard(first, anim.exit, true);
+      await pause(500);
+    } else {
+      const before = second.getBoundingClientRect().top;
+      Object.assign(first.style, { position: "absolute", top: `${first.offsetTop}px`, left: `${first.offsetLeft}px` });
+      const dy = before - second.getBoundingClientRect().top;
+      const leave = animateCard(first, anim.exit, true);
+      if (anim.move === "slide") {
+        await second.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: ANIM_MS.slide, easing: EASE_OUT }).finished;
+      } else if (ANIM_MS[anim.move]) {
+        const half = ANIM_MS[anim.move] / 2;
+        await second.animate([{ transform: `translateY(${dy}px)`, opacity: 1 }, { transform: `translateY(${dy}px)`, opacity: 0 }], half).finished;
+        await second.animate([{ opacity: 0 }, { opacity: 1 }], half).finished;
+      }
+      await leave;
+      await pause(700);
+    }
+  } finally {
+    await pause(250);
+    box.innerHTML = previewCards();
+    delete box.dataset.busy;
+  }
+}
+
 function appearance() {
   const a = cfg.appearance || { theme: "age", corners: "square" };
   const cards = Object.entries(themeList).map(([id, th]) => {
@@ -299,6 +359,7 @@ function appearance() {
   }).join("");
   return `<section class="group" id="appearance"><header><h3>Appearance</h3></header>
     <div class="themes">${cards}</div>
+    <div class="preview ${a.corners === "rounded" ? "rounded" : ""}" id="preview" title="How the alert cards look in game">${previewCards()}</div>
     <div class="row"><label>Corners<small>panels here and in reports, and the alert cards in game</small></label>
       <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div>
     ${motion}
@@ -318,6 +379,7 @@ function bindAppearance() {
     const animation = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}), [s.dataset.anim]: s.value };
     cfg.overlay = { ...(cfg.overlay || {}), animation };
     api().set_setting("overlay", "animation", animation);
+    playPreview(s.dataset.anim);
   }));
 }
 

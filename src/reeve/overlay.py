@@ -66,7 +66,8 @@ def apply_theme(config: dict | None = None) -> None:
     from . import themes
 
     c = themes.colors(themes.current(config)[1])
-    CARD, RULE, FG, MUTED = c["panel"], c["rule"], c["ink"], c["mist"]
+    # A theme may give the in-game cards colors of their own (card, card-ink).
+    CARD, RULE, FG, MUTED = c.get("card", c["panel"]), c["rule"], c.get("card-ink", c["ink"]), c["mist"]
     ACCENT, ACCENT_DIM, ACCENT_LIGHT = c["accent"], c["accent-dim"], c["accent-light"]
     GOOD, WARN, BAD, INFO = c["good"], c["warn"], c["critical"], c["info"]
     SEVERITY_COLOR.update(critical=BAD, warn=WARN, info=INFO)
@@ -326,14 +327,15 @@ class Overlay:
                           font=(SERIF, fs + 2, "bold"))
         _, _, x1, _ = c.bbox(t)
         y1 = y + pad + icon_h
-        # The severity color fills the whole card shape; the card itself
-        # sits on top, shifted by the bar's width, so the bar follows
-        # the rounded corners too.
+        # The severity color fills the whole card shape; the card sits on top
+        # from the bar's width on, rounded on the right and straight on the
+        # left, so the bar is a strip that follows the outer corners.
         r = round(RADIUS * k)
         card = _box(c, x0 + bar_w, y, x1 + pad, y1 + pad, r, CARD)
+        square = c.create_rectangle(x0 + bar_w, y, x0 + bar_w + r, y1 + pad, fill=CARD, outline="")
         bar = _box(c, x0, y, x1 + pad, y1 + pad, r, SEVERITY_COLOR[a.severity])
-        c.tag_lower(card)
-        c.tag_lower(bar)
+        for item in (square, card, bar):
+            c.tag_lower(item)
         return x1 + pad, y1 + pad
 
     def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:

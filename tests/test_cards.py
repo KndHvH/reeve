@@ -26,7 +26,7 @@ def test_tween_eases_to_the_end_value():
     assert tw.step(2.0) and seen[-1] == 10.0
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def root():
     try:
         r = tk.Tk()
