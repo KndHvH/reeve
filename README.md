@@ -29,6 +29,7 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - A step is reached when you have its number of villagers and its age, so the build follows your pace.
 - When your villagers are not where the step puts them, a warning says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
+- When Reeve starts, it updates the builds their author changed on aoe4guides.com.
 
 ### Match reports
 When a match ends, Reeve writes its report:
@@ -72,7 +73,7 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download a build order from aoe4guides.com when you import one; nothing about you or your matches is sent.
+Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); nothing about you or your matches is sent.
 
 ## Updates
 When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.

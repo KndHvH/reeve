@@ -263,7 +263,7 @@ class HubApi:
 
         bo = load_config().get("build_order") or {}
         return {"builds": [b.summary() for b in builds.stored()], "active": bo.get("active"),
-                "show": bo.get("show", True)}
+                "show": bo.get("show", True), "auto_update": bo.get("auto_update", True)}
 
     def import_build(self, text: str) -> dict:
         """A link to a build on aoe4guides.com, or its JSON. The first build

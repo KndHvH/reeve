@@ -214,3 +214,22 @@ def test_one_misread_never_moves_the_build():
     assert t.peak == 15
     _read(t, _pop_state(17, 255, wood=8, food=5, age=2))     # Feudal, 16 villagers and the scout
     assert t.index == 3                                        # step 4 until the 17th villager, not step 12
+
+
+def test_refresh_updates_only_builds_their_author_changed():
+    raw = json.loads(MALI.read_text(encoding="utf-8"))
+    builds.import_build(json.dumps(raw), get=lambda url: b"")
+    try:
+        same = json.dumps(raw).encode()
+        assert builds.refresh(get=lambda url: same if "/api/" in url else b"") == []
+        raw["build_order"][2]["resources"]["food"] = 7                 # the author edited step 3
+        changed = builds.refresh(get=lambda url: json.dumps(raw).encode() if "/api/" in url else b"")
+        assert [b.name for b in changed] == ["Mali"]
+        assert builds.load("hXttcVQcMxTniZjgS79s").steps[2].targets["food"] == 7
+
+        def offline(url):
+            raise OSError("no network")
+        assert builds.refresh(get=offline) == []                        # keeps the stored build
+        assert builds.load("hXttcVQcMxTniZjgS79s").steps[2].targets["food"] == 7
+    finally:
+        builds.delete("hXttcVQcMxTniZjgS79s")

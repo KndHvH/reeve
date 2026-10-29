@@ -31,8 +31,8 @@
   "build": {
     "enabled": true,
     "persist_s": 0,
-    "grace_s": 4,
-    "_doc": "Villagers not where the active build order's current step puts them (move them, or put more on a resource). grace_s: game seconds after a step is reached before it is checked."
+    "grace_s": 0,
+    "_doc": "Villagers not where the active build order's current step puts them (move them, or put more on a resource). grace_s: game seconds after a step is reached before it is checked (0: at once)."
   },
   "sound": {
     "_doc": "Sound of each severity, by name from the sound library (empty = silent); `reeve sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1: the default 0.5 leaves room to turn the sounds up.",
@@ -73,9 +73,10 @@
     }
   },
   "build_order": {
-    "_doc": "active: the id of the build order followed in matches (imported in the hub, stored in the data folder's builds/). show: the build panel on the right of the screen with the previous, current and next step. scale: size of that panel (1 = the alert cards' size).",
+    "_doc": "active: the id of the build order followed in matches (imported in the hub, stored in the data folder's builds/). show: the build panel on the right of the screen with the previous, current and next step. scale: size of that panel (1 = the alert cards' size). auto_update: when Reeve starts, builds imported from aoe4guides.com are updated if their author changed them.",
     "active": null,
     "show": true,
-    "scale": 1.0
+    "scale": 1.0,
+    "auto_update": true
   }
 }

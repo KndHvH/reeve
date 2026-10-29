@@ -203,6 +203,27 @@ def import_build(text: str, get=_get) -> Build:
     return build
 
 
+def refresh(get=_get) -> list[Build]:
+    """Imports again every stored build that came from aoe4guides.com and
+    returns those whose author changed them (run when Reeve starts). A build
+    the site no longer serves, or no network, leaves the stored one as it is."""
+    changed = []
+    for b in stored():
+        build_id = id_from_url(b.source)
+        if not build_id:
+            continue
+        try:
+            data = json.loads(get(API.format(id=build_id)))
+            new = parse(data, b.id)
+        except Exception:
+            continue
+        if new.raw != b.raw:
+            (builds_dir() / f"{b.id}.json").write_text(json.dumps(new.raw, indent=1, ensure_ascii=False), encoding="utf-8")
+            download_icons(new, get)
+            changed.append(new)
+    return changed
+
+
 def load(build_id: str | None) -> Build | None:
     if not build_id:
         return None

@@ -325,7 +325,9 @@ async function showBuilds() {
         <button type="submit" class="primary" id="bo-go">Import</button></form>
       <p class="usage" id="bo-status" role="status">Paste the link of a build on aoe4guides.com, or the JSON the site exports.</p>
       <div class="row"><label>Show the build panel in matches<small>off: no panel and no build alerts</small></label>
-        <input type="checkbox" class="switch" id="bo-show" ${r.show ? "checked" : ""} aria-label="Show the build panel in matches"></div></section>
+        <input type="checkbox" class="switch" id="bo-show" ${r.show ? "checked" : ""} aria-label="Show the build panel in matches"></div>
+      <div class="row"><label>Update builds when Reeve starts<small>checks aoe4guides.com for changes their author made</small></label>
+        <input type="checkbox" class="switch" id="bo-auto" ${r.auto_update ? "checked" : ""} aria-label="Update builds when Reeve starts"></div></section>
     <section class="group"><header><h3>Your builds</h3></header>${list || '<p class="usage">None yet. Import one above; the first one you import is put in use.</p>'}</section>`;
   $("#bo-form").addEventListener("submit", async e => {
     e.preventDefault();
@@ -339,6 +341,7 @@ async function showBuilds() {
     $("#bo-status").textContent = `Imported “${res.imported.name}” (${res.imported.steps} steps).`;
   });
   $("#bo-show").addEventListener("change", e => api().set_setting("build_order", "show", e.target.checked));
+  $("#bo-auto").addEventListener("change", e => api().set_setting("build_order", "auto_update", e.target.checked));
   document.querySelectorAll("[data-use]").forEach(b => b.addEventListener("click", async () => { await api().use_build(b.dataset.use); showBuilds(); }));
   document.querySelectorAll("[data-src]").forEach(b => b.addEventListener("click", () => api().open_url(b.dataset.src)));
   document.querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", async () => {
@@ -390,7 +393,7 @@ const GROUPS = [
     ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
   { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
   { key: "build", title: "Build order", fields: [
-    ["grace_s", "Check after", "seconds after a step is reached; villagers need a moment to move", "int"],
+    ["grace_s", "Check after", "seconds after a step is reached before villagers are checked; 0 checks at once", "int"],
     ["persist_s", "Show after", "seconds", "int"] ] },
   { key: "retention", title: "Match history storage", usage: true, fields: [
     ["full_days", "Keep everything for", "days, including the audit images", "int"],
