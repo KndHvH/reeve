@@ -37,6 +37,7 @@ def test_reads_fixture_leave_one_out(i):
 @pytest.mark.parametrize("i", range(len(FIXTURES)), ids=IDS)
 def test_parsed_values_with_shipped_bank(i):
     png, label = FIXTURES[i]
+    _clock_y_hint.clear()  # each capture on its own: a band cached from another one can be off
     f = read_frame(_rgb(png))
     a, b = label["pop"].split("/")
     assert f.values["pop"] == (int(a), int(b))
