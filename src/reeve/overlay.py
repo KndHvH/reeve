@@ -325,12 +325,16 @@ class Overlay:
         if icon is not None:
             # The icons are cropped from the game's dark panel and keep dark
             # edges: on a light card they sit on a small dark plate, as in game.
+            # Every plate has the same size (the widest icon's), the icon centered on it.
             if ICON_PLATE:
                 m = round(3 * k)
-                _box(c, tx, y + pad - m, tx + icon.width() + 2 * m, y + pad + icon_h + m, round(RADIUS * k / 2), ICON_PLATE)
-                tx += m
-            c.create_image(tx, y + pad, image=icon, anchor="nw")
-            tx += icon.width() + round(6 * k) + (m if ICON_PLATE else 0)
+                side = round(icon_h * 1.2) + 2 * m
+                _box(c, tx, y + pad - m, tx + side, y + pad + icon_h + m, round(RADIUS * k / 2), ICON_PLATE)
+                c.create_image(tx + side // 2, y + pad + icon_h // 2, image=icon, anchor="center")
+                tx += side + round(6 * k)
+            else:
+                c.create_image(tx, y + pad, image=icon, anchor="nw")
+                tx += icon.width() + round(6 * k)
         t = c.create_text(tx, y + pad + icon_h // 2, text=a.text, fill=FG, anchor="w",
                           font=(SERIF, fs + 2, "bold"))
         _, _, x1, _ = c.bbox(t)

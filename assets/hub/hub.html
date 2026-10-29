@@ -114,7 +114,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pcard { display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px 7px 11px; border-left: 4px solid var(--sev);
   background: var(--card, var(--panel)); color: var(--card-ink, var(--ink)); font: 700 17px/1.2 var(--serif); }
 .pcard img { height: 26px; }
-.preview.plate .pcard img { padding: 5px; margin: -5px 0; background: var(--card-icon, transparent); border-radius: 3px; }
+.preview.plate .pcard img { width: 31px; object-fit: contain; padding: 5px; margin: -5px 0; background: var(--card-icon, transparent); border-radius: 3px; }
 .preview.rounded .pcard { border-radius: 8px; }
 .seg { display: inline-flex; border: 1px solid var(--accent-dim); border-radius: var(--radius); overflow: hidden; justify-self: start; }
 .seg button { all: unset; cursor: pointer; padding: 5px 14px; color: var(--ink-2); font: 13px var(--sans); }
@@ -288,7 +288,7 @@ const ANIM_MOMENTS = [
   ["move", "Alerts rearrange", "when one clears, the others move to their new place"],
 ];
 
-const PREVIEW = [["critical", "villager", "Town center idle: queue a villager"], ["warn", "villager", "2 idle villagers"]];
+const PREVIEW = [["critical", "villager", "Town center idle: queue a villager"], ["info", "gold", "Floating gold 900"]];
 const previewCards = () => PREVIEW.map(([sev, icon, text]) =>
   `<div class="pcard" style="--sev: var(--${sev})"><img src="../report_icons/${icon}.png" alt=""><span>${text}</span></div>`).join("");
 const ANIM_MS = { short_fade: 150, long_fade: 450, slide: 250 };
