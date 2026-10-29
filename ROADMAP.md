@@ -27,7 +27,7 @@ Turns the command-line tool into an installable app.
 |---|-------------|
 | A1 | User data directory (`%APPDATA%\aoe4ov`): config, sessions and custom sounds move out of the repository; migration of existing sessions |
 | A2 | Tray icon (ctypes, no new dependency): start/stop overlay, debug toggle, mute, open hub, quit |
-| A3 | Hub v1 (pywebview): match history with search (SQLite index) and the reports; settings for alert thresholds, severities, sound per alert with preview, volume, alert card style (outline, position, size) |
+| A3 | Hub v1 (pywebview): match history with search (SQLite index) and the reports; settings for alert thresholds, severities, sound per alert with preview, volume, repeat on/off and interval per severity (already in `config/rules.json` as `repeat` / `repeat_s`), alert card style (outline, position, size) |
 | A4 | Session retention: keep everything 7 days, then only log + report up to 90 days, plus a total size cap; configurable in the hub; runs at startup |
 | A5 | Custom sounds from the hub: import any audio/video file into the sound library (the existing `import_sound.py` flow behind a UI) |
 | A6 | First-run checks: game in Borderless/Windowed mode, WebView2 present, first calibration |
