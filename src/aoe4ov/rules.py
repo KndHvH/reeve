@@ -7,7 +7,8 @@ may escalate while it stays active (e.g. a town center idle for longer), and
 clears as soon as the condition stops. Every activation and severity change
 carries its reason, so the log and the report can show why it fired.
 
-Thresholds live in config/rules.json.
+Thresholds: config/rules.json (defaults) merged with the user's overrides
+in the user's data folder (see paths.py).
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ from pathlib import Path
 
 from .state import RESOURCES, GameState
 
-CONFIG = Path(__file__).resolve().parents[2] / "config" / "rules.json"
 SEVERITIES = ("info", "warn", "critical")
 _RANK = {s: i for i, s in enumerate(SEVERITIES)}
 
@@ -37,8 +37,11 @@ class Transition:
     alert: Alert
 
 
-def load_config(path: Path = CONFIG) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_config() -> dict:
+    """Shipped defaults merged with the user's overrides (see paths.py)."""
+    from .paths import load_config as _load
+
+    return _load()
 
 
 def _fmt_clock(s: int | None) -> str:

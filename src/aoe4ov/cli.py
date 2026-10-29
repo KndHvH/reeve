@@ -67,8 +67,10 @@ def cmd_label(args) -> int:
     from .glyphs import FIXTURES
     from .label import run
 
+    from .paths import sessions_dir
+
     found: list[Path] = []
-    for arg in args.images:
+    for arg in args.images or [str(sessions_dir())]:
         p = Path(arg)
         if p.is_dir():
             found += sorted(p.rglob("doubt_read_*.png"))
@@ -164,11 +166,11 @@ def cmd_replay(args) -> int:
 def cmd_sounds(args) -> int:
     """Lists the sound library and which sound each severity uses; previews one."""
     from .rules import SEVERITIES, load_config
-    from .sound import LIBRARY, library, play_file
+    from .sound import library, play_file, sound_path
 
     if args.play:
-        path = LIBRARY / f"{args.play}.wav"
-        if not path.exists():
+        path = sound_path(args.play)
+        if path is None:
             print(f"unknown sound: {args.play}")
             return 1
         play_file(path, wait=True)
@@ -184,7 +186,16 @@ def cmd_report(args) -> int:
     """Writes report.html for one or more sessions (also done automatically when a match ends)."""
     from .report import write_report
 
-    for s in args.sessions:
+    from .paths import sessions_dir
+
+    targets = args.sessions
+    if not targets:
+        recorded = sorted(p for p in sessions_dir().iterdir() if (p / "log.jsonl").exists())
+        if not recorded:
+            print(f"no recorded sessions in {sessions_dir()}")
+            return 0
+        targets = [str(recorded[-1])]
+    for s in targets:
         path = Path(s)
         if path.is_file():
             path = path.parent
@@ -192,6 +203,27 @@ def cmd_report(args) -> int:
             print(f"no log.jsonl in {path}")
             continue
         print(write_report(path))
+    return 0
+
+
+def cmd_migrate(args) -> int:
+    """Moves recorded sessions from an old folder (default: ./sessions) into the data folder."""
+    import shutil
+
+    from .paths import sessions_dir
+
+    src = Path(args.source)
+    if not src.is_dir():
+        print(f"nothing to migrate: {src} does not exist")
+        return 0
+    dst, moved = sessions_dir(), 0
+    for s in sorted(p for p in src.iterdir() if p.is_dir()):
+        if (dst / s.name).exists():
+            print(f"skipped (already there): {s.name}")
+            continue
+        shutil.move(str(s), str(dst / s.name))
+        moved += 1
+    print(f"moved {moved} session(s) to {dst}")
     return 0
 
 
@@ -211,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("images", nargs="+")
 
     lb = sub.add_parser("label", help="labeler: confirm/correct readings and generate fixtures")
-    lb.add_argument("images", nargs="+")
+    lb.add_argument("images", nargs="*", help="images or folders (default: all recorded sessions)")
 
     sub.add_parser("glyphs", help="rebuild assets/glyphs/ from the labeled fixtures")
 
@@ -230,12 +262,15 @@ def main(argv: list[str] | None = None) -> int:
     so.add_argument("--play", metavar="NAME", help="play a sound from the library")
 
     rpt = sub.add_parser("report", help="write report.html for recorded sessions")
-    rpt.add_argument("sessions", nargs="+", help="sessions/<start> folders (or their log.jsonl)")
+    rpt.add_argument("sessions", nargs="*", help="session folders or their log.jsonl (default: the latest session)")
+
+    mg = sub.add_parser("migrate", help="move recorded sessions from an old folder into the data folder")
+    mg.add_argument("source", nargs="?", default="sessions", help="old sessions folder (default: ./sessions)")
 
     args = p.parse_args(argv)
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate,
     }
     return cmds[args.cmd](args)
 

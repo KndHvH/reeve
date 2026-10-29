@@ -32,9 +32,23 @@ LIBRARY = ASSETS / "sounds" / "library"
 _RANK = {s: i for i, s in enumerate(SEVERITIES)}
 
 
+def _sound_dirs() -> list[Path]:
+    from .paths import user_sounds_dir
+
+    return [user_sounds_dir(), LIBRARY]  # the user's own sounds win over built-ins with the same name
+
+
+def sound_path(name: str) -> Path | None:
+    for d in _sound_dirs():
+        p = d / f"{name}.wav"
+        if p.exists():
+            return p
+    return None
+
+
 def library() -> list[str]:
-    """Names of the sounds available in the library."""
-    return sorted(p.stem for p in LIBRARY.glob("*.wav"))
+    """Names of the sounds available: built-in library plus the user's own."""
+    return sorted({p.stem for d in _sound_dirs() for p in d.glob("*.wav")})
 
 
 def _scaled_copy(src: Path, volume: float) -> Path:
@@ -66,8 +80,8 @@ class AlertSounds:
         self.files: dict[str, Path] = {}
         for sev in SEVERITIES:
             name = cfg.get(sev)
-            path = LIBRARY / f"{name}.wav" if name else None
-            if path is not None and path.exists():
+            path = sound_path(name) if name else None
+            if path is not None:
                 self.files[sev] = _scaled_copy(path, volume) if volume < 1.0 else path
         self.play = play
         self._last: dict[str, tuple[str, float]] = {}  # alert id -> (severity, time played)

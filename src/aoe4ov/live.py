@@ -58,9 +58,11 @@ class Step:
 
 
 class LiveReader:
-    def __init__(self, every: float, sessions_dir: Path = Path("sessions")):
+    def __init__(self, every: float, sessions_dir: Path | None = None):
+        from .paths import sessions_dir as default_sessions
+
         self.every = every
-        self.sessions_dir = sessions_dir
+        self.sessions_dir = sessions_dir or default_sessions()
         self.cap = Capture()
         self.match: AnchorMatch | None = None
         self.size: tuple[int, int] | None = None

@@ -14,6 +14,9 @@ When the match ends, it produces a **per-second report**: villagers on each reso
 - **Zero configuration**: the resolution comes from Windows, and the UI scale is detected from an anchor (the resource icon column).
 - **No black boxes**: every stage has a visual inspection tool (see `docs/DECISIONS.md` and `ROADMAP.md`).
 
+## Your data
+Settings, recorded matches and your own sounds live in `%APPDATA%oe4ov` (`configules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds). Set `AOE4OV_HOME` to use another folder.
+
 ## Requirements
 - Windows 10/11, with AoE4 running in **Borderless** or **Windowed** mode. Overlays are not visible in exclusive fullscreen.
 - [uv](https://docs.astral.sh/uv/)
@@ -24,14 +27,15 @@ uv sync                                 # install dependencies
 uv run aoe4ov window                    # show the detected game window and its resolution
 uv run aoe4ov snap --count 6 --every 20 # save in-game screenshots to captures/
 uv run aoe4ov inspect captures/*.png    # write .inspect.html files showing every reading stage, field by field
-uv run aoe4ov label captures/*.png      # labeler: confirm or correct readings to create test fixtures and glyphs
+uv run aoe4ov label [images|folders]    # labeler: confirm or correct readings (default: low-confidence reads of all matches)
 uv run aoe4ov glyphs                    # rebuild the glyph bank from the labeled fixtures
 uv run aoe4ov watch                     # live readings in the terminal; records sessions/<start>/log.jsonl and fail_*.png
 uv run aoe4ov overlay                   # overlay on top of the game: alert cards and sounds (--mute for silence)
 uv run aoe4ov overlay --debug           # debug overlay: detection, values, confidence, timings, RAM/CPU, alerts
 uv run aoe4ov replay sessions/<start>/log.jsonl  # replay a recorded session through the alert rules
 uv run aoe4ov sounds                    # list the alert sound library (--play NAME to preview)
-uv run aoe4ov report sessions/<start>   # write the post-match report.html (also written automatically when a match ends)
+uv run aoe4ov report [session]          # rewrite a report (default: latest match; written automatically when a match ends)
+uv run aoe4ov migrate                   # move sessions recorded in ./sessions into the data folder
 uv run pytest                           # run the test suite
 ```
 
