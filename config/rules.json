@@ -28,9 +28,9 @@
     ]
   },
   "sound": {
-    "_doc": "Sound of each severity, by name from assets/sounds/library (empty = silent). `aoe4ov sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1. Restart the overlay to apply.",
+    "_doc": "Sound of each severity, by name from the sound library (empty = silent); `aoe4ov sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1: the default 0.5 leaves room to turn the sounds up.",
     "enabled": true,
-    "volume": 1.0,
+    "volume": 0.5,
     "info": "blip",
     "warn": "chime",
     "critical": "alarm_low",

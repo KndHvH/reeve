@@ -18,7 +18,6 @@ When the match ends, it produces a **per-second report**: villagers on each reso
 Settings, recorded matches and your own sounds live in `%APPDATA%\aoe4ov`: `config\rules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds. Set `AOE4OV_HOME` to use another folder.
 
 Old matches are trimmed when the app starts: everything is kept for 7 days, then only the log, report and summary (the audit images go) up to 90 days, and older matches are deleted; above 500 MB in total the oldest are trimmed first. All three limits are in the hub's settings; `aoe4ov clean --dry-run` shows what would be removed.
-ules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds). Set `AOE4OV_HOME` to use another folder.
 
 ## Requirements
 - Windows 10/11, with AoE4 running in **Borderless** or **Windowed** mode. Overlays are not visible in exclusive fullscreen.
@@ -57,7 +56,7 @@ Rules and thresholds are in `config/rules.json`. Each alert has a severity: **in
 | Population / houses | ≥ 80% of the cap | ≥ 90% of the cap |
 | Floating resources | above the next phase's limit | two phases ahead (info: above the current phase's limit) |
 
-Each severity plays a sound from the library in `assets/sounds/library/`, chosen by name in `config/rules.json` ("sound"); defaults: info `blip`, warn `chime`, critical `alarm_low`. A sound plays when an alert appears or escalates; warn and critical repeat every 5 s while unresolved, info plays once. `aoe4ov sounds` lists the library, `aoe4ov sounds --play NAME` previews a sound and `overlay --mute` silences everything. New sounds are imported with `scripts/import_sound.py <file> <name>` (any format ffmpeg reads; trimmed, capped at 1.5 s and loudness-normalized; source and license recorded in `assets/sounds/library/SOURCE.md`).
+Each severity plays a sound from the library in `assets/sounds/library/`, chosen by name in `config/rules.json` ("sound"); defaults: info `blip`, warn `chime`, critical `alarm_low`. A sound plays when an alert appears or escalates; warn and critical repeat every 5 s while unresolved, info plays once. `aoe4ov sounds` lists the library, `aoe4ov sounds --play NAME` previews a sound and `overlay --mute` silences everything. The volume (hub settings) goes from silent at 0% to loud at 100%; the default 50% is a comfortable level. Your own sounds are added in the hub (Settings, Sounds, "Add sound"): any audio or video file the browser engine can decode (mp3, ogg, wav, flac, the audio of mp4/webm), trimmed, capped at 1.5 s and leveled like the built-in ones, and saved to the `sounds` folder of your data. Built-in sounds are added with `scripts/import_sound.py <file> <name>` (needs ffmpeg; source and license recorded in `assets/sounds/library/SOURCE.md`).
 
 Slow-changing values are confirmed over two consecutive readings, so a single misread never triggers an alert. Use `aoe4ov replay` to see which alerts a recorded session would produce, and why, after editing the thresholds.
 

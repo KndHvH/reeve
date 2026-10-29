@@ -134,7 +134,7 @@ def test_floating_escalates_within_the_same_age():
     assert _floating_at(4, 1600) == "info"       # Age IV uses the Age III limit
 
 
-SOUND_CFG = {"enabled": True, "repeat_s": 5, "info": "blip", "warn": "chime", "critical": "alarm_low"}
+SOUND_CFG = {"enabled": True, "repeat_s": 5, "volume": 1.0, "info": "blip", "warn": "chime", "critical": "alarm_low"}
 
 
 def test_sound_plays_on_new_escalation_and_repeat_only():
@@ -184,3 +184,16 @@ def test_configured_sounds_exist_in_library():
     cfg = load_config()["sound"]
     for sev in SEVERITIES:
         assert not cfg.get(sev) or cfg[sev] in library(), sev
+
+
+def test_volume_curve_and_silence_at_zero():
+    from aoe4ov.rules import Alert
+    from aoe4ov.sound import AlertSounds, gain
+
+    assert gain(0) == 0 and gain(1) == 1
+    assert gain(0.5) == 0.25            # default: a quarter of the file's amplitude
+    assert gain(2) == 1 and gain(-1) == 0
+    played = []
+    snd = AlertSounds(SOUND_CFG | {"volume": 0.0}, play=lambda path: played.append(path))
+    assert snd.update([Alert("housed", "critical", "", {})], 0) is None
+    assert played == []

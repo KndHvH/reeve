@@ -166,14 +166,14 @@ def cmd_replay(args) -> int:
 def cmd_sounds(args) -> int:
     """Lists the sound library and which sound each severity uses; previews one."""
     from .rules import SEVERITIES, load_config
-    from .sound import library, play_file, sound_path
+    from .sound import library, play_at, sound_path
 
     if args.play:
         path = sound_path(args.play)
         if path is None:
             print(f"unknown sound: {args.play}")
             return 1
-        play_file(path, wait=True)
+        play_at(path, load_config()["sound"].get("volume", 0.5), wait=True)
         return 0
     cfg = load_config().get("sound", {})
     used = {cfg.get(s): s for s in SEVERITIES if cfg.get(s)}

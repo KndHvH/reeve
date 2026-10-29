@@ -1,7 +1,8 @@
 """Alert sounds: each severity plays a sound chosen from a library.
 
 - The library is assets/sounds/library/<name>.wav (import new ones with
-  scripts/import_sound.py). config/rules.json ("sound") picks the sound of
+  scripts/import_sound.py) plus the user's own sounds, added in the hub
+  (aoe4ov.sound_import). config/rules.json ("sound") picks the sound of
   each severity by name; an empty name keeps that severity silent.
 - A sound plays when an alert appears and when it escalates. Severities
   listed in `repeat` (warn and critical by default) play again every
@@ -11,8 +12,11 @@
   or lower severity that were also due count as played, so several alerts
   never stack into a burst.
 - Playback uses winsound (stdlib) asynchronously: the overlay loop never
-  waits for a sound to finish. `volume` (0–1) scales the files; winsound has
-  no volume control, so scaled copies are written once to the temp folder.
+  waits for a sound to finish. `volume` (0–1) sets the level on a squared
+  curve, closer to how loudness is heard: 0 is silent (nothing plays), 0.5
+  plays the files at a quarter of their amplitude (the comfortable default)
+  and 1 at full level, 12 dB louder. winsound has no volume control, so
+  scaled copies are written once to the temp folder.
 """
 
 from __future__ import annotations
@@ -51,19 +55,31 @@ def library() -> list[str]:
     return sorted({p.stem for d in _sound_dirs() for p in d.glob("*.wav")})
 
 
-def _scaled_copy(src: Path, volume: float) -> Path:
-    """16-bit WAV scaled by `volume`, cached in the temp folder."""
+def gain(volume) -> float:
+    """Amplitude factor of a volume setting (0–1, squared curve)."""
+    return min(1.0, max(0.0, float(volume))) ** 2
+
+
+def _scaled_copy(src: Path, factor: float) -> Path:
+    """16-bit WAV with its amplitude multiplied by `factor`, cached in the temp folder."""
     stamp = int(src.stat().st_mtime)  # a re-imported sound gets a fresh copy
-    dst = Path(tempfile.gettempdir()) / "aoe4ov_sounds" / f"{src.stem}_{stamp}_{volume:.2f}.wav"
+    dst = Path(tempfile.gettempdir()) / "aoe4ov_sounds" / f"{src.stem}_{stamp}_g{factor:.4f}.wav"
     if not dst.exists():
         with wave.open(str(src), "rb") as r:
             params, frames = r.getparams(), r.readframes(r.getnframes())
-        pcm = (np.frombuffer(frames, "<i2").astype(np.float32) * volume).astype("<i2")
+        pcm = (np.frombuffer(frames, "<i2").astype(np.float32) * factor).astype("<i2")
         dst.parent.mkdir(parents=True, exist_ok=True)
         with wave.open(str(dst), "wb") as w:
             w.setparams(params)
             w.writeframes(pcm.tobytes())
     return dst
+
+
+def play_at(path: Path, volume: float, wait: bool = False) -> None:
+    """Plays `path` at a volume setting (0–1), like the overlay would; 0 plays nothing."""
+    g = gain(volume)
+    if g > 0:
+        play_file(_scaled_copy(path, g) if g < 1.0 else path, wait)
 
 
 def play_file(path: Path, wait: bool = False) -> None:
@@ -76,13 +92,13 @@ class AlertSounds:
         self.enabled = cfg.get("enabled", True)
         self.repeat_s = cfg.get("repeat_s", 5)
         self.repeat = set(cfg.get("repeat", ["warn", "critical"]))
-        volume = min(1.0, max(0.0, float(cfg.get("volume", 1.0))))
-        self.files: dict[str, Path] = {}
+        g = gain(cfg.get("volume", 0.5))
+        self.files: dict[str, Path] = {}   # volume 0: no files, nothing ever plays
         for sev in SEVERITIES:
             name = cfg.get(sev)
             path = sound_path(name) if name else None
-            if path is not None:
-                self.files[sev] = _scaled_copy(path, volume) if volume < 1.0 else path
+            if path is not None and g > 0:
+                self.files[sev] = _scaled_copy(path, g) if g < 1.0 else path
         self.play = play
         self._last: dict[str, tuple[str, float]] = {}  # alert id -> (severity, time played)
 

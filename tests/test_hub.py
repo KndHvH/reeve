@@ -66,3 +66,55 @@ def test_report_url_builds_the_report_once():
     stamp = report.stat().st_mtime
     HubApi().report_url("20260101-100000")
     assert report.stat().st_mtime == stamp   # fresh report is reused
+
+
+def _tone(seconds=3.0, lead_silence=0.5):
+    import base64
+
+    import numpy as np
+
+    t = np.arange(int(seconds * 44100)) / 44100
+    x = np.concatenate([np.zeros(int(lead_silence * 44100)), 0.9 * np.sin(2 * np.pi * 660 * t)]).astype("<f4")
+    return base64.b64encode(x.tobytes()).decode()
+
+
+def test_add_sound_saves_a_trimmed_leveled_wav_with_a_safe_name():
+    import wave
+
+    import numpy as np
+
+    api = HubApi()
+    r = api.add_sound("My Horn!.mp3", _tone())
+    assert r["name"] == "my_horn" and r["user_sounds"] == ["my_horn"]
+    with wave.open(str(paths.user_sounds_dir() / "my_horn.wav")) as w:
+        x = np.frombuffer(w.readframes(w.getnframes()), "<i2") / 32767
+        assert (w.getframerate(), w.getnchannels()) == (44100, 1)
+    assert len(x) == int(1.5 * 44100)          # capped
+    assert np.abs(x[:220]).max() > 0.01        # leading silence trimmed
+    assert np.abs(x).max() <= 0.98 + 1e-3      # never clips
+    assert "my_horn" in api.settings()["sounds"]
+    assert api.add_sound("my horn.wav", _tone())["name"] == "my_horn_2"   # never overwrites
+    assert api.add_sound("blip.ogg", _tone())["name"] == "blip_2"         # nor a built-in
+
+
+def test_add_sound_rejects_silence():
+    import base64
+
+    import numpy as np
+
+    silent = base64.b64encode(np.zeros(44100, "<f4").tobytes()).decode()
+    assert "silent" in HubApi().add_sound("quiet.mp3", silent)["error"]
+
+
+def test_remove_sound_puts_its_severities_back_to_default():
+    api = HubApi()
+    name = api.add_sound("horn.mp3", _tone())["name"]
+    values = api.settings()["values"]
+    default_warn = values["sound"]["warn"]
+    values["sound"]["warn"] = name
+    api.save_settings(values)
+    r = api.remove_sound(name)
+    assert r["user_sounds"] == [] and r["sound"]["warn"] == default_warn
+    assert not (paths.user_sounds_dir() / f"{name}.wav").exists()
+    assert "error" in api.remove_sound("blip")            # built-ins cannot be removed
+    assert "error" in api.remove_sound("../config/rules")  # nor anything outside the folder

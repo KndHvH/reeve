@@ -82,6 +82,18 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .actions .primary { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); font-weight: 600; }
 .status { color: var(--mist); font-size: 13px; }
 .usage { color: var(--mist); font-size: 13px; margin: 8px 0 0; }
+#vol { min-width: 38px; text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.mine { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+#mine { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 2px; background: var(--panel-2); border: 1px solid var(--rule);
+  border-radius: 3px; padding: 2px 4px 2px 9px; font-size: 13px; }
+.chip button { all: unset; cursor: pointer; color: var(--mist); padding: 0 5px; font-size: 12px; }
+.chip button:hover { color: var(--gold-light); }
+.chip button:focus-visible { outline: 2px solid var(--gold); }
+.mine .none { color: var(--mist); font-size: 13px; }
+#add-sound { background: var(--panel-2); color: var(--ink); border: 1px solid var(--gold-dim); border-radius: 3px;
+  padding: 5px 10px; cursor: pointer; font: 13px var(--sans); }
+#add-sound:hover { border-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -166,9 +178,9 @@ async function showSettings() {
   const [s, storage] = await Promise.all([api().settings(), api().storage()]);
   cfg = s.values;
   let h = `<h2>Settings</h2><p class="lede">Changes apply to the running overlay within a few seconds. Only what differs from the defaults is saved.</p>`;
-  GROUPS.forEach(g => {
+  const group = g => {
     const v = cfg[g.key];
-    h += `<section class="group"><header><h3>${g.title}</h3><input type="checkbox" class="switch" data-path="${g.key}.enabled" ${v.enabled ? "checked" : ""} aria-label="${g.title} on or off"></header>`;
+    let h = `<section class="group"><header><h3>${g.title}</h3><input type="checkbox" class="switch" data-path="${g.key}.enabled" ${v.enabled ? "checked" : ""} aria-label="${g.title} on or off"></header>`;
     g.fields.forEach(([k, label, unit, kind]) => {
       h += `<div class="row"><label>${label}<small>${unit}</small></label>${input(`${g.key}.${k}`, v[k], kind)}</div>`;
     });
@@ -182,24 +194,113 @@ async function showSettings() {
       });
       h += `</div></div>`;
     }
-    h += `</section>`;
-  });
+    return h + `</section>`;
+  };
+  GROUPS.filter(g => !g.usage).forEach(g => { h += group(g); });
   const snd = cfg.sound, options = name => s.sounds.map(n => `<option ${n === name ? "selected" : ""}>${n}</option>`).join("");
   h += `<section class="group"><header><h3>Sounds</h3><input type="checkbox" class="switch" data-path="sound.enabled" ${snd.enabled ? "checked" : ""} aria-label="Sounds on or off"></header>
-    <div class="row"><label>Volume</label><input type="range" min="0" max="1" step="0.05" data-path="sound.volume" data-kind="float" value="${snd.volume ?? 1}"></div>`;
+    <div class="row"><label>Volume</label><div class="pair"><input type="range" min="0" max="1" step="0.05" data-path="sound.volume" data-kind="float" value="${snd.volume ?? 0.5}" aria-label="Volume"><output id="vol">${Math.round((snd.volume ?? 0.5) * 100)}%</output></div></div>`;
   SEV.forEach(([sev, label]) => {
     h += `<div class="row"><label>${label}<small><input type="checkbox" data-repeat="${sev}" ${(snd.repeat || []).includes(sev) ? "checked" : ""}> repeat while unresolved</small></label>
       <div class="pair"><select data-path="sound.${sev}"><option value="">none</option>${options(snd[sev])}</select><button type="button" data-preview="${sev}" title="Play">▶</button></div></div>`;
   });
-  h += `<div class="row"><label>Repeat every<small>seconds</small></label>${input("sound.repeat_s", snd.repeat_s, "int")}</div></section>
-    <div class="actions"><button class="primary" id="save">Save changes</button><button id="reset">Restore defaults</button><span class="status" id="status"></span></div>`;
+  h += `<div class="row"><label>Repeat every<small>seconds</small></label>${input("sound.repeat_s", snd.repeat_s, "int")}</div>
+    <div class="row wide"><label>Your sounds<small>any audio or video file; cut to 1.5 s and leveled like the built-in sounds</small></label>
+      <div class="mine"><div id="mine"></div><button type="button" id="add-sound">Add sound…</button>
+      <input type="file" id="sound-file" accept="audio/*,video/*" hidden></div></div>
+    <p class="usage" id="sound-status" role="status"></p></section>`;
+  GROUPS.filter(g => g.usage).forEach(g => { h += group(g); });
+  h += `<div class="actions"><button class="primary" id="save">Save changes</button><button id="reset">Restore defaults</button><span class="status" id="status"></span></div>`;
   $("#main").innerHTML = h;
   document.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
     const name = document.querySelector(`[data-path="sound.${b.dataset.preview}"]`).value;
-    if (name) api().preview_sound(name);
+    if (name) api().preview_sound(name, volume());
   }));
+  $('[data-path="sound.volume"]').addEventListener("input", e => { $("#vol").textContent = `${Math.round(e.target.value * 100)}%`; });
+  renderMine(s.user_sounds);
+  $("#add-sound").addEventListener("click", () => $("#sound-file").click());
+  $("#sound-file").addEventListener("change", e => addSound(e.target.files[0]));
   $("#save").addEventListener("click", save);
   $("#reset").addEventListener("click", async () => { await api().reset_settings(); await showSettings(); $("#status").textContent = "Defaults restored."; });
+}
+
+// Your sounds: the page decodes the file (Web Audio reads mp3, ogg, wav, flac
+// and the audio of mp4/webm), keeps the part from the first sound on, at most
+// 1.5 s, and Python levels it and saves it as WAV. No ffmpeg needed.
+const RATE = 44100, MAX_S = 1.5;
+const volume = () => Number($('[data-path="sound.volume"]').value);
+
+async function clipSamples(file) {
+  const ctx = new AudioContext();
+  let decoded;
+  try { decoded = await ctx.decodeAudioData(await file.arrayBuffer()); }
+  catch { throw new Error("no audio the hub can read in this file"); }
+  finally { ctx.close(); }
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * RATE)), RATE);
+  const src = off.createBufferSource();
+  src.buffer = decoded; src.connect(off.destination); src.start();
+  const x = (await off.startRendering()).getChannelData(0);
+  let peak = 0;
+  for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
+  if (!peak) throw new Error("the file is silent");
+  let start = 0;
+  while (Math.abs(x[start]) <= 0.02 * peak) start++;
+  start = Math.max(0, start - Math.round(0.002 * RATE));
+  const clip = x.slice(start, start + Math.round(MAX_S * RATE));
+  const bytes = new Uint8Array(clip.buffer);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+function renderMine(list) {
+  $("#mine").innerHTML = list.length ? list.map(n => `<span class="chip">${n}
+    <button type="button" data-play="${n}" title="Play ${n}" aria-label="Play ${n}">▶</button>
+    <button type="button" data-remove="${n}" title="Remove ${n}" aria-label="Remove ${n}">✕</button></span>`).join("")
+    : `<span class="none">None yet</span>`;
+  document.querySelectorAll("[data-play]").forEach(b => b.addEventListener("click", () => api().preview_sound(b.dataset.play, volume())));
+  document.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => removeSound(b.dataset.remove)));
+}
+
+function soundOptions(add, remove) {
+  document.querySelectorAll('select[data-path^="sound."]').forEach(sel => {
+    if (add && ![...sel.options].some(o => o.value === add)) {
+      const names = [...sel.options].map(o => o.value).filter(Boolean).concat(add).sort();
+      const o = new Option(add, add);
+      sel.add(o, sel.options[names.indexOf(add) + 1] || null);
+    }
+    if (remove) [...sel.options].filter(o => o.value === remove).forEach(o => o.remove());
+  });
+}
+
+async function addSound(file) {
+  if (!file) return;
+  const st = $("#sound-status");
+  st.textContent = `Reading ${file.name}…`;
+  try {
+    const r = await api().add_sound(file.name, await clipSamples(file));
+    if (r.error) throw new Error(r.error);
+    soundOptions(r.name, null);
+    renderMine(r.user_sounds);
+    st.textContent = `Added “${r.name}” (${r.seconds} s). Choose it for a severity above, then save.`;
+    api().preview_sound(r.name, volume());
+  } catch (e) {
+    st.textContent = `Could not add ${file.name}: ${e.message}.`;
+  }
+  $("#sound-file").value = "";
+}
+
+async function removeSound(name) {
+  const r = await api().remove_sound(name);
+  if (r.error) { $("#sound-status").textContent = r.error; return; }
+  soundOptions(null, name);
+  for (const [sev] of SEV) {
+    const sel = document.querySelector(`[data-path="sound.${sev}"]`);
+    if (sel.value !== r.sound[sev]) sel.value = r.sound[sev] || "";
+  }
+  cfg.sound = { ...cfg.sound, ...r.sound };
+  renderMine(r.user_sounds);
+  $("#sound-status").textContent = `Removed “${name}”. Severities that used it are back to their default sound.`;
 }
 
 function collect() {

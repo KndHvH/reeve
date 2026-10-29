@@ -16,7 +16,8 @@ import os
 from pathlib import Path
 
 from . import __version__
-from .paths import DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir
+from .paths import (DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir,
+                    user_config_path, user_sounds_dir)
 
 HUB_HTML = ROOT / "assets" / "hub" / "hub.html"
 APP_ICON = ROOT / "assets" / "app.ico"   # the tray icon (tray._tray_image), all sizes
@@ -53,6 +54,10 @@ def match_summaries() -> list[dict]:
         digest["has_report"] = (s / "report.html").exists()
         out.append(digest)
     return out
+
+
+def _user_sounds() -> list[str]:
+    return sorted(p.stem for p in user_sounds_dir().glob("*.wav"))
 
 
 class HubApi:
@@ -92,7 +97,7 @@ class HubApi:
         from .sound import library
 
         return {"values": load_config(), "defaults": json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")),
-                "sounds": library()}
+                "sounds": library(), "user_sounds": _user_sounds()}
 
     def save_settings(self, values: dict) -> dict:
         defaults = json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
@@ -104,14 +109,51 @@ class HubApi:
         save_overrides({})
         return True
 
-    def preview_sound(self, name: str) -> bool:
-        from .sound import play_file, sound_path
+    def preview_sound(self, name: str, volume: float | None = None) -> bool:
+        """Plays a sound at the volume on the form (saved or not), so the
+        preview sounds like the alert in game."""
+        from .sound import play_at, sound_path
 
         path = sound_path(name)
         if path is None:
             return False
-        play_file(path)
+        play_at(path, load_config()["sound"].get("volume", 0.5) if volume is None else volume)
         return True
+
+    def add_sound(self, filename: str, samples_b64: str) -> dict:
+        """A sound the page decoded (mono float32 at 44.1 kHz, base64), made an
+        alert sound and saved to the user's sound folder."""
+        import base64
+
+        import numpy as np
+
+        from .sound import library
+        from .sound_import import RATE, prepare, safe_name, write
+
+        try:
+            x = prepare(np.frombuffer(base64.b64decode(samples_b64), "<f4"))
+        except ValueError as e:
+            return {"error": str(e)}
+        name = safe_name(filename, set(library()))
+        write(x, user_sounds_dir() / f"{name}.wav")
+        return {"name": name, "seconds": round(len(x) / RATE, 2), "user_sounds": _user_sounds()}
+
+    def remove_sound(self, name: str) -> dict:
+        """Deletes one of the user's sounds. Severities that used it go back to
+        their default sound."""
+        path = user_sounds_dir() / f"{name}.wav"
+        if path.parent != user_sounds_dir() or not path.exists():
+            return {"error": "not one of your sounds"}
+        path.unlink()
+        user = user_config_path()
+        overrides = json.loads(user.read_text(encoding="utf-8")) if user.exists() else {}
+        sound = overrides.get("sound", {})
+        for sev in [k for k, v in sound.items() if v == name]:
+            del sound[sev]
+        if "sound" in overrides and not sound:
+            del overrides["sound"]
+        save_overrides(overrides)
+        return {"user_sounds": _user_sounds(), "sound": load_config()["sound"]}
 
     def storage(self) -> dict:
         """Size of the recorded matches, shown next to the retention settings."""
