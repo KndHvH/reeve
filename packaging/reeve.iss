@@ -68,3 +68,29 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\Reeve.exe"; Description: "{cm:LaunchReeve}"; Flags: postinstall nowait skipifsilent
+; Update from the hub (/RELAUNCH=1, silent): reopen Reeve when done.
+Filename: "{app}\Reeve.exe"; Flags: nowait; Check: Relaunching
+
+[Code]
+function Relaunching: Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
+end;
+
+function InitializeSetup: Boolean;
+var
+  Waited: Integer;
+begin
+  // An update started from the hub: Reeve is closing itself; give it up to
+  // 30 s to release its mutex instead of asking the user to close it.
+  if Relaunching then
+  begin
+    Waited := 0;
+    while CheckForMutexes('Reeve.App') and (Waited < 30000) do
+    begin
+      Sleep(250);
+      Waited := Waited + 250;
+    end;
+  end;
+  Result := True;
+end;

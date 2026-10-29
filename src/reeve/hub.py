@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 
 from . import __version__
@@ -201,6 +202,42 @@ class HubApi:
         sessions = [s for s in sessions_dir().iterdir() if s.is_dir()]
         size = sum(f.stat().st_size for s in sessions for f in s.rglob("*") if f.is_file())
         return {"matches": len(sessions), "mb": round(size / 1024 / 1024, 1)}
+
+    def update_status(self, force: bool = False) -> dict:
+        """What the hub shows about updates: the latest release (from the daily
+        check, or asked now with `force`) and whether this copy can install it."""
+        from . import updates
+
+        enabled = (load_config().get("updates") or {}).get("check", True)
+        latest = updates.check(force=force) if (enabled or force) else None
+        return {"current": __version__, "enabled": enabled, "newer": updates.newer(latest),
+                "latest": latest.version if latest else None, "page": latest.page if latest else None,
+                "can_install": updates.can_install() and bool(latest and latest.installer)}
+
+    def update_now(self) -> dict:
+        """Downloads and verifies the installer, schedules it, and asks the app
+        (and this hub) to close; the installer reopens Reeve when it is done."""
+        from . import updates
+        from .launcher import QUIT_EVENT, signal
+
+        latest = updates.check()
+        if not updates.newer(latest) or not updates.can_install():
+            return {"error": "no update to install"}
+        try:
+            installer = updates.download(latest)
+        except Exception as e:
+            return {"error": f"download failed: {e}"}
+        updates.install(installer)
+        signal(QUIT_EVENT)
+        if self._window is not None:
+            threading.Timer(0.5, self._window.destroy).start()
+        return {"installing": latest.version}
+
+    def open_url(self, url: str) -> bool:
+        if url.startswith("https://github.com/"):
+            os.startfile(url)
+            return True
+        return False
 
     def open_data_folder(self) -> bool:
         os.startfile(data_dir())

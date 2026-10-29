@@ -135,6 +135,7 @@ class Overlay:
         self.excluded = self._win32_setup()
         self.geom = None
         self.last_events: list[str] = []
+        self.last_status = "no_game"
         # First-run and environment notices; the tray replaces `notify` with
         # its notifications, the bare overlay prints them.
         from .checks import Notices
@@ -195,6 +196,7 @@ class Overlay:
         try:
             self._reload_config_if_changed()
             s = self.live.step()
+            self.last_status = s.status   # "reading"/"hidden": a match is open (no update notices)
             if s.events:
                 self.last_events = (self.last_events + s.events)[-3:]
             for title, message in self.notices.observe(s):

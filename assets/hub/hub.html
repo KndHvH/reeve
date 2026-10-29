@@ -110,6 +110,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .seg button[aria-checked="true"] { background: var(--accent-dim); color: var(--accent-light); }
 .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>
+<style>
+/* Update banner */
+.banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 30px 0; padding: 10px 14px;
+  background: var(--panel-2); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: var(--radius); }
+.banner[hidden] { display: none; }
+.banner b { color: var(--accent-light); font-family: var(--serif); font-size: 15px; }
+.banner span { color: var(--ink-2); }
+.banner .grow { flex: 1; }
+.banner button, .upd button { background: var(--panel); color: var(--ink); border: 1px solid var(--accent-dim); border-radius: var(--radius);
+  padding: 5px 12px; cursor: pointer; font: 13px var(--sans); }
+.banner button.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
+.banner button:hover, .upd button:hover { border-color: var(--accent); }
+.upd { display: flex; gap: 10px; align-items: center; }
+</style>
 <style id="look"></style>
 </head>
 <body>
@@ -119,7 +133,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   <button id="nav-settings">Settings</button>
   <div class="foot"><span id="ver"></span><br><a id="data-folder">Open data folder</a></div>
 </nav>
-<div class="scroll"><main id="main"></main></div>
+<div class="scroll"><div class="banner" id="update-banner" role="status" hidden></div><main id="main"></main></div>
 <script>
 const api = () => window.pywebview.api;
 const $ = s => document.querySelector(s);
@@ -264,6 +278,7 @@ async function showSettings() {
       <input type="file" id="sound-file" accept="audio/*,video/*" hidden></div></div>
     <p class="usage" id="sound-status" role="status"></p></section>`;
   GROUPS.filter(g => g.usage).forEach(g => { h += group(g); });
+  h += updatesSection(updateInfo || { current: (await api().version()) });
   h += `<div class="actions"><button class="primary" id="save">Save changes</button><button id="reset">Restore defaults</button><span class="status" id="status"></span></div>`;
   $("#main").innerHTML = h;
   document.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
@@ -273,6 +288,13 @@ async function showSettings() {
   $('[data-path="sound.volume"]').addEventListener("input", e => { $("#vol").textContent = `${Math.round(e.target.value * 100)}%`; });
   renderMine(s.user_sounds);
   bindAppearance();
+  $("#upd-check").addEventListener("click", async () => {
+    $("#upd-line").textContent = "Checking…";
+    const u = await api().update_status(true);
+    showBanner(u);
+    $("#upd-line").textContent = !u.latest ? "GitHub could not be reached. Try again later."
+      : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
+  });
   $("#add-sound").addEventListener("click", () => $("#sound-file").click());
   $("#sound-file").addEventListener("change", e => addSound(e.target.files[0]));
   $("#save").addEventListener("click", save);
@@ -358,6 +380,40 @@ async function removeSound(name) {
   $("#sound-status").textContent = `Removed “${name}”. Severities that used it are back to their default sound.`;
 }
 
+// Updates: the daily check runs in the app; the hub shows its result and can ask now.
+let updateInfo = null;
+
+function showBanner(u) {
+  const b = $("#update-banner");
+  updateInfo = u;
+  if (!u || !u.newer) { b.hidden = true; return; }
+  b.innerHTML = `<b>Reeve ${u.latest} is available</b><span>You have ${u.current}.</span><span class="grow"></span>
+    <button type="button" id="upd-notes">What's new</button>
+    ${u.can_install ? '<button type="button" class="primary" id="upd-now">Update now</button>'
+                    : '<button type="button" class="primary" id="upd-get">Download</button>'}`;
+  b.hidden = false;
+  $("#upd-notes").addEventListener("click", () => api().open_url(u.page));
+  if (u.can_install) $("#upd-now").addEventListener("click", updateNow);
+  else $("#upd-get").addEventListener("click", () => api().open_url(u.page));
+}
+
+async function updateNow() {
+  const b = $("#update-banner");
+  b.innerHTML = `<b>Downloading Reeve ${updateInfo.latest}…</b><span>Reeve closes and reopens by itself when the update is installed.</span>`;
+  const r = await api().update_now();
+  if (r.error) b.innerHTML = `<b>The update did not start</b><span>${r.error}. Try again later, or download it from the release page.</span>`;
+}
+
+function updatesSection(u) {
+  const line = !u.latest ? "Not checked yet."
+    : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
+  return `<section class="group"><header><h3>Updates</h3></header>
+    <div class="row"><label>Check for updates<small>once a day, on GitHub; nothing about you is sent</small></label>
+      <input type="checkbox" class="switch" data-path="updates.check" ${cfg.updates?.check !== false ? "checked" : ""} aria-label="Check for updates"></div>
+    <div class="row"><label>Version ${u.current}<small id="upd-line">${line}</small></label>
+      <div class="upd"><button type="button" id="upd-check">Check now</button></div></div></section>`;
+}
+
 function collect() {
   const out = JSON.parse(JSON.stringify(cfg));
   document.querySelectorAll("[data-path]").forEach(el => {
@@ -385,6 +441,7 @@ async function save() {
 
 window.addEventListener("pywebviewready", async () => {
   applyLook(await api().theme_css());
+  api().update_status(false).then(showBanner);
   $("#ver").textContent = "version " + await api().version();
   $("#nav-matches").addEventListener("click", () => navTo("matches"));
   $("#nav-settings").addEventListener("click", () => navTo("settings"));

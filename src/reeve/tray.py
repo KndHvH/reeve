@@ -147,6 +147,31 @@ class TrayApp:
         self.overlay.quit_requested = True
         self.icon.stop()
 
+    def _watch_updates(self):
+        """Background: asks GitHub for a newer Reeve (at most once a day, see
+        updates.check) and tells the user once per version, never while a
+        match is open."""
+        import time
+
+        from . import updates
+        from .checks import load_state, save_state
+        from .paths import load_config
+
+        time.sleep(30)                          # let the app settle first
+        while not self.overlay.quit_requested:
+            try:
+                if (load_config().get("updates") or {}).get("check", True):
+                    latest = updates.check()
+                    state = load_state()
+                    if (updates.newer(latest) and state.get("update_told") != latest.version
+                            and self.overlay.last_status not in ("reading", "hidden")):
+                        self._notify(f"Reeve {latest.version} is available",
+                                     "Open the hub to see what's new and update.")
+                        save_state(load_state() | {"update_told": latest.version})
+            except Exception:                   # never let this disturb the overlay
+                pass
+            time.sleep(60)
+
     @staticmethod
     def _clean_sessions():
         from .retention import apply
@@ -157,11 +182,13 @@ class TrayApp:
             pass
 
     def run(self) -> None:
-        from .launcher import listen_for_open_hub
+        from .launcher import OPEN_HUB_EVENT, QUIT_EVENT, listen_for
 
         threading.Thread(target=self._clean_sessions, name="retention").start()
+        threading.Thread(target=self._watch_updates, name="updates", daemon=True).start()
         self.overlay.notify = self._notify
-        listen_for_open_hub(self._open_hub)   # Reeve started again: show the hub
+        listen_for(OPEN_HUB_EVENT, self._open_hub)   # Reeve started again: show the hub
+        listen_for(QUIT_EVENT, self._quit)           # the hub is installing an update
         threading.Thread(target=self.icon.run, args=(self._on_ready,), name="tray", daemon=True).start()
         try:
             self.overlay.run()
