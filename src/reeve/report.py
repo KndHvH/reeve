@@ -38,6 +38,7 @@ SERIES_ORDER = ["food", "wood", "stone", "gold", "idle"]
 ICONS = ROOT / "assets" / "report_icons"
 PROBLEMS = [("tc_idle", "Town center idle"), ("housed", "Housed"),
             ("idle_villager", "Idle villagers"), ("floating", "Floating resources")]
+BUILD_PROBLEM = ("build", "Off the build")   # only for matches that followed a build order
 
 
 def _icons() -> dict[str, str]:
@@ -74,9 +75,14 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     within a few seconds of each frame."""
     import bisect
 
-    tracker, engine, income = StateTracker(), RuleEngine(config=config or load_config()), IncomeTracker()
-    rows, intervals, open_alerts = [], [], {}
     lines = [json.loads(raw) for raw in log_path.read_text(encoding="utf-8").splitlines()]
+    # The build order the match followed (logged as it advanced), not the one in use now.
+    step = next((r for r in lines if r.get("event") == "build_step"), None)
+    build = {"id": step["build"], "name": step.get("name", "")} if step else None
+    config = dict(config or load_config())
+    config["build_order"] = dict(config.get("build_order") or {}, active=build and build["id"], show=True)
+    tracker, engine, income = StateTracker(), RuleEngine(config=config), IncomeTracker()
+    rows, intervals, open_alerts = [], [], {}
     readings = [r for r in lines if "values" in r]
     backfill, keys = {}, []
     if readings and not any("age" in r["values"] for r in readings):
@@ -118,7 +124,7 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     end = rows[-1]["t"] if rows else 0
     intervals += [a | {"end": end} for a in open_alerts.values()]
     frames = sorted(int(p.stem) for p in (log_path.parent / "frames").glob("[0-9]*.jpg"))
-    return {"rows": rows, "alerts": intervals, "frames": frames, "ages": age_events(rows)}
+    return {"rows": rows, "alerts": intervals, "frames": frames, "ages": age_events(rows), "build": build}
 
 
 def age_events(rows: list[dict]) -> list[dict]:
@@ -156,7 +162,7 @@ def summarize(tl: dict) -> dict:
         return sum(v for v in r["vil"].values() if v is not None) + (r["idle"] or 0)
 
     problems = []
-    for aid, label in PROBLEMS:
+    for aid, label in PROBLEMS + ([BUILD_PROBLEM] if tl.get("build") else []):
         spans = [a for a in alerts if a["id"] == aid]
         worst = max((a["severity"] for a in spans), key=SEVERITIES.index, default=None)
         problems.append({"id": aid, "label": label, "seconds": sum(a["end"] - a["start"] for a in spans),
@@ -587,6 +593,7 @@ function drawPopulation(c) {
 }
 
 const LANES = { housed: "Housed", tc_idle: "TC idle", idle_villager: "Idle villagers", floating: "Floating" };
+if (D.build) LANES.build = "Off the build";
 function drawLanes(c) {
   const lane = 18;
   Object.keys(LANES).forEach((id, i) => {

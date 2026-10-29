@@ -146,3 +146,23 @@ def test_delete_matches_removes_only_recorded_matches():
     assert api.delete_matches(["20260101-100000", "../config", "..", "nope", ""]) == 1
     assert not a.exists() and b.exists() and keep.exists()
     assert [m["session"] for m in match_summaries()] == ["20260102-100000"]
+
+
+def test_update_build_imports_it_again_from_its_link(monkeypatch):
+    import json
+    from pathlib import Path
+
+    from reeve import builds
+    from reeve.hub import HubApi
+
+    raw = json.loads((Path(__file__).parent / "fixtures" / "builds" / "mali.json").read_text(encoding="utf-8"))
+    builds.import_build(json.dumps(raw), get=lambda url: b"")         # pasted; icons fail quietly
+    raw["build_order"] = raw["build_order"][:3]                           # the author shortened it
+    monkeypatch.setattr(builds, "_get", lambda url: json.dumps(raw).encode() if "/api/" in url else b"")
+    monkeypatch.setattr(builds.import_build, "__defaults__", (builds._get,))
+    try:
+        r = HubApi().update_build("hXttcVQcMxTniZjgS79s")
+        assert r["updated"]["steps"] == 3
+        assert len(builds.load("hXttcVQcMxTniZjgS79s").steps) == 3
+    finally:
+        builds.delete("hXttcVQcMxTniZjgS79s")

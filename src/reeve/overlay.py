@@ -30,6 +30,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .version import shown as shown_version
+from .build_panel import BuildPanel
 from .cards import CardStack, settings as animation_settings
 from .digits import MIN_SCORE
 from .live import LOW_CONF, LiveReader, Step
@@ -93,6 +94,8 @@ def _alert_icon(a: Alert) -> str:
         return "pop"
     if a.id == "floating":
         return next(iter(a.reason.get("over", {})), "gold")
+    if a.id == "build":
+        return a.reason.get("to", "villager")
     return "villager"
 
 
@@ -142,6 +145,7 @@ class Overlay:
         self.excluded = self._win32_setup()
         self.cards = CardStack(self.root, KEY, self._setup_card_window, self._paint_card)
         self.cards.effects = animation_settings(self.live.rules.config)
+        self.build_panel = BuildPanel(self.root, KEY, self._setup_card_window, _box)
         self.geom = None
         self.last_events: list[str] = []
         self.last_status = "no_game"
@@ -209,7 +213,8 @@ class Overlay:
         streams, and Reeve's own reading) or shows them; returns whether hidden."""
         mode = WDA_EXCLUDEFROMCAPTURE if excluded else WDA_NONE
         ok = user32.SetWindowDisplayAffinity(self.hwnd, mode)
-        for hwnd in (self.cards.windows() if hasattr(self, "cards") else []):
+        extra = self.cards.windows() + self.build_panel.windows() if hasattr(self, "build_panel") else []
+        for hwnd in extra:
             user32.SetWindowDisplayAffinity(hwnd, mode)
         return excluded if ok else not excluded
 
@@ -229,6 +234,7 @@ class Overlay:
         if not self.enabled:
             self.root.withdraw()
             self.cards.clear()
+            self.build_panel.hide()
             self._shown = None
             self.root.after(int(self.every * 1000), self.tick)
             return
@@ -244,6 +250,7 @@ class Overlay:
             if s.win is None or s.status == "no_game":
                 self.root.withdraw()
                 self.cards.clear()
+                self.build_panel.hide()
             else:
                 g = (s.win.width, s.win.height, s.win.left, s.win.top)
                 if g != self.geom:
@@ -263,6 +270,7 @@ class Overlay:
 
     def _show_error(self) -> None:
         self.cards.clear()
+        self.build_panel.hide()
         self.canvas.delete("all")
         self._shown = None
         self._draw_watermark(1.0, BAD)
@@ -277,6 +285,7 @@ class Overlay:
         if self.debug:
             self._shown = None
             self.cards.clear()
+            self.build_panel.hide()
             self._draw_debug(s)
         else:
             self._draw_clean(s)
@@ -375,6 +384,17 @@ class Overlay:
         look = (CARD, FG, RADIUS, tuple(SEVERITY_COLOR.items()), k)
         self.cards.update(alerts, (s.win.left, s.win.top), x0, round(s.win.height * 0.16), round(6 * k),
                           self._card_limit(x0), look)
+        self._draw_build(s, k)
+
+    def _draw_build(self, s: Step, k: float) -> None:
+        """The build order panel, on the right at the cards' height, while a match is read."""
+        if s.status != "reading" or s.build is None:
+            self.build_panel.hide()
+            return
+        scale = (self.live.rules.config.get("build_order") or {}).get("scale", 1.0)
+        look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
+        self.build_panel.update(s.build, s.win.left + s.win.width - round(16 * k), s.win.top + round(s.win.height * 0.16),
+                                k * scale, look)
 
 
     # --- debug view ---------------------------------------------------------

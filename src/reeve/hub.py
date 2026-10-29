@@ -257,8 +257,85 @@ class HubApi:
             threading.Timer(0.5, self._window.destroy).start()
         return {"installing": latest.version}
 
+    # --- build orders ------------------------------------------------------------
+    def builds(self) -> dict:
+        from . import builds
+
+        bo = load_config().get("build_order") or {}
+        return {"builds": [b.summary() for b in builds.stored()], "active": bo.get("active"),
+                "show": bo.get("show", True)}
+
+    def import_build(self, text: str) -> dict:
+        """A link to a build on aoe4guides.com, or its JSON. The first build
+        imported becomes the active one."""
+        from . import builds
+
+        try:
+            b = builds.import_build(text)
+        except ValueError as e:
+            return {"error": str(e)}
+        if not (load_config().get("build_order") or {}).get("active"):
+            self.set_setting("build_order", "active", b.id)
+        return {"imported": b.summary(), **self.builds()}
+
+    def update_build(self, build_id: str) -> dict:
+        """Imports a build again from its page on aoe4guides.com (the author
+        changed it). A match in progress keeps the version it started with."""
+        from . import builds
+
+        b = builds.load(build_id)
+        if b is None or not builds.id_from_url(b.source):
+            return {"error": "this build has no aoe4guides.com link; import it again instead"}
+        try:
+            new = builds.import_build(b.source)
+        except ValueError as e:
+            return {"error": str(e)}
+        return {"updated": new.summary(), **self.builds()}
+
+    def use_build(self, build_id: str | None) -> dict:
+        self.set_setting("build_order", "active", build_id)
+        return self.builds()
+
+    def delete_build(self, build_id: str) -> dict:
+        from . import builds
+
+        builds.delete(build_id)
+        if (load_config().get("build_order") or {}).get("active") == build_id:
+            self.set_setting("build_order", "active", None)
+        return self.builds()
+
+    def build_preview(self) -> dict | None:
+        """Three steps of the active build (or the first stored one) for the
+        preview in Appearance: the first step with notes and its neighbours,
+        notes split into text and icons (as data URLs)."""
+        import base64
+
+        from . import builds
+
+        active = (load_config().get("build_order") or {}).get("active")
+        b = builds.load(active) or next(iter(builds.stored()), None)
+        if b is None:
+            return None
+        i = next((n for n in range(1, len(b.steps) - 1) if b.steps[n].notes), 0)
+        icons = {}
+
+        def piece(kind, value):
+            if kind == "text":
+                return {"text": value}
+            f = builds.icon_file(value)
+            if value not in icons and f.exists():
+                icons[value] = "data:image/png;base64," + base64.b64encode(f.read_bytes()).decode()
+            return {"icon": value} if value in icons else {"text": Path(value).stem.replace("-", " ")}
+
+        def step(s, current):
+            return {"current": current, "age": s.age, "time": s.time, "villagers": s.villagers, "targets": s.targets,
+                    "notes": [[piece(k, v) for k, v in builds.tokens(n)] for n in s.notes]}
+
+        window = [(b.steps[n], n == i) for n in (i - 1, i, i + 1) if 0 <= n < len(b.steps)]
+        return {"name": b.name, "steps": [step(s, cur) for s, cur in window], "icons": icons}
+
     def open_url(self, url: str) -> bool:
-        if url.startswith("https://github.com/"):
+        if url.startswith(("https://github.com/", "https://aoe4guides.com/")):
             os.startfile(url)
             return True
         return False

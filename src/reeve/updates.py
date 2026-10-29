@@ -2,7 +2,8 @@
 
 - `check()` asks the GitHub releases API for the latest release, at most once
   a day (the answer is kept in state.json), unless forced from the hub. It is
-  the only network request Reeve makes, and it sends nothing about the user.
+  the only request Reeve makes on its own (the other one is importing a build
+  order, when the user asks), and it sends nothing about the user.
 - `download()` fetches the installer to the temp folder and verifies its size
   and, when GitHub publishes it, its SHA-256 digest.
 - `install()` hands the installer to a command shell that waits for Reeve to

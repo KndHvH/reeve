@@ -60,6 +60,10 @@ Build orders need the whole game catalog, and the match history wants to know wh
 ## v0.3: Execution vs. build order
 Timestamped diff of expected vs. actual villagers and resources, live (overlay alert when behind the build) and in the report.
 
+| # | Deliverable | Status |
+|---|-------------|--------|
+| B1 | Build panel: import a build from aoe4guides.com (link or JSON, icons stored locally); on the right of the screen the previous, current and next step (age, planned time, villagers and their five places, notes with the site's icons); a step is reached by villager count and age; panel size and a live preview in the hub; "Move/Put villagers" warning when the villagers are not where the step puts them; the build's alerts on the report's timeline | Validation |
+
 ## v0.4: Build orders in the hub
 Import (aoe4guides or a native JSON format), create and edit build orders in the hub.
 

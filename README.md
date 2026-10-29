@@ -23,6 +23,13 @@ Alert cards appear over the game, each with its own sound, in three levels: **in
 
 Floating resources start as info above the limit of your current age: 400 in the Dark Age, 800 in the Feudal Age and 1500 from the Castle Age on. Every threshold can be changed in the hub.
 
+### Build orders
+Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting its link in the hub. During a match, the right of the screen shows its previous, current and next step: the age, the villagers and where they go (food, wood, gold, stone, building), and the step's notes with the site's icons.
+
+- A step is reached when you have its number of villagers and its age, so the build follows your pace.
+- When your villagers are not where the step puts them, a warning says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
+- Buildings cannot be seen by Reeve; they are part of the step's notes.
+
 ### Match reports
 When a match ends, Reeve writes its report:
 
@@ -37,6 +44,7 @@ When a match ends, Reeve writes its report:
 Double-click the tray icon to open the hub:
 
 - **Matches**: every recorded match, newest first, with the ages reached and the alerts of each. Open one to see its report, or select matches to delete them.
+- **Builds**: import build orders from aoe4guides.com, choose the one in use, and turn the build panel on or off.
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
 - **Appearance**: four themes for the hub, the reports and the alert cards (Age, Dark, Dracula and Kitty), with square or rounded corners. The alert cards show in your clips, recordings and streams; this can be turned off.
@@ -64,7 +72,7 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Once a day Reeve asks GitHub whether a new version exists (it can be turned off in the hub's settings); nothing about you or your matches is sent.
+Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download a build order from aoe4guides.com when you import one; nothing about you or your matches is sent.
 
 ## Updates
 When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.

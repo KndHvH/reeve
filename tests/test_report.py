@@ -47,3 +47,37 @@ def test_report_is_self_contained_html(tmp_path):
 
 def test_empty_session_renders():
     assert "No readings" in render({"rows": [], "alerts": [], "frames": []}, "empty")
+
+
+def _with_build_step(session):
+    log = session / "log.jsonl"
+    event = {"wall": "00:00:00", "event": "build_step", "build": "hXttcVQcMxTniZjgS79s", "name": "Mali", "step": 1, "of": 12}
+    log.write_text(json.dumps(event) + "\n" + log.read_text(encoding="utf-8"), encoding="utf-8")
+    return session
+
+
+def test_report_follows_the_build_the_match_followed(tmp_path):
+    from pathlib import Path
+
+    from reeve import builds
+
+    mali = Path(__file__).parent / "fixtures" / "builds" / "mali.json"
+    (builds.builds_dir() / "hXttcVQcMxTniZjgS79s.json").write_text(mali.read_text(encoding="utf-8"), encoding="utf-8")
+    try:
+        tl = build_timeline(_with_build_step(_log(tmp_path)) / "log.jsonl")
+        assert tl["build"] == {"id": "hXttcVQcMxTniZjgS79s", "name": "Mali"}
+        off = [a for a in tl["alerts"] if a["id"] == "build"]
+        assert off and off[0]["text"].startswith("Move")         # everyone on food; the build wants wood
+        assert any(p["id"] == "build" and p["seconds"] > 0 for p in summarize(tl)["problems"])
+    finally:
+        builds.delete("hXttcVQcMxTniZjgS79s")
+
+
+def test_report_ignores_the_build_in_use_now_for_a_match_without_one(tmp_path):
+    cfg_build = {"build_order": {"active": "hXttcVQcMxTniZjgS79s", "show": True}}
+    from reeve.paths import load_config
+
+    tl = build_timeline(_log(tmp_path) / "log.jsonl", load_config() | cfg_build)
+    assert tl["build"] is None
+    assert not any(a["id"] == "build" for a in tl["alerts"])
+    assert all(p["id"] != "build" for p in summarize(tl)["problems"])
