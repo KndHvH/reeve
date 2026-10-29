@@ -15,7 +15,8 @@ When the match ends, it produces a **per-second report**: villagers on each reso
 - **No black boxes**: every stage has a visual inspection tool (see `docs/DECISIONS.md` and `ROADMAP.md`).
 
 ## Your data
-Settings, recorded matches and your own sounds live in `%APPDATA%oe4ov` (`configules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds). Set `AOE4OV_HOME` to use another folder.
+Settings, recorded matches and your own sounds live in `%APPDATA%\aoe4ov`: `config\rules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds. Set `AOE4OV_HOME` to use another folder.
+ules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds). Set `AOE4OV_HOME` to use another folder.
 
 ## Requirements
 - Windows 10/11, with AoE4 running in **Borderless** or **Windowed** mode. Overlays are not visible in exclusive fullscreen.
