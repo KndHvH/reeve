@@ -1,6 +1,6 @@
-# aoe4-overlay
+# Reeve
 
-An AoE4 overlay that reads the game UI through template matching. See `README.md`, `ROADMAP.md` and `docs/DECISIONS.md`.
+Reeve (formerly aoe4-overlay / `aoe4ov`) is a macro assistant for AoE4: an overlay that reads the game UI through template matching. See `README.md`, `ROADMAP.md` and `docs/DECISIONS.md`.
 
 ## Project rules
 - **Computational cost is a requirement**: no heavy dependencies (torch, OCR, Qt, Electron), no full-screen capture inside the loop, a default loop of one read every 2 s (configurable), and the overlay is redrawn only when state changes. When in doubt, consult the `perf-guardian` agent.
@@ -12,4 +12,4 @@ An AoE4 overlay that reads the game UI through template matching. See `README.md
 - **Language**: all code, comments, docs, CLI/UI text, log keys and commit messages are in English. Conversation with the user may be in Portuguese.
 
 ## Commands
-- `uv sync`, `uv run pytest`, `uv run aoe4ov <cmd>`
+- `uv sync`, `uv run pytest`, `uv run reeve <cmd>`

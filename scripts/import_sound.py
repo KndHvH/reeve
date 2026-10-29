@@ -3,7 +3,7 @@
     uv run python scripts/import_sound.py <file> <name> [--source URL] [--license TEXT]
 
 Any format ffmpeg reads (mp3, ogg, wav, ...) is decoded and given the same
-treatment as sounds added in the hub (aoe4ov.sound_import: silence trimmed,
+treatment as sounds added in the hub (reeve.sound_import: silence trimmed,
 length capped, loudness normalized, 16-bit mono WAV). The result goes to assets/sounds/library/<name>.wav and
 its source and license are recorded in assets/sounds/library/SOURCE.md. Which sound each severity uses
 is chosen in config/rules.json ("sound").
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from aoe4ov.sound_import import RATE, prepare, write
+from reeve.sound_import import RATE, prepare, write
 
 LIBRARY = Path(__file__).resolve().parents[1] / "assets" / "sounds" / "library"
 

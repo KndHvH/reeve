@@ -52,7 +52,7 @@ class TrayApp:
         self._hub: subprocess.Popen | None = None
         item, menu = pystray.MenuItem, pystray.Menu
         self.icon = pystray.Icon(
-            "aoe4ov", _tray_image(), f"aoe4-overlay {__version__}",
+            "reeve", _tray_image(), f"Reeve {__version__}",
             menu=menu(
                 item("Overlay", self._toggle_enabled, checked=lambda _: self.overlay.enabled),
                 item("Debug view", self._toggle_debug, checked=lambda _: self.overlay.debug),
@@ -80,7 +80,7 @@ class TrayApp:
         """The hub is its own process: it costs nothing while closed and does
         not compete with the overlay's Tk loop for the main thread."""
         if self._hub is None or self._hub.poll() is not None:
-            self._hub = subprocess.Popen([sys.executable, "-m", "aoe4ov.hub"])
+            self._hub = subprocess.Popen([sys.executable, "-m", "reeve.hub"])
 
     def _open_report(self):
         r = latest_report()
@@ -110,5 +110,5 @@ class TrayApp:
 
 
 def main() -> None:
-    """Entry point of the windowless app (`aoe4ov-app`)."""
+    """Entry point of the windowless app (`reeve-app`)."""
     TrayApp().run()

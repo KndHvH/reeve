@@ -1,4 +1,4 @@
-"""Command-line entry point: `aoe4ov <command>`."""
+"""Command-line entry point: `reeve <command>`."""
 
 from __future__ import annotations
 
@@ -231,7 +231,7 @@ def cmd_app(args) -> int:
     """Overlay plus tray icon (also the default when no command is given)."""
     from .tray import TrayApp
 
-    print("aoe4-overlay running in the tray. Use its menu to quit.")
+    print("Reeve running in the tray. Use its menu to quit.")
     TrayApp(args.every, args.debug, args.mute).run()
     return 0
 
@@ -255,7 +255,7 @@ def cmd_hub(_args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    p = argparse.ArgumentParser(prog="aoe4ov")
+    p = argparse.ArgumentParser(prog="reeve")
     sub = p.add_subparsers(dest="cmd")
 
     sub.add_parser("window", help="show the detected AoE4 window and its resolution")
@@ -304,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--mute", action="store_true")
 
     args = p.parse_args(argv)
-    if args.cmd is None:  # plain `aoe4ov`: the app
+    if args.cmd is None:  # plain `reeve`: the app
         args = p.parse_args(["app"])
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,

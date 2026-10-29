@@ -1,6 +1,6 @@
 """Where the user's data lives, separate from the program.
 
-    %APPDATA%\\aoe4ov\\
+    %APPDATA%\\reeve\\
         config\\rules.json   only the settings the user changed
         sessions\\           recorded matches (log, frames, report)
         sounds\\             the user's own alert sounds
@@ -8,7 +8,10 @@
 The program ships its defaults (config/rules.json, assets/); the user's
 config file holds overrides only and is merged on top, so options added in a
 new version appear with their defaults without touching the user's choices.
-`AOE4OV_HOME` points everything somewhere else (tests, development).
+`REEVE_HOME` points everything somewhere else (tests, development).
+
+The project was called aoe4-overlay; its data folder %APPDATA%\\aoe4ov is
+renamed to %APPDATA%\\reeve the first time Reeve runs.
 """
 
 from __future__ import annotations
@@ -21,9 +24,22 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / "config" / "rules.json"
 
 
+LEGACY_NAME = "aoe4ov"
+
+
 def data_dir() -> Path:
-    home = os.environ.get("AOE4OV_HOME")
-    base = Path(home) if home else Path(os.environ.get("APPDATA", Path.home())) / "aoe4ov"
+    home = os.environ.get("REEVE_HOME")
+    if home:
+        base = Path(home)
+    else:
+        appdata = Path(os.environ.get("APPDATA", Path.home()))
+        base = appdata / "reeve"
+        legacy = appdata / LEGACY_NAME
+        if legacy.is_dir() and not base.exists():
+            try:
+                legacy.rename(base)
+            except OSError:   # in use by an old copy still running: keep using it for now
+                return legacy
     base.mkdir(parents=True, exist_ok=True)
     return base
 

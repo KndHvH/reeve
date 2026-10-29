@@ -1,10 +1,10 @@
 import numpy as np
 from PIL import Image
 
-import aoe4ov.capture as capm
-import aoe4ov.live as live
-from aoe4ov.glyphs import FIXTURES
-from aoe4ov.window import GameWindow
+import reeve.capture as capm
+import reeve.live as live
+from reeve.glyphs import FIXTURES
+from reeve.window import GameWindow
 
 
 class _FakeWin(GameWindow):

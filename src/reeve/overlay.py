@@ -201,12 +201,12 @@ class Overlay:
             self._draw_clean(s)
 
     def _draw_watermark(self, k: float, color: str) -> None:
-        """Tiny "aoe4ov <version>" tag in the top-left corner, above the game's
+        """Tiny "reeve <version>" tag in the top-left corner, above the game's
         own icons; the dot carries the state (see _status_color)."""
         c = self.canvas
         x, y = round(5 * k), round(2 * k)
         r = max(2, round(2 * k))
-        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"aoe4ov {__version__}", fill=MUTED,
+        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"reeve {__version__}", fill=MUTED,
                           anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
         cy = (y0 + y1) // 2
@@ -338,7 +338,7 @@ class Overlay:
             "reading": ("reading", GOOD),
         }[s.status]
         lines = [
-            ("aoe4-overlay · debug", FG, True),
+            ("Reeve · debug", FG, True),
             (status[0], status[1], False),
             (f"window {s.win.width}×{s.win.height}", MUTED, False),
         ]

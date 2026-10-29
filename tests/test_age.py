@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from aoe4ov.age import read_age
-from aoe4ov.anchor import AnchorMatch
-from aoe4ov.state import StateTracker
+from reeve.age import read_age
+from reeve.anchor import AnchorMatch
+from reeve.state import StateTracker
 
 AGE = Path(__file__).parent / "fixtures" / "age"
 SCALE, WIDTH = 1.485, 1920
@@ -70,7 +70,7 @@ def test_hard_frame_is_rejected_by_state():
 
 def test_age_on_720p_full_frames():
     """Templates are scaled: the 720p captures (scale 1.0) are all in age I."""
-    from aoe4ov.anchor import detect, to_gray
+    from reeve.anchor import detect, to_gray
 
     for png in sorted((AGE.parent).glob("720p_*.png")):
         rgb = np.asarray(Image.open(png).convert("RGB"))

@@ -3,35 +3,6 @@ revision = 1
 requires-python = ">=3.13"
 
 [[package]]
-name = "aoe4ov"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "mss" },
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "pystray" },
-    { name = "pywebview" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "mss", specifier = ">=10.2" },
-    { name = "numpy", specifier = ">=2.1" },
-    { name = "pillow", specifier = ">=13.0.0" },
-    { name = "pystray", specifier = ">=0.19.5" },
-    { name = "pywebview", specifier = ">=6.2.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8.3" }]
-
-[[package]]
 name = "bottle"
 version = "0.13.4"
 source = { registry = "https://pypi.org/simple" }
@@ -456,6 +427,35 @@ sdist = { url = "https://files.pythonhosted.org/packages/70/01/392eba83c8e47b946
 wheels = [
     { url = "https://files.pythonhosted.org/packages/69/76/37c0ccd5ab968a6a438f9c623aeecc84c202ab2fabc6a8fd927580c15b5a/QtPy-2.4.3-py3-none-any.whl", hash = "sha256:72095afe13673e017946cc258b8d5da43314197b741ed2890e563cf384b51aa1", size = 95045 },
 ]
+
+[[package]]
+name = "reeve"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "mss" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pystray" },
+    { name = "pywebview" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "mss", specifier = ">=10.2" },
+    { name = "numpy", specifier = ">=2.1" },
+    { name = "pillow", specifier = ">=13.0.0" },
+    { name = "pystray", specifier = ">=0.19.5" },
+    { name = "pywebview", specifier = ">=6.2.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.3" }]
 
 [[package]]
 name = "six"

@@ -1,5 +1,5 @@
 {
-  "_doc": "Alert rules. Severities: info (blue), warn (yellow), critical (red). persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply; use `aoe4ov replay` to test against a recorded session.",
+  "_doc": "Alert rules. Severities: info (blue), warn (yellow), critical (red). persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply; use `reeve replay` to test against a recorded session.",
   "idle_villager": {
     "enabled": true,
     "persist_s": 4,
@@ -28,7 +28,7 @@
     ]
   },
   "sound": {
-    "_doc": "Sound of each severity, by name from the sound library (empty = silent); `aoe4ov sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1: the default 0.5 leaves room to turn the sounds up.",
+    "_doc": "Sound of each severity, by name from the sound library (empty = silent); `reeve sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1: the default 0.5 leaves room to turn the sounds up.",
     "enabled": true,
     "volume": 0.5,
     "info": "blip",

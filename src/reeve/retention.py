@@ -15,7 +15,7 @@ the doubt/fail crops the reader saves for diagnosis. Policy (config section
 
 Runs once in the background when the app starts. A session whose log was
 written in the last few minutes is left alone: it may be the match being
-recorded. `aoe4ov clean --dry-run` shows the plan.
+recorded. `reeve clean --dry-run` shows the plan.
 """
 
 from __future__ import annotations

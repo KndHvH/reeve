@@ -1,5 +1,5 @@
-from aoe4ov.rules import RuleEngine
-from aoe4ov.state import StateTracker
+from reeve.rules import RuleEngine
+from reeve.state import StateTracker
 
 CFG = {
     "idle_villager": {"enabled": True, "persist_s": 4, "warn_at": 1, "critical_at": 3},
@@ -138,8 +138,8 @@ SOUND_CFG = {"enabled": True, "repeat_s": 5, "volume": 1.0, "info": "blip", "war
 
 
 def test_sound_plays_on_new_escalation_and_repeat_only():
-    from aoe4ov.rules import Alert
-    from aoe4ov.sound import AlertSounds
+    from reeve.rules import Alert
+    from reeve.sound import AlertSounds
 
     played = []
     snd = AlertSounds(SOUND_CFG, play=lambda path: played.append(path.stem))
@@ -158,8 +158,8 @@ def test_sound_plays_on_new_escalation_and_repeat_only():
 
 
 def test_sound_plays_once_for_simultaneous_alerts():
-    from aoe4ov.rules import Alert
-    from aoe4ov.sound import AlertSounds
+    from reeve.rules import Alert
+    from reeve.sound import AlertSounds
 
     played = []
     snd = AlertSounds(SOUND_CFG, play=lambda path: played.append(path.stem))
@@ -170,16 +170,16 @@ def test_sound_plays_once_for_simultaneous_alerts():
 
 
 def test_severity_without_sound_is_silent():
-    from aoe4ov.rules import Alert
-    from aoe4ov.sound import AlertSounds
+    from reeve.rules import Alert
+    from reeve.sound import AlertSounds
 
     snd = AlertSounds(SOUND_CFG | {"info": ""}, play=lambda path: None)
     assert snd.update([Alert("floating", "info", "", {})], 0) is None
 
 
 def test_configured_sounds_exist_in_library():
-    from aoe4ov.rules import SEVERITIES, load_config
-    from aoe4ov.sound import library
+    from reeve.rules import SEVERITIES, load_config
+    from reeve.sound import library
 
     cfg = load_config()["sound"]
     for sev in SEVERITIES:
@@ -187,8 +187,8 @@ def test_configured_sounds_exist_in_library():
 
 
 def test_volume_curve_and_silence_at_zero():
-    from aoe4ov.rules import Alert
-    from aoe4ov.sound import AlertSounds, gain
+    from reeve.rules import Alert
+    from reeve.sound import AlertSounds, gain
 
     assert gain(0) == 0 and gain(1) == 1
     assert gain(0.5) == 0.25            # default: a quarter of the file's amplitude

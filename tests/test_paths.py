@@ -2,11 +2,11 @@ import json
 import os
 from pathlib import Path
 
-from aoe4ov import paths
+from reeve import paths
 
 
 def test_data_dir_follows_env(tmp_path):
-    assert paths.data_dir() == Path(os.environ["AOE4OV_HOME"])
+    assert paths.data_dir() == Path(os.environ["REEVE_HOME"])
     assert paths.sessions_dir().parent == paths.data_dir()
 
 
@@ -23,7 +23,7 @@ def test_user_overrides_merge_on_top_of_defaults():
 
 
 def test_migrate_moves_sessions(tmp_path):
-    from aoe4ov.cli import main
+    from reeve.cli import main
 
     old = tmp_path / "old_sessions"
     (old / "20260101-000000").mkdir(parents=True)
@@ -31,3 +31,14 @@ def test_migrate_moves_sessions(tmp_path):
     assert main(["migrate", str(old)]) == 0
     assert (paths.sessions_dir() / "20260101-000000" / "log.jsonl").exists()
     assert not (old / "20260101-000000").exists()
+
+
+def test_legacy_data_folder_is_renamed(tmp_path, monkeypatch):
+    """The project was aoe4-overlay: %APPDATA%\aoe4ov becomes %APPDATA%\reeve."""
+    monkeypatch.delenv("REEVE_HOME")
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    (tmp_path / "aoe4ov" / "sessions" / "20260101-100000").mkdir(parents=True)
+    d = paths.data_dir()
+    assert d == tmp_path / "reeve"
+    assert (d / "sessions" / "20260101-100000").is_dir()
+    assert not (tmp_path / "aoe4ov").exists()

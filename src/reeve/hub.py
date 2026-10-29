@@ -173,10 +173,10 @@ def main() -> None:
 
     # Own taskbar identity, so Windows shows the app icon instead of grouping
     # the hub under python.exe.
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("aoe4ov.hub")
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("reeve.hub")
 
     api = HubApi()
-    api._window = webview.create_window("aoe4-overlay", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,
+    api._window = webview.create_window("Reeve", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,
                                        min_size=(900, 600), background_color="#0e1319")
     webview.start(icon=str(APP_ICON))
 

@@ -1,5 +1,5 @@
-from aoe4ov.cli import main
-from aoe4ov.window import find_game_window
+from reeve.cli import main
+from reeve.window import find_game_window
 
 
 def test_find_game_window_missing_title_returns_none():

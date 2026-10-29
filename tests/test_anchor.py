@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from aoe4ov.anchor import detect, project_rois, to_gray
+from reeve.anchor import detect, project_rois, to_gray
 
 FIX = Path(__file__).parent / "fixtures"
 SHOTS = sorted(FIX.glob("720p_*.png"))
@@ -70,7 +70,7 @@ def test_rejects_non_game_screen():
 
 def test_panel_visible_drops_when_panel_hidden():
     """Menu/pause hide or darken the panel: the cheap check must notice."""
-    from aoe4ov.anchor import panel_visible
+    from reeve.anchor import panel_visible
 
     rgb = np.asarray(Image.open(SHOTS[0]).convert("RGB"))
     m = detect(to_gray(rgb))
@@ -84,8 +84,8 @@ def test_panel_contrast_separates_game_from_menu():
     """Menu/pause draw a veil (dark or bluish) over the panel: the shape
     remains, the mean brightness may even rise, but the contrast always drops.
     Real images from the user's sessions."""
-    from aoe4ov.anchor import panel_state
-    from aoe4ov.glyphs import labeled_fixtures
+    from reeve.anchor import panel_state
+    from reeve.glyphs import labeled_fixtures
 
     for png, _ in labeled_fixtures():
         rgb = np.asarray(Image.open(png).convert("RGB"))

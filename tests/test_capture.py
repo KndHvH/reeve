@@ -1,11 +1,11 @@
 import numpy as np
 from PIL import Image
 
-from aoe4ov.anchor import detect, to_gray
-from aoe4ov.capture import _union_rects
-from aoe4ov.glyphs import labeled_fixtures
-from aoe4ov.reader import _clock_y_hint, read_frame
-from aoe4ov.window import GameWindow
+from reeve.anchor import detect, to_gray
+from reeve.capture import _union_rects
+from reeve.glyphs import labeled_fixtures
+from reeve.reader import _clock_y_hint, read_frame
+from reeve.window import GameWindow
 
 
 def test_roi_only_capture_reads_same_as_full_frame():

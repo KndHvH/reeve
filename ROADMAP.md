@@ -5,14 +5,14 @@ Each milestone ends with a visual validation by the user before work on the next
 ## Architecture direction (hub technology confirmed: pywebview)
 - **Two parts, one Python codebase.** The in-game overlay stays a tiny tkinter window (it is the only part running during a match). A separate **hub** window, opened before or after matches, holds settings, match history, reports and the build editor.
 - **Hub technology: pywebview** (native window rendered by the system WebView2, already present on Windows 11): modern HTML/CSS UI, reuses the report's charts, no bundled browser. Fallback: open the same UI in the default browser if WebView2 is missing. Alternatives considered: plain tkinter (dated for editors/tables), local web UI in the browser (no app window), Tauri (lightest binary, but adds Rust and a sidecar process), Qt/PySide6 (~100 MB of dependencies), Electron (150–300 MB RAM, against the lightweight goal).
-- **User data in `%APPDATA%\aoe4ov`** (config, sessions, custom sounds), separate from the program; a small SQLite index (stdlib) for history search, logs stay JSONL.
+- **User data in `%APPDATA%\reeve`** (config, sessions, custom sounds), separate from the program; a small SQLite index (stdlib) for history search, logs stay JSONL.
 - **Tray icon** to start/stop the overlay and open the hub, so no terminal is needed.
 
 ## v0.1: MVP (build-independent tips)
 
 | # | Deliverable | Validation | Status |
 |---|-------------|------------|--------|
-| M1 | Repository, scaffold, agents, game window detection, `snap` | `aoe4ov window` reports the correct resolution | ✅ |
+| M1 | Repository, scaffold, agents, game window detection, `snap` | `reeve window` reports the correct resolution | ✅ |
 | M2 | Anchor and UI scale detection (multi-scale) | `inspect.html` shows the anchor box on screenshots | ✅ |
 | M3 | Digit reading (resources, villagers per resource, population, clock, idle villagers) and production queue | Per-stage `inspect.html`, labeler, live `watch` and tests | ✅ |
 | M4 | Live overlay: `--debug` view and clean alert mode | Boxes and values drawn over the game in a live match | ✅ |
@@ -25,8 +25,8 @@ Turns the command-line tool into an installable app.
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| A1 | User data directory (`%APPDATA%\aoe4ov`): config, sessions and custom sounds move out of the repository; migration of existing sessions | ✅ |
-| A2 | Tray icon (pystray): overlay on/off, debug view, mute, open last report, open data folder, quit; windowless `aoe4ov-app` entry point | ✅ |
+| A1 | User data directory (`%APPDATA%\reeve`): config, sessions and custom sounds move out of the repository; migration of existing sessions | ✅ |
+| A2 | Tray icon (pystray): overlay on/off, debug view, mute, open last report, open data folder, quit; windowless `reeve-app` entry point | ✅ |
 | A3 | Hub v1 (pywebview, own process from the tray, double-click the icon): match history (newest first, ages, villagers at 10 min, time with each problem) opening each report; settings for alert thresholds, on/off per alert, sound per severity with preview, repeat on/off per severity, repeat interval, volume; saved as overrides and applied to the running overlay within seconds. Per-match `summary.json` instead of a SQLite index for now. Still to come here: alert card style, themes (A9) | ✅ |
 | A4 | Session retention: keep everything 7 days, then only log + report up to 90 days, plus a total size cap; configurable in the hub; runs at startup | ✅ |
 | A5 | Custom sounds from the hub: import any audio/video file into the sound library (the existing `import_sound.py` flow behind a UI) | ✅ |

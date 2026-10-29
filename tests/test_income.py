@@ -1,5 +1,5 @@
-from aoe4ov.income import IncomeTracker
-from aoe4ov.state import RESOURCES, GameState
+from reeve.income import IncomeTracker
+from reeve.state import RESOURCES, GameState
 
 
 def _state(clock, food, vil_food=5):

@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from aoe4ov.glyphs import FIXTURES as FIXTURES_DIR
-from aoe4ov.glyphs import bank_from, labeled_fixtures
-from aoe4ov.reader import _clock_y_hint, clock_seconds, read_frame
+from reeve.glyphs import FIXTURES as FIXTURES_DIR
+from reeve.glyphs import bank_from, labeled_fixtures
+from reeve.reader import _clock_y_hint, clock_seconds, read_frame
 
 FIXTURES = labeled_fixtures()
 IDS = [p.stem for p, _ in FIXTURES]
@@ -69,7 +69,7 @@ def test_clock_seconds(digits, secs):
 @pytest.mark.parametrize("tint", [(1.0, 0.85, 0.2), (1.0, 0.25, 0.2)], ids=["yellow", "red"])
 def test_pop_colored_near_cap(tint):
     """Population turns yellow near the cap and red at the cap."""
-    from aoe4ov.anchor import detect, project_rois, to_gray
+    from reeve.anchor import detect, project_rois, to_gray
 
     png, label = _fixture("720p_0036")
     rgb = _rgb(png).astype(np.float32)
@@ -82,7 +82,7 @@ def test_pop_colored_near_cap(tint):
 
 
 def test_label_validation_rejects_empty_and_malformed():
-    from aoe4ov.label import FIELDS, validate
+    from reeve.label import FIELDS, validate
 
     good = {"clock": "04:12", "pop": "9/10", "idle": "8", "food": "50", "wood": "150", "gold": "100", "stone": "0",
             "vil_food": "0", "vil_wood": "0", "vil_gold": "0", "vil_stone": "0"}
@@ -97,8 +97,8 @@ def test_non_villager_queue_icons_are_not_villagers(name):
     """Military units, technologies and production blocked by housing have
     human figures that scored 0.57–0.63 on shape alone (live session); the
     icon's background color rules them out."""
-    from aoe4ov.anchor import detect, to_gray
-    from aoe4ov.production import detect_villager_in, region
+    from reeve.anchor import detect, to_gray
+    from reeve.production import detect_villager_in, region
 
     rgb = _rgb(FIXTURES_DIR / name)
     m = detect(to_gray(rgb))

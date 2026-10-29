@@ -236,7 +236,7 @@ class LiveReader:
             self.saved_doubts += 1
         # Low-confidence reads are right most of the time but show where the
         # glyph bank lacks samples: keep one image per (field, text) so they
-        # can be labeled (`aoe4ov label`) and become references and tests.
+        # can be labeled (`reeve label`) and become references and tests.
         low = [(n, r.text) for n, r in f.readings.items() if r.ok and r.conf < LOW_CONF]
         new = [k for k in low if k not in self._low_seen]
         if new and len(self._low_seen) < MAX_LOW_SHOTS:

@@ -73,7 +73,7 @@ class Labeler:
         self.i = 0
         self.saved = 0
         self.root = tk.Tk()
-        self.root.title("aoe4ov · labeler")
+        self.root.title("reeve · labeler")
         self.root.configure(bg=BG)
         self.body = tk.Frame(self.root, bg=BG)
         self.body.pack(padx=16, pady=16)

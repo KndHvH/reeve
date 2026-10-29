@@ -1,5 +1,5 @@
 [project]
-name = "aoe4ov"
+name = "reeve"
 version = "0.1.0"
 description = "Lightweight Age of Empires IV overlay: reads the game UI through template matching and provides macro tips."
 authors = [
@@ -15,10 +15,10 @@ dependencies = [
 ]
 
 [project.scripts]
-aoe4ov = "aoe4ov.cli:main"
+reeve = "reeve.cli:main"
 
 [project.gui-scripts]
-aoe4ov-app = "aoe4ov.tray:main"
+reeve-app = "reeve.tray:main"
 
 [dependency-groups]
 dev = ["pytest>=8.3"]

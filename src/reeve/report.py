@@ -396,7 +396,7 @@ footer { color: var(--mist); font-size: 12px; margin-top: 24px; }
     <div class="hint" id="sel-hint">Hover a chart to inspect a moment; click to pin it.</div>
   </aside>
 </div>
-<footer>aoe4-overlay __VERSION__</footer>
+<footer>Reeve __VERSION__</footer>
 </div>
 <script>
 const D = __DATA__;

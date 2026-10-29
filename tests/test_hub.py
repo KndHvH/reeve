@@ -1,7 +1,7 @@
 import json
 
-from aoe4ov import paths
-from aoe4ov.hub import HubApi, diff, match_summaries
+from reeve import paths
+from reeve.hub import HubApi, diff, match_summaries
 
 
 def test_diff_keeps_only_changes():

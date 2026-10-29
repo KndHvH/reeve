@@ -2,7 +2,7 @@
 
 - The library is assets/sounds/library/<name>.wav (import new ones with
   scripts/import_sound.py) plus the user's own sounds, added in the hub
-  (aoe4ov.sound_import). config/rules.json ("sound") picks the sound of
+  (reeve.sound_import). config/rules.json ("sound") picks the sound of
   each severity by name; an empty name keeps that severity silent.
 - A sound plays when an alert appears and when it escalates. Severities
   listed in `repeat` (warn and critical by default) play again every
@@ -63,7 +63,7 @@ def gain(volume) -> float:
 def _scaled_copy(src: Path, factor: float) -> Path:
     """16-bit WAV with its amplitude multiplied by `factor`, cached in the temp folder."""
     stamp = int(src.stat().st_mtime)  # a re-imported sound gets a fresh copy
-    dst = Path(tempfile.gettempdir()) / "aoe4ov_sounds" / f"{src.stem}_{stamp}_g{factor:.4f}.wav"
+    dst = Path(tempfile.gettempdir()) / "reeve_sounds" / f"{src.stem}_{stamp}_g{factor:.4f}.wav"
     if not dst.exists():
         with wave.open(str(src), "rb") as r:
             params, frames = r.getparams(), r.readframes(r.getnframes())
