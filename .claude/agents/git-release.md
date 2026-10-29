@@ -16,7 +16,7 @@ You handle Reeve's git and release work. Prefer the pipelines in `scripts/releas
 | Step | Command | Notes |
 |---|---|---|
 | Where are we | `status` | version in code, last tag, commits since, CI, open release PR |
-| Start a version | `prepare X.Y.Z` | on unstable: bumps `src/reeve/__init__.py`, `pyproject.toml`, `uv.lock`; creates `docs/releases/vX.Y.Z.md` with the commit list as a comment |
+| Start a version | `prepare X.Y.Z` (or `X.Y.Z.N`, a fix to release X.Y.Z) | on unstable: bumps `src/reeve/__init__.py`, `pyproject.toml`, `uv.lock`; creates `docs/releases/vX.Y.Z.md` with the commit list as a comment |
 | Release PR | `pr` | opens or finds the PR unstable -> main, waits for CI |
 | Merge | maintainer | stop and ask: never merge into main yourself |
 | Publish | `publish` | from main: release build (`build.py --release`), tag + GitHub release, then realigns unstable |

@@ -82,8 +82,10 @@ def cmd_status(_args) -> None:
 def cmd_prepare(args) -> None:
     require_clean("unstable")
     new = args.version
-    if not re.fullmatch(r"\d+\.\d+\.\d+", new):
-        sys.exit("version must look like 0.2.3")
+    # X.Y.Z, or X.Y.Z.N for a fix to an existing release (numbers only: they
+    # compare as numbers in update checks and Windows file versions).
+    if not re.fullmatch(r"\d+\.\d+\.\d+(\.\d+)?", new):
+        sys.exit("version must look like 0.2.3 (or 0.2.2.1 for a fix)")
     INIT.write_text(re.sub(r'__version__ = "[^"]+"', f'__version__ = "{new}"', INIT.read_text(encoding="utf-8")),
                     encoding="utf-8")
     PYPROJECT.write_text(re.sub(r'(?m)^version = "[^"]+"', f'version = "{new}"',

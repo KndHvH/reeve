@@ -13,6 +13,7 @@ API = {"tag_name": "v0.3.0", "html_url": "https://github.com/KndHvH/reeve/releas
 def test_versions_compare_as_numbers():
     assert updates.parse_version("v0.10.0") > updates.parse_version("0.9.9")
     assert updates.parse_version("garbage") == (0,)
+    assert updates.parse_version("0.2.2.1") > updates.parse_version("0.2.2") > updates.parse_version("0.2.1.99")
     rel = updates._from_api(API)
     assert updates.newer(rel, "0.2.1") and not updates.newer(rel, "0.3.0") and not updates.newer(None)
 
