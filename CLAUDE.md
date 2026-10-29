@@ -1,6 +1,8 @@
 # Reeve
 
-Reeve (formerly aoe4-overlay / `aoe4ov`) is a macro assistant for AoE4: an overlay that reads the game UI through template matching. See `README.md`, `ROADMAP.md` and `docs/DECISIONS.md`.
+Reeve (formerly aoe4-overlay / `aoe4ov`) is a macro assistant for AoE4: an overlay that reads the game UI through template matching. See `README.md` (for players), `docs/DEVELOPMENT.md`, `ROADMAP.md` and `docs/DECISIONS.md`.
+
+`README.md` is written for players: features, install, data, troubleshooting, in a professional and objective tone, without technical justification. Development detail goes in `docs/DEVELOPMENT.md`.
 
 ## Project rules
 - **Computational cost is a requirement**: no heavy dependencies (torch, OCR, Qt, Electron), no full-screen capture inside the loop, a default loop of one read every 2 s (configurable), and the overlay is redrawn only when state changes. When in doubt, consult the `perf-guardian` agent.
