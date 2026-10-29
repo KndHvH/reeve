@@ -50,7 +50,7 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
 .match .dur span { margin-left: 5px; }
 .match .dur b { font: 600 18px var(--serif); font-variant-numeric: tabular-nums; }
 .ages { display: flex; gap: 14px; flex-wrap: wrap; }
-.ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .ages i { font: normal 600 15px var(--serif); color: var(--gold); margin-right: 4px; }
 .probs { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 .prob { font-size: 12px; padding: 1px 7px; border-radius: 3px; background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -119,7 +119,7 @@ async function showMatches() {
     return `<button class="match" data-session="${m.session}" data-started="${m.started}" title="Open the report">
       <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
-      <div class="ages">${ages || '<span style="color:var(--mist)">age I</span>'}</div>
+      <div class="ages">${ages || '<span><i>I</i></span>'}</div>
       <div class="probs">${probs || '<span class="prob">no problems</span>'}</div></button>`;
   }).join("");
   $("#main").innerHTML = `<h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p>

@@ -35,6 +35,14 @@ Turns the command-line tool into an installable app.
 | A8 | Performance review against the targets (RAM currently ~60 MB vs. 50 MB target) with `perf-guardian` |  |
 | A9 | Themes for the overlay and the report: the current Age-inspired gold theme (default), a neutral dark mode, and community palettes such as Dracula and Kitty; chosen in the hub |  |
 
+## Game data (prerequisite of v0.3)
+Build orders need the whole game catalog, and the match history wants to know who played what.
+
+| # | Deliverable | Status |
+|---|-------------|--------|
+| G1 | Civilization played in each match, shown in the match list and the report. Options to evaluate, cheapest first: read it from the screen (the civilization emblem is visible in the UI, matched like the age numeral); or link the player's AoE4World profile and fetch match metadata (civilization, opponent, map, result) from its public API after the match |  |
+| G2 | Game catalog: civilizations, units, buildings and technologies with costs, times and icons, as versioned data files in the repository. Source to evaluate: AoE4World's open data (JSON plus icons) instead of scraping a wiki; check its license and keep the source and version recorded, as with the sounds |  |
+
 ## v0.3: Execution vs. build order
 Timestamped diff of expected vs. actual villagers and resources, live (overlay alert when behind the build) and in the report.
 
