@@ -22,6 +22,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import catalog
 from .paths import data_dir
 from .state import RESOURCES, GameState
 
@@ -31,10 +32,9 @@ PICTURES = SITE + "/assets/pictures/{path}"
 TOKEN = re.compile(r"@([\w\-./]+?\.(?:webp|png))@")
 BUILD_ID = re.compile(r"^[A-Za-z0-9]{12,40}$")
 SLOTS = RESOURCES + ("builder",)   # villager places in a step, in aoe4guides' order of resources
-# Villager training time at the town center (AoE4World data): 20 s for most
-# civilizations, 19 s for the French; slower ones keep 20 s, since it only
-# bounds the builders estimate from above.
-VILLAGER_S = {"French": 19}
+# Villager training time at the town center comes from the catalog (20 s for
+# most civilizations, 19 s for the French); slower ones keep 20 s, since it
+# only bounds the builders estimate from above.
 VILLAGER_DEFAULT_S = 20
 LATE_START_S = 20   # a first reading after this game time joined the match late
 RALLY = "rally"     # aoe4guides' rally point picture (resource/rally.webp)
@@ -291,6 +291,7 @@ class BuildTracker:
         self.reached_at: int | None = None   # game clock when the current step was reached
         self.clock: int | None = None        # latest game clock
         self.end_after_s = 30                # the last step stays this long, then the build is over
+        self.villager_s = min(catalog.villager_s(build.civ, VILLAGER_DEFAULT_S), VILLAGER_DEFAULT_S)
 
     def _production(self, s: GameState) -> None:
         if s.clock is not None and self._clock is not None and s.producing_villager:
@@ -317,7 +318,7 @@ class BuildTracker:
         self.base = hidden if self.base is None else min(self.base, hidden)
         # Rounded: production is confirmed over two readings, so each villager is
         # seen a few seconds short.
-        can_exist = self.start + round(self.producing_s / VILLAGER_S.get(self.build.civ, VILLAGER_DEFAULT_S))
+        can_exist = self.start + round(self.producing_s / self.villager_s)
         self.builders = max(0, min(hidden - self.base, can_exist - seen))
         return seen + self.builders
 

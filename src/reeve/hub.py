@@ -16,6 +16,7 @@ import os
 import threading
 from pathlib import Path
 
+from . import catalog
 from .paths import (DEFAULT_CONFIG, ROOT, data_dir, diff, load_config, save_overrides, sessions_dir,
                     set_setting, user_config_path, user_sounds_dir)
 
@@ -31,17 +32,27 @@ def match_summaries() -> list[dict]:
     for s in sorted((p for p in sessions_dir().iterdir() if (p / "log.jsonl").exists()), reverse=True):
         summary, log = s / "summary.json", s / "log.jsonl"
         try:
+            digest = None
             if summary.exists() and summary.stat().st_mtime >= log.stat().st_mtime:
                 digest = json.loads(summary.read_text(encoding="utf-8"))
-            else:
+            if digest is None or "civ" not in digest:   # missing, stale, or written before the civilization was
                 digest = write_summary(s)
         except Exception:  # a broken log must not hide the others
             continue
         if not digest.get("duration"):   # no game time read: not a match
             continue
         digest["has_report"] = (s / "report.html").exists()
+        digest["flag"] = _flag(digest.get("civ"))
         out.append(digest)
     return out
+
+
+def _flag(civ: str | None) -> str | None:
+    """A civilization's flag, as the page names it: assets/flags/<abbr>.png."""
+    from .catalog import flag_file
+
+    f = flag_file(civ)
+    return f.stem if f else None
 
 
 def _code_mtime(module) -> float:
@@ -246,7 +257,7 @@ class HubApi:
         from . import builds
 
         bo = load_config().get("build_order") or {}
-        return {"builds": [b.summary() for b in builds.stored()], "active": bo.get("active"),
+        return {"builds": [b.summary() | {"flag": _flag(b.civ)} for b in builds.stored()], "active": bo.get("active"),
                 "show": bo.get("show", True), "auto_update": bo.get("auto_update", True),
                 "previous_s": bo.get("previous_s", 10), "next_after_s": bo.get("next_after_s", 10),
                 "end_after_s": bo.get("end_after_s", 30)}
@@ -262,6 +273,7 @@ class HubApi:
             return {"error": str(e)}
         if not (load_config().get("build_order") or {}).get("active"):
             self.set_setting("build_order", "active", b.id)
+            catalog.ensure_in_background(b.civ)
         return {"imported": b.summary(), **self.builds()}
 
     def update_build(self, build_id: str) -> dict:
@@ -280,6 +292,7 @@ class HubApi:
 
     def use_build(self, build_id: str | None) -> dict:
         self.set_setting("build_order", "active", build_id)
+        catalog.ensure_active()   # the civilization's units and icons, if not stored yet
         return self.builds()
 
     def delete_build(self, build_id: str) -> dict:

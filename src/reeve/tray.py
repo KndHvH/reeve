@@ -183,15 +183,18 @@ class TrayApp:
 
     def _refresh_builds(self):
         """Background, once at start: build orders their author changed on
-        aoe4guides.com are updated (the next match uses the new version)."""
-        from . import builds
+        aoe4guides.com are updated (the next match uses the new version), and
+        the catalog of the build in use is downloaded if it is missing."""
+        from . import builds, catalog
         from .paths import load_config
 
         try:
-            if not (load_config().get("build_order") or {}).get("auto_update", True):
-                return
-            for b in builds.refresh():
-                self._notify(f"Build updated: {b.name}", "Its author changed it on aoe4guides.com. Your next match uses the new version.")
+            if (load_config().get("build_order") or {}).get("auto_update", True):
+                for b in builds.refresh():
+                    self._notify(f"Build updated: {b.name}", "Its author changed it on aoe4guides.com. Your next match uses the new version.")
+            active = builds.load((load_config().get("build_order") or {}).get("active"))
+            if active is not None:
+                catalog.ensure(active.civ)
         except Exception:   # never let this disturb the overlay
             pass
 

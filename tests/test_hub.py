@@ -166,3 +166,32 @@ def test_update_build_imports_it_again_from_its_link(monkeypatch):
         assert len(builds.load("hXttcVQcMxTniZjgS79s").steps) == 3
     finally:
         builds.delete("hXttcVQcMxTniZjgS79s")
+
+
+def test_builds_and_matches_carry_the_civilizations_flag():
+    import json
+    from pathlib import Path
+
+    from reeve import builds
+    from reeve.hub import HubApi
+
+    raw = json.loads((Path(__file__).parent / "fixtures" / "builds" / "mali.json").read_text(encoding="utf-8"))
+    builds.import_build(json.dumps(raw), get=lambda url: b"")
+    try:
+        assert [b["flag"] for b in HubApi().builds()["builds"]] == ["ma"]
+    finally:
+        builds.delete("hXttcVQcMxTniZjgS79s")
+    _session("20260101-100000")
+    assert match_summaries()[0]["flag"] is None   # no build followed: no civilization
+
+
+def test_summaries_written_before_the_civilization_are_rebuilt():
+    import json
+
+    _session("20260101-100000")
+    match_summaries()
+    summary = paths.sessions_dir() / "20260101-100000" / "summary.json"
+    old = json.loads(summary.read_text(encoding="utf-8"))
+    del old["civ"]
+    summary.write_text(json.dumps(old), encoding="utf-8")
+    assert "civ" in match_summaries()[0]

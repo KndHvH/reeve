@@ -250,7 +250,7 @@ class LiveReader:
         b = self.rules.build
         if b is not None and (b.build.id, b.index) != self._build_step:
             self._build_step = (b.build.id, b.index)
-            self._write({"event": "build_step", "build": b.build.id, "name": b.build.name,
+            self._write({"event": "build_step", "build": b.build.id, "name": b.build.name, "civ": b.build.civ,
                          "step": b.index + 1, "of": len(b.build.steps), "clock": state.clock})
         for tr in transitions:
             a = tr.alert

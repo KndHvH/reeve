@@ -65,7 +65,7 @@ def test_report_follows_the_build_the_match_followed(tmp_path):
     (builds.builds_dir() / "hXttcVQcMxTniZjgS79s.json").write_text(mali.read_text(encoding="utf-8"), encoding="utf-8")
     try:
         tl = build_timeline(_with_build_step(_log(tmp_path)) / "log.jsonl")
-        assert tl["build"] == {"id": "hXttcVQcMxTniZjgS79s", "name": "Mali"}
+        assert tl["build"] == {"id": "hXttcVQcMxTniZjgS79s", "name": "Mali", "civ": "Malians"}   # civ: the stored build's
         off = [a for a in tl["alerts"] if a["id"] == "build"]
         assert off and off[0]["text"].startswith("Move")         # everyone on food; the build wants wood
         assert any(p["id"] == "build" and p["seconds"] > 0 for p in summarize(tl)["problems"])
@@ -81,3 +81,23 @@ def test_report_ignores_the_build_in_use_now_for_a_match_without_one(tmp_path):
     assert tl["build"] is None
     assert not any(a["id"] == "build" for a in tl["alerts"])
     assert all(p["id"] != "build" for p in summarize(tl)["problems"])
+
+
+def test_the_match_civilization_is_the_followed_builds(tmp_path):
+    session = _with_build_step(_log(tmp_path))
+    log = session / "log.jsonl"
+    log.write_text(log.read_text(encoding="utf-8").replace('"name": "Mali",', '"name": "Mali", "civ": "Malians",', 1),
+                   encoding="utf-8")
+    out = write_report(session)
+    digest = json.loads((session / "summary.json").read_text(encoding="utf-8"))
+    assert (digest["civ"], digest["build"]) == ("Malians", "Mali")
+    text = out.read_text(encoding="utf-8")
+    assert "<p class='civ'><img src='data:image/png;base64," in text and "<b>Malians</b>" in text
+
+
+def test_a_match_without_a_build_has_no_civilization(tmp_path):
+    session = _log(tmp_path)
+    write_report(session)
+    digest = json.loads((session / "summary.json").read_text(encoding="utf-8"))
+    assert digest["civ"] is None and digest["build"] is None
+    assert "class='civ'" not in (session / "report.html").read_text(encoding="utf-8")

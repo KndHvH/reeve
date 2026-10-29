@@ -35,10 +35,12 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - Above the steps, the rally point icon and where the build puts it (sheep, wood, gold...), taken from the step's notes.
 - 30 seconds after the last step, the build leaves the screen and its alerts stop.
 - The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
+- Every civilization is supported. The first time you use a build of a civilization, Reeve downloads that civilization's units, buildings and technologies with their icons from AoE4World.
 
 ### Match reports
 When a match ends, Reeve writes its report:
 
+- the civilization you played and the build you followed, when the match followed one
 - villagers at 5, 10 and 15 minutes, when each age was reached and when its landmark started
 - total time with each alert, and average income per resource
 - charts over the match: villagers per resource, income per minute, stockpiles and population, with the alerts on a timeline
@@ -49,8 +51,8 @@ When a match ends, Reeve writes its report:
 ### The hub
 Double-click the tray icon to open the hub:
 
-- **Matches**: every recorded match, newest first, with the ages reached and the alerts of each. Open one to see its report, or select matches to delete them.
-- **Builds**: import build orders from aoe4guides.com, choose the one in use, and turn the build panel on or off.
+- **Matches**: every recorded match, newest first, with the civilization's flag when the match followed a build, the ages reached and the alerts of each. Open one to see its report, or select matches to delete them.
+- **Builds**: import build orders from aoe4guides.com, each with its civilization's flag, choose the one in use, and turn the build panel on or off.
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
 - **Appearance**: four themes for the hub, the reports and the alert cards (Age, Dark, Dracula and Kitty), with square or rounded corners. The alert cards show in your clips, recordings and streams; this can be turned off.
@@ -78,7 +80,7 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); nothing about you or your matches is sent.
+Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); and to download a civilization's units, buildings, technologies and icons from AoE4World the first time you use a build of that civilization. Nothing about you or your matches is sent.
 
 ## Updates
 When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.

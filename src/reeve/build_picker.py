@@ -144,9 +144,11 @@ class BuildPicker:
         if i == 0:
             self.open = not self.open
         else:
+            from .catalog import ensure_active
             from .paths import set_setting
 
             set_setting("build_order", "active", self._rows[i][2])
+            ensure_active()   # the civilization's units and icons, in the background
             builds, _, *rest = self._args
             self._args = (builds, self._rows[i][2], *rest)
             self.open = False

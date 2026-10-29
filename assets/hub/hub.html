@@ -47,6 +47,7 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
   align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--rule); cursor: pointer; }
 .match:hover, .match:focus-visible { background: var(--panel); outline: none; }
 .match .when b { display: block; font-family: var(--serif); font-size: 16px; }
+.flag { height: 14px; vertical-align: -1px; margin-right: 7px; border-radius: 2px; box-shadow: 0 0 0 1px var(--accent-dim); }
 .match .when span, .match .dur span { color: var(--mist); font-size: 12px; }
 .match .dur span { margin-left: 5px; }
 .match .dur b { font: 600 18px var(--serif); font-variant-numeric: tabular-nums; }
@@ -234,6 +235,9 @@ function navTo(page) {
   page === "matches" ? showMatches() : page === "builds" ? showBuilds() : showSettings();
 }
 
+// A civilization's flag (assets/flags); matches have one when they followed a build.
+const flagImg = (abbr, civ) => abbr ? `<img class="flag" src="../flags/${abbr}.png" alt="${esc(civ || "")}" title="${esc(civ || "")}">` : "";
+
 async function showMatches() {
   const list = await api().matches();
   // The Build column only once some match followed a build order.
@@ -252,7 +256,7 @@ async function showMatches() {
     return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
       ${selecting ? `aria-pressed="${on}" title="Select"` : 'title="Open the report"'}>
       ${selecting ? `<span class="tick" aria-hidden="true"></span>` : ""}
-      <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
+      <div class="when"><b>${flagImg(m.flag, m.civ)}${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
       <div class="probs${cols.length > 4 ? " five" : ""}">${probs || '<span class="prob clean">no alerts</span>'}</div></button>`;
@@ -315,7 +319,7 @@ async function showBuilds() {
   const r = await api().builds();
   const list = r.builds.map(b => {
     const on = b.id === r.active;
-    return `<div class="bo${on ? " active" : ""}"><div><b>${esc(b.name)}</b><small>${esc(b.civ || "Any civilization")}${b.author ? " · by " + esc(b.author) : ""} · ${b.steps} steps</small></div>
+    return `<div class="bo${on ? " active" : ""}"><div><b>${flagImg(b.flag, b.civ)}${esc(b.name)}</b><small>${esc(b.civ || "Any civilization")}${b.author ? " · by " + esc(b.author) : ""} · ${b.steps} steps</small></div>
       <div class="acts">${on ? '<span class="using">In use</span>' : `<button type="button" data-use="${b.id}">Use this build</button>`}
         ${b.source ? `<button type="button" data-upd="${b.id}" title="Get the latest version from aoe4guides.com">Update</button>
           <button type="button" data-src="${esc(b.source)}">Open on aoe4guides</button>` : ""}

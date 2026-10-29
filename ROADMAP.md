@@ -54,15 +54,15 @@ Build orders need the whole game catalog, and the match history wants to know wh
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| G1 | Civilization played in each match, shown in the match list and the report. Options to evaluate, cheapest first: read it from the screen (the civilization emblem is visible in the UI, matched like the age numeral); or link the player's AoE4World profile and fetch match metadata (civilization, opponent, map, result) from its public API after the match |  |
-| G2 | Game catalog: civilizations, units, buildings and technologies with costs, times and icons, as versioned data files in the repository. Source to evaluate: AoE4World's open data (JSON plus icons) instead of scraping a wiki; check its license and keep the source and version recorded, as with the sounds |  |
+| G1 | Civilization played in each match, shown in the match list and the report: the civilization of the build order the match followed, with its flag (none without a build). Reading it from the screen, or the player's AoE4World profile (opponent, map, result), stay options for matches without a build | ✅ (from the build) |
+| G2 | Game catalog: civilizations, units, buildings and technologies with costs, times and icons, as versioned data files in the repository. Source to evaluate: AoE4World's open data (JSON plus icons) instead of scraping a wiki; check its license and keep the source and version recorded, as with the sounds | ✅ civilizations and flags bundled; each civilization's units, buildings, technologies and icons downloaded when a build of it is first used |
 
 ## v0.3: Execution vs. build order
 Timestamped diff of expected vs. actual villagers and resources, live (overlay alert when behind the build) and in the report.
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| B1 | Build panel: import a build from aoe4guides.com (link or JSON, icons stored locally); on the right of the screen the previous, current and next step (age, planned time, villagers and their five places, notes with the site's icons); a step is reached by villager count and age; panel size and a live preview in the hub; "Move/Put villagers" warning when the villagers are not where the step puts them; the build's alerts on the report's timeline | Validation |
+| B1 | Build panel: import a build from aoe4guides.com (link or JSON, icons stored locally); on the right of the screen the previous, current and next step (age, planned time, villagers and their five places, notes with the site's icons); a step is reached by villager count and age; panel size and a live preview in the hub; "Move/Put villagers" warning when the villagers are not where the step puts them; the build's alerts on the report's timeline | ✅ |
 
 ## v0.4: Build orders in the hub
 Import (aoe4guides or a native JSON format), create and edit build orders in the hub.
