@@ -130,7 +130,14 @@ def install(installer: Path) -> None:
     """Runs the installer once Reeve has exited: a command shell waits a few
     seconds (Reeve quits right after calling this), then starts it silently.
     The installer also waits for Reeve's mutex before replacing files."""
-    args = "/SILENT /SUPPRESSMSGBOXES /NORESTART /RELAUNCH=1"
-    cmd = f'ping -n 4 127.0.0.1 >nul & start "" "{installer}" {args}'
-    subprocess.Popen(["cmd.exe", "/c", cmd], creationflags=subprocess.CREATE_NO_WINDOW,
+    subprocess.Popen(install_command(installer), creationflags=subprocess.CREATE_NO_WINDOW,
                      close_fds=True, cwd=os.environ.get("TEMP", tempfile.gettempdir()))
+
+
+def install_command(installer: Path) -> str:
+    """The command line as one string: given a list, Popen would escape the
+    inner quotes as \\" (C runtime rules), which cmd.exe does not understand,
+    and `start` would get a broken path. /s makes cmd strip exactly the outer
+    pair of quotes and run the rest as written."""
+    args = "/SILENT /SUPPRESSMSGBOXES /NORESTART /RELAUNCH=1"
+    return f'cmd.exe /s /c "ping -n 4 127.0.0.1 >nul & start "" "{installer}" {args}"'

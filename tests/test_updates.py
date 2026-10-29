@@ -51,3 +51,25 @@ def test_download_is_verified(tmp_path):
         updates.download(updates.Release("9.9.8", "page", src.as_uri(), 3, "00" * 32))
     with pytest.raises(ValueError, match="incomplete"):
         updates.download(updates.Release("9.9.7", "page", src.as_uri(), 4, None))
+
+
+@pytest.mark.skipif(not hasattr(__import__("subprocess"), "CREATE_NO_WINDOW"), reason="Windows only")
+def test_install_command_starts_the_installer_through_cmd(tmp_path):
+    # A stand-in installer in a folder with spaces, run through the real cmd.exe
+    # line: it must receive the path intact and the silent arguments.
+    import subprocess
+    import time
+
+    folder = tmp_path / "Temp dir"
+    folder.mkdir()
+    out = folder / "ran.txt"
+    fake = folder / "Reeve-0.3.0-setup.cmd"
+    fake.write_text(f'@echo %* > "{out}"\r\n', encoding="ascii")
+    line = updates.install_command(fake)
+    assert '\\"' not in line
+    subprocess.run(line, creationflags=subprocess.CREATE_NO_WINDOW, check=True, timeout=30)
+    for _ in range(50):
+        if out.exists() and out.read_text().strip():
+            break
+        time.sleep(0.1)
+    assert "/SILENT" in out.read_text() and "/RELAUNCH=1" in out.read_text()
