@@ -54,3 +54,6 @@ The built-in sounds live in `assets/sounds/library/`; `scripts/import_sound.py <
 
 ## Income estimate
 Income is the sum of the stockpile's increases over the last 60 s of game time, per minute, after a median-of-3 filter against single misreads. Spending is ignored, so a drop-off read together with a purchase is partly hidden and the estimate leans slightly low. Income per villager divides by the villagers on that resource.
+
+## README screenshots
+`docs/screenshots/` holds the hub and report captures used in the README, taken from real matches with the default settings (a copy of the sessions in a temporary `REEVE_HOME`, so the user's settings do not show). Retake them when the UI changes noticeably.

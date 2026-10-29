@@ -82,3 +82,13 @@ def test_report_written_when_reading_stops(monkeypatch, tmp_path):
     for _ in range(3):
         reader.step(); clock["t"] += 2
     assert (session / "report.html").exists()       # >= 10 s without reading
+
+
+def test_session_without_readings_is_discarded(tmp_path):
+    """The panel was seen for a moment (menu, alt-tab) but no frame was read:
+    no match folder is left behind."""
+    reader = live.LiveReader(2.0, sessions_dir=tmp_path)
+    reader._open_session([])
+    reader._write({"event": "panel_hidden"})
+    reader.close()
+    assert list(tmp_path.iterdir()) == []

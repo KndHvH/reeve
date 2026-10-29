@@ -128,3 +128,11 @@ def test_code_mtime_falls_back_when_the_source_is_not_on_disk():
 
     assert _code_mtime(report) > 0
     assert _code_mtime(types.SimpleNamespace(__file__="Z:/nowhere/report.pyc")) == 0.0
+
+
+def test_sessions_without_game_time_are_not_listed():
+    _session("20260101-100000")
+    empty = paths.sessions_dir() / "20260104-100000"
+    empty.mkdir()
+    (empty / "log.jsonl").write_text('{"wall": "10:00:00", "event": "panel_hidden"}\n', encoding="utf-8")
+    assert [m["session"] for m in match_summaries()] == ["20260101-100000"]

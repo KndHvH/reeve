@@ -4,7 +4,9 @@ A macro assistant for **Age of Empires IV**. Reeve watches your economy while yo
 
 It reads only what the game shows on screen: no game files, no memory reading, nothing that touches the game itself.
 
-<!-- Screenshots: overlay alerts in game, the match report, the hub. -->
+![A match report in the Reeve hub](docs/screenshots/hub-report.png)
+
+<!-- Screenshot to add: alert cards over the game (docs/screenshots/overlay.png). -->
 
 ## Features
 
@@ -28,12 +30,18 @@ When a match ends, Reeve writes its report:
 - charts over the match: villagers per resource, income per minute, stockpiles and population, with the alerts on a timeline
 - click any moment to see everything that was on screen then
 
+![Report charts with a moment selected](docs/screenshots/report-charts.png)
+
 ### The hub
 Double-click the tray icon to open the hub:
 
 - **Matches**: every recorded match, newest first, with the ages reached and the alerts of each. Open one to see its report.
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
+
+| Matches | Settings |
+|---|---|
+| ![Match history](docs/screenshots/hub-matches.png) | ![Settings](docs/screenshots/hub-settings.png) |
 
 ### Tray menu
 Turn the overlay on or off, mute the sounds, open the hub, the last report or the data folder, and quit.

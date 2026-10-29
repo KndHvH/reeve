@@ -51,6 +51,8 @@ def match_summaries() -> list[dict]:
                 digest = write_summary(s)
         except Exception:  # a broken log must not hide the others
             continue
+        if not digest.get("duration"):   # no game time read: not a match
+            continue
         digest["has_report"] = (s / "report.html").exists()
         out.append(digest)
     return out

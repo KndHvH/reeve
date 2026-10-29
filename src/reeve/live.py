@@ -11,6 +11,7 @@ the result.
 from __future__ import annotations
 
 import json
+import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -103,6 +104,9 @@ class LiveReader:
                 events.append(f"log saved to {self.session}")
             if self.readings and not self._report_fresh:
                 self._report(events)
+            elif not self.readings:
+                # The panel showed up for a moment and no match was read: not a match.
+                shutil.rmtree(self.session, ignore_errors=True)
         self.session, self.log = None, None
 
     def _report(self, events: list[str] | None) -> None:
