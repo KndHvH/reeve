@@ -56,3 +56,13 @@ def test_broken_log_does_not_hide_other_matches():
     broken.mkdir()
     (broken / "log.jsonl").write_text("not json\n", encoding="utf-8")
     assert [m["session"] for m in match_summaries()] == ["20260101-100000"]
+
+
+def test_report_url_builds_the_report_once():
+    folder = _session("20260101-100000")
+    url = HubApi().report_url("20260101-100000")
+    report = folder / "report.html"
+    assert url == report.as_uri() and report.exists()
+    stamp = report.stat().st_mtime
+    HubApi().report_url("20260101-100000")
+    assert report.stat().st_mtime == stamp   # fresh report is reused

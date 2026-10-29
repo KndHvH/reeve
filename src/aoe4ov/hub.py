@@ -69,17 +69,19 @@ class HubApi:
     def matches(self) -> list[dict]:
         return match_summaries()
 
-    def open_report(self, session: str) -> bool:
-        import webview
-
+    def report_url(self, session: str) -> str:
+        """The report's file URL, shown inside the hub; rebuilt when the log is newer."""
         from .report import write_report
 
         folder = sessions_dir() / session
         report = folder / "report.html"
         if not report.exists() or report.stat().st_mtime < (folder / "log.jsonl").stat().st_mtime:
             report = write_report(folder)
-        webview.create_window(f"Match report – {session}", report.as_uri(), width=1280, height=900,
-                              background_color="#0e1319")
+        return report.as_uri()
+
+    def open_report_external(self, session: str) -> bool:
+        """The same file in the default browser, e.g. to share or print it."""
+        os.startfile(sessions_dir() / session / "report.html")
         return True
 
     def settings(self) -> dict:

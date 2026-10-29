@@ -27,6 +27,16 @@ nav button:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px;
 nav .foot { margin-top: auto; padding: 0 20px; color: var(--mist); font-size: 12px; }
 nav .foot a { color: var(--mist); cursor: pointer; text-decoration: underline; }
 main { padding: 26px 30px 60px; max-width: 980px; }
+main.report { max-width: none; padding: 0; height: 100vh; display: flex; flex-direction: column; }
+
+/* Report view: the match's report.html in a frame, under a slim bar */
+.bar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--gold-dim); }
+.bar button { all: unset; cursor: pointer; color: var(--gold-light); font: 15px var(--serif); padding: 3px 8px; border-radius: 3px; }
+.bar button:hover { background: var(--panel); }
+.bar button:focus-visible { outline: 2px solid var(--gold); }
+.bar .title { color: var(--ink-2); }
+.bar .ext { margin-left: auto; color: var(--mist); font: 13px var(--sans); }
+main.report iframe { flex: 1; width: 100%; border: 0; background: var(--night); }
 h2 { font: 600 24px/1.2 var(--serif); color: var(--gold-light); margin: 0 0 4px; }
 .lede { color: var(--mist); margin: 0 0 20px; }
 h3 { font: 600 17px/1.2 var(--serif); color: var(--gold); margin: 0 0 12px; }
@@ -88,6 +98,7 @@ let current = "matches";
 
 function navTo(page) {
   current = page;
+  $("#main").className = "";
   for (const [id, name] of [["#nav-matches", "matches"], ["#nav-settings", "settings"]]) {
     if (name === page) $(id).setAttribute("aria-current", "page"); else $(id).removeAttribute("aria-current");
   }
@@ -102,7 +113,7 @@ async function showMatches() {
     const probs = Object.entries(m.problems || {}).filter(([, p]) => p.seconds > 0)
       .map(([id, p]) => `<span class="prob ${p.severity || ""}" title="${PROB[id]}">${PROB[id]} ${fmt(p.seconds)}</span>`).join("");
     const vil = m.villagers_at || {};
-    return `<button class="match" data-session="${m.session}" title="Open the report">
+    return `<button class="match" data-session="${m.session}" data-started="${m.started}" title="Open the report">
       <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span style="color:var(--mist)">age I</span>'}</div>
@@ -110,7 +121,18 @@ async function showMatches() {
   }).join("");
   $("#main").innerHTML = `<h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p>
     ${rows || '<p class="empty">No matches yet. Play a match with the overlay on and it will show up here.</p>'}`;
-  document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => api().open_report(b.dataset.session)));
+  document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => showReport(b.dataset.session, b.dataset.started)));
+}
+
+async function showReport(session, started) {
+  const main = $("#main");
+  main.className = "report";
+  main.innerHTML = `<div class="bar"><button id="back">← Matches</button><span class="title">Match of ${started}</span>
+    <button class="ext" id="ext">Open in browser</button></div><p class="lede" style="padding:20px">Building the report…</p>`;
+  $("#back").addEventListener("click", () => navTo("matches"));
+  $("#ext").addEventListener("click", () => api().open_report_external(session));
+  const url = await api().report_url(session);
+  main.querySelector(".lede").outerHTML = `<iframe src="${url}" title="Match report"></iframe>`;
 }
 
 // Settings form: each field maps to a path in the config.
