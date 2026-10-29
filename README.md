@@ -5,9 +5,9 @@ A macro assistant for **Age of Empires IV**. Reeve watches your economy while yo
 
 It reads only what the game shows on screen: no game files, no memory reading, nothing that touches the game itself.
 
-![A match report in the Reeve hub](docs/screenshots/hub-report.png)
+<!-- Demo video (alert cards over the game): GitHub user-attachments link goes here. -->
 
-<!-- Screenshot to add: alert cards over the game (docs/screenshots/overlay.png). -->
+![A match report in the Reeve hub](docs/screenshots/hub-report.png)
 
 ## Features
 
