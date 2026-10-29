@@ -112,3 +112,24 @@ def test_two_digit_villager_counts():
     f = read_frame(_rgb(FIXTURES_DIR / "vil_two_digits.png"))
     got = {k: f.values[k] for k in ("idle", "vil_food", "vil_wood", "vil_gold", "vil_stone")}
     assert got == {"idle": 34, "vil_food": 23, "vil_wood": 13, "vil_gold": 2, "vil_stone": 0}
+
+
+def test_unchanged_fields_reuse_their_reading_and_changed_ones_are_read_again():
+    import numpy as np
+    from PIL import Image
+
+    from reeve import reader
+    from reeve.glyphs import FIXTURES
+
+    a = np.asarray(Image.open(FIXTURES / "720p_0217.png").convert("RGB")).copy()
+    first = reader.read_frame(a)
+    again = reader.read_frame(a, first.match)
+    assert again.values == first.values
+    assert again.readings["food"] is first.readings["food"]          # not read again
+    x, y, w, h = first.rois["food"]
+    b = a.copy()
+    b[y:y + h, x:x + w] = 0                                          # the food number is gone
+    changed = reader.read_frame(b, first.match)
+    assert changed.readings["food"] is not first.readings["food"]
+    assert changed.values["food"] is None
+    assert changed.values["wood"] == first.values["wood"]

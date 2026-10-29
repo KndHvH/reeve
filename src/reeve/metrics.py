@@ -20,6 +20,7 @@ class _MemCounters(ctypes.Structure):
         ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
         ("PagefileUsage", ctypes.c_size_t),
         ("PeakPagefileUsage", ctypes.c_size_t),
+        ("PrivateUsage", ctypes.c_size_t),   # PROCESS_MEMORY_COUNTERS_EX
     ]
 
 
@@ -30,12 +31,23 @@ _kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintype
 _psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(_MemCounters), wintypes.DWORD]
 
 
-def ram_mb() -> float:
-    """Process working set, in MB."""
+def _counters() -> _MemCounters:
     c = _MemCounters()
     c.cb = ctypes.sizeof(c)
     _psapi.GetProcessMemoryInfo(_kernel32.GetCurrentProcess(), ctypes.byref(c), c.cb)
-    return c.WorkingSetSize / 2**20
+    return c
+
+
+def ram_mb() -> float:
+    """Memory that belongs to Reeve alone (private bytes), in MB: close to what
+    Task Manager shows. The working set is larger because it also counts the
+    pages of system DLLs shared with other processes."""
+    return _counters().PrivateUsage / 2**20
+
+
+def working_set_mb() -> float:
+    """Process working set, shared DLL pages included, in MB."""
+    return _counters().WorkingSetSize / 2**20
 
 
 def _cpu_seconds() -> float:

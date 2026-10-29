@@ -21,6 +21,17 @@ from .production import region as production_region
 COLORED_FIELDS = {"pop"}  # yellow near the cap, red at the cap
 PANEL_FIELDS = ["pop", "idle", "food", "wood", "gold", "stone", "vil_food", "vil_wood", "vil_gold", "vil_stone"]
 
+# Live, most fields look the same from one reading to the next (villager
+# counts, population, the age numeral). Identical pixels always give the same
+# reading, so a field whose pixels did not change is not read again.
+_unchanged: dict[str, tuple[int, object]] = {}   # field -> (hash of its pixels, result)
+
+
+def _same_pixels(name: str, pixels: np.ndarray, *context) -> tuple[int, object | None]:
+    key = hash((pixels.shape, pixels.tobytes(), context))
+    hit = _unchanged.get(name)
+    return key, (hit[1] if hit is not None and hit[0] == key else None)
+
 
 @dataclass
 class Frame:
@@ -112,24 +123,49 @@ def read_clock(rgb: np.ndarray, scale: float, bank: GlyphBank | None = None) -> 
     return c[3]
 
 
+def _age_rect(match: AnchorMatch, width: int) -> tuple[int, int, int, int]:
+    """Everything the age reader looks at: numeral, age-up bar and builders."""
+    from .anchor import load_layout
+
+    cfg = load_layout()["age_region"]
+    specs = [cfg[k] for k in ("rect", "numeral_window", "bar", "builders")]
+    x0, y0 = min(x for x, _, _, _ in specs), min(y for _, y, _, _ in specs)
+    x1, y1 = max(x + w for x, _, w, _ in specs), max(y + h for _, y, _, h in specs)
+    s = match.scale
+    left, top = max(0, round(width / 2 + x0 * s)), max(0, round(y0 * s))
+    return left, top, round(width / 2 + x1 * s) - left + 1, round(y1 * s) - top + 1
+
+
 def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None) -> Frame:
     """`rgb`: the whole game area. With a known `match`, detection is skipped."""
     match = match or detect(to_gray(rgb))
     rois = project_rois(match, rgb.shape[1])
     f = Frame(match, rois)
     px, py, pw, ph = production_region(match, rgb.shape)
-    f.production = detect_villager_in(rgb[py:py + ph, px:px + pw], (px, py), match)
+    queue = rgb[py:py + ph, px:px + pw]
+    key, f.production = _same_pixels("production", queue, (px, py), match.scale)
+    if f.production is None:
+        f.production = detect_villager_in(queue, (px, py), match)
+        _unchanged["production"] = (key, f.production)
     f.values["producing_villager"] = f.production.villager
-    f.age = read_age(rgb, match, rgb.shape[1])
+    ax, ay, aw, ah = _age_rect(match, rgb.shape[1])
+    key, f.age = _same_pixels("age", rgb[ay:ay + ah, ax:ax + aw], match.scale)
+    if f.age is None:
+        f.age = read_age(rgb, match, rgb.shape[1])
+        _unchanged["age"] = (key, f.age)
     f.values.update(age=f.age.age, ageup_progress=f.age.progress, ageup_builders=f.age.builders)
     for name, (x, y, w, h) in rois.items():
         crop = rgb[y:y + h, x:x + w]
-        if name == "clock":
+        if name == "clock":   # changes every reading, and keeps its own band hint
             r = read_clock(crop, match.scale, bank)
-        elif name in COLORED_FIELDS:
-            r = read(crop, match.scale, bank, pre=text_mask(crop, colored=True))
         else:
-            r = read(crop, match.scale, bank)
+            key, r = _same_pixels(name, crop, match.scale, id(bank))
+            if r is None:
+                if name in COLORED_FIELDS:
+                    r = read(crop, match.scale, bank, pre=text_mask(crop, colored=True))
+                else:
+                    r = read(crop, match.scale, bank)
+                _unchanged[name] = (key, r)
         f.readings[name] = r
         f.values[name] = parse(name, r.text) if r.ok else None
     return f

@@ -67,17 +67,35 @@ def to_gray(rgb: np.ndarray) -> np.ndarray:
     return rgb[..., :3].astype(np.float32).mean(axis=2)
 
 
+def _fast_len(n: int) -> int:
+    """Smallest size >= n with no prime factor above 5. FFT time depends on
+    the size's factors: a prime size such as 211 runs ~6x slower than 216."""
+    best = 2 * n
+    p5 = 1
+    while p5 < best:
+        p35 = p5
+        while p35 < best:
+            p = p35
+            while p < n:
+                p *= 2
+            best = min(best, p)
+            p35 *= 3
+        p5 *= 5
+    return best
+
+
 class _Matcher:
     """NCC ('valid' mode) of several templates against the same image.
 
     The image FFT and the integral images are computed only once; each scale
-    costs just the template FFT and one inverse FFT.
+    costs just the template FFT and one inverse FFT. The FFT size is padded to
+    a fast length (any size >= image + template gives the same correlation).
     """
 
     def __init__(self, image: np.ndarray, max_tmpl: tuple[int, int]):
         self.image = image
         ih, iw = image.shape
-        self.shape = (ih + max_tmpl[0], iw + max_tmpl[1])
+        self.shape = (_fast_len(ih + max_tmpl[0]), _fast_len(iw + max_tmpl[1]))
         self.F = np.fft.rfft2(image, self.shape)
         self.S1 = np.pad(image.cumsum(0).cumsum(1), ((1, 0), (1, 0)))
         self.S2 = np.pad((image * image).cumsum(0).cumsum(1), ((1, 0), (1, 0)))

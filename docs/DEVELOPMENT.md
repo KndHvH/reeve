@@ -2,7 +2,7 @@
 
 Reeve reads the game's UI from small screen regions: the resource panel is located by template matching on the resource icon column (resolution from Windows, UI scale from the match), digits are read by template matching against a glyph bank (no OCR), and the readings feed a state tracker, the alert rules and the match recorder. Design choices and their reasons are in [DECISIONS.md](DECISIONS.md); planned work in [ROADMAP.md](../ROADMAP.md).
 
-Targets: a single process under 50 MB of RAM and 5 ms per cycle, one read every 2 s, capturing only small regions.
+Targets: a single process under 50 MB of private memory (what Task Manager shows) and 5 ms per cycle, one read every 2 s, capturing only small regions. Measured in v0.2: ~30 MB private memory, 10 threads, 0% CPU without the game; a reading cycle takes 3 to 11 ms at 1440p depending on how many fields changed.
 
 ## Setup
 Requires [uv](https://docs.astral.sh/uv/) and Windows.
