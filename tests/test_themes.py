@@ -60,6 +60,7 @@ def test_every_css_variable_used_by_the_report_and_the_hub_is_defined():
     from reeve.hub import HUB_HTML
 
     defined = {f"--{k}" for k in themes.colors(themes.themes()["age"])} | {"--radius", "--radius-sm", "--serif", "--sans"}
+    defined |= {"--sev"}    # set inline on each preview card (style="--sev: ...")
     # Names built at runtime, e.g. var(--${severity}): what each prefix is completed with.
     runtime = {"--": {"info", "warn", "critical"}, "--series-": {"food", "wood", "stone", "gold", "idle"}}
     for name, text in (("report", report.TEMPLATE), ("hub", HUB_HTML.read_text(encoding="utf-8"))):

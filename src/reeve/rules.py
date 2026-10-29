@@ -86,12 +86,13 @@ def _tc_idle(s: GameState, cfg: dict, held: float):
 
 
 def _floating(s: GameState, cfg: dict, held: float):
-    """One limit per age; the last one also covers later ages. Above the
-    current age's limit = info; above the next age's = warn; two ages ahead =
-    critical. Until the age is read, Age I is assumed."""
-    caps = cfg["age_limits"]
-    i = min(s.age or 1, len(caps)) - 1
-    limits = caps[i:i + len(SEVERITIES)]
+    """One limit per age, I to IV; null (or missing, in a config from before
+    Age IV had one) = no limit. Above the current age's limit = info; above
+    the next age's = warn; two ages ahead = critical. Until the age is read,
+    Age I is assumed."""
+    caps = (list(cfg["age_limits"]) + [None] * 4)[:4]
+    i = min(s.age or 1, 4) - 1
+    limits = [lim for lim in caps[i:i + len(SEVERITIES)] if lim is not None]
     over, level = {}, -1
     for r in RESOURCES:
         v = s.resources.get(r)

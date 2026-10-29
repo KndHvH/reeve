@@ -4,6 +4,8 @@
   running (a named mutex says so), it asks that app to show its hub (a named
   event) and exits, so launching it again from the Start menu never starts a
   second overlay, and the running app owns the hub (Quit closes it).
+  Started by hand it opens the hub, so starting it always shows something;
+  `--startup` (the start-with-Windows entry) only shows a notification.
 - `Reeve.exe hub` starts the hub; the tray uses it, since a packaged
   executable cannot run `python -m reeve.hub`.
 - The packaged app has no console: output and errors go to reeve.log in the
@@ -86,7 +88,7 @@ def main() -> None:
         return
     from .tray import main as tray_main
 
-    tray_main()
+    tray_main(startup="--startup" in sys.argv[1:])
 
 
 if __name__ == "__main__":

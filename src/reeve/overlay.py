@@ -14,8 +14,9 @@ Two modes share the same window and engine:
   whole overlay when the setting is off.
 - Clicks pass through (WS_EX_TRANSPARENT) and the window never takes focus,
   so the game stays in the foreground.
-- The canvas is only redrawn on each reading (default 2 s), with no animation;
-  the clean mode redraws only when the alerts change.
+- The canvas is only redrawn on each reading (default 2 s); the clean mode
+  redraws only when the alerts change. Each alert card is a small window of
+  its own (cards.py), so it can fade or slide in, out and into place.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .version import shown as shown_version
+from .cards import CardStack, settings as animation_settings
 from .digits import MIN_SCORE
 from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
@@ -43,6 +45,7 @@ CARD, RULE, FG, MUTED = "#151c25", "#263140", "#ece4d0", "#98a0a8"
 ACCENT, ACCENT_DIM, ACCENT_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
 GOOD, WARN, BAD, INFO = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
 RADIUS = 0          # card corner radius at k = 1 (0: square)
+ICON_PLATE = None   # dark plate behind the game icons on light cards (theme's card-icon)
 FONT = "Segoe UI"
 SERIF = "Palatino Linotype"
 ICONS = ROOT / "assets" / "report_icons"
@@ -60,11 +63,13 @@ SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": INFO}
 
 def apply_theme(config: dict | None = None) -> None:
     """Takes the colors and corner style of the chosen theme (settings)."""
-    global CARD, RULE, FG, MUTED, ACCENT, ACCENT_DIM, ACCENT_LIGHT, GOOD, WARN, BAD, INFO, RADIUS
+    global CARD, RULE, FG, MUTED, ACCENT, ACCENT_DIM, ACCENT_LIGHT, GOOD, WARN, BAD, INFO, RADIUS, ICON_PLATE
     from . import themes
 
     c = themes.colors(themes.current(config)[1])
-    CARD, RULE, FG, MUTED = c["panel"], c["rule"], c["ink"], c["mist"]
+    # A theme may give the in-game cards colors of their own (card, card-ink).
+    CARD, RULE, FG, MUTED = c.get("card", c["panel"]), c["rule"], c.get("card-ink", c["ink"]), c["mist"]
+    ICON_PLATE = c.get("card-icon")
     ACCENT, ACCENT_DIM, ACCENT_LIGHT = c["accent"], c["accent-dim"], c["accent-light"]
     GOOD, WARN, BAD, INFO = c["good"], c["warn"], c["critical"], c["info"]
     SEVERITY_COLOR.update(critical=BAD, warn=WARN, info=INFO)
@@ -135,6 +140,8 @@ class Overlay:
         self.canvas.pack(fill="both", expand=True)
         self.root.update_idletasks()
         self.excluded = self._win32_setup()
+        self.cards = CardStack(self.root, KEY, self._setup_card_window, self._paint_card)
+        self.cards.effects = animation_settings(self.live.rules.config)
         self.geom = None
         self.last_events: list[str] = []
         self.last_status = "no_game"
@@ -175,21 +182,35 @@ class Overlay:
             self._config_stamp = stamp
             self.live.rules.config = load_config()
             apply_theme(self.live.rules.config)
+            self.cards.effects = animation_settings(self.live.rules.config)
             self._apply_sounds()
             self._shown = None
 
-    def _win32_setup(self) -> bool:
-        hwnd = user32.GetParent(self.root.winfo_id())
+    @staticmethod
+    def _click_through(win: tk.Misc) -> int:
+        """Clicks pass through, no taskbar button, never takes focus; returns the hwnd."""
+        hwnd = user32.GetParent(win.winfo_id())
         style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
         user32.SetWindowLongW(hwnd, GWL_EXSTYLE,
                               style | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
-        self.hwnd = hwnd
+        return hwnd
+
+    def _win32_setup(self) -> bool:
+        self.hwnd = self._click_through(self.root)
         return self._set_excluded(True)
 
+    def _setup_card_window(self, win: tk.Toplevel) -> int:
+        hwnd = self._click_through(win)
+        user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE if self.excluded else WDA_NONE)
+        return hwnd
+
     def _set_excluded(self, excluded: bool) -> bool:
-        """Hides the overlay from screen captures (recordings, streams, and
-        Reeve's own reading) or shows it; returns whether it is hidden."""
-        ok = user32.SetWindowDisplayAffinity(self.hwnd, WDA_EXCLUDEFROMCAPTURE if excluded else WDA_NONE)
+        """Hides the overlay and its cards from screen captures (recordings,
+        streams, and Reeve's own reading) or shows them; returns whether hidden."""
+        mode = WDA_EXCLUDEFROMCAPTURE if excluded else WDA_NONE
+        ok = user32.SetWindowDisplayAffinity(self.hwnd, mode)
+        for hwnd in (self.cards.windows() if hasattr(self, "cards") else []):
+            user32.SetWindowDisplayAffinity(hwnd, mode)
         return excluded if ok else not excluded
 
     def _sync_capture(self) -> None:
@@ -207,6 +228,7 @@ class Overlay:
             return
         if not self.enabled:
             self.root.withdraw()
+            self.cards.clear()
             self._shown = None
             self.root.after(int(self.every * 1000), self.tick)
             return
@@ -221,6 +243,7 @@ class Overlay:
                 self.notify(title, message)
             if s.win is None or s.status == "no_game":
                 self.root.withdraw()
+                self.cards.clear()
             else:
                 g = (s.win.width, s.win.height, s.win.left, s.win.top)
                 if g != self.geom:
@@ -239,6 +262,7 @@ class Overlay:
             self.root.after(int(self.every * 1000), self.tick)
 
     def _show_error(self) -> None:
+        self.cards.clear()
         self.canvas.delete("all")
         self._shown = None
         self._draw_watermark(1.0, BAD)
@@ -252,6 +276,7 @@ class Overlay:
     def draw(self, s: Step):
         if self.debug:
             self._shown = None
+            self.cards.clear()
             self._draw_debug(s)
         else:
             self._draw_clean(s)
@@ -282,52 +307,74 @@ class Overlay:
             self._icon_cache[key] = ImageTk.PhotoImage(im.resize((w, height), Image.LANCZOS))
         return self._icon_cache[key]
 
-    def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
-        """One card per alert, stacked downwards from (x0, y0): severity bar,
-        game icon and the alert text on the report's night-blue card (no outline)."""
-        c = self.canvas
-        pad, gap, bar_w = round(8 * k), round(6 * k), round(4 * k)
-        icon_h = round((fs + 2) * 1.9)
-        y = y0
-        # Never reach the bottom-left region that is read (the cards may be
-        # visible to screen capture): stop the stack above it.
+    def _card_limit(self, x0: int) -> int | None:
+        """Never reach the bottom-left region that is read (the cards may be
+        visible to screen capture): the stack stops above it."""
         rects = getattr(getattr(getattr(self, "live", None), "cap", None), "rects", None) or []
-        limit = min((ry for rx, ry, rw, rh in rects if rx < x0 + 1), default=None)
-        for a in alerts:
-            if limit is not None and y + 2 * pad + icon_h > limit - gap:
-                break
-            icon = self._icon(_alert_icon(a), icon_h)
-            tx = x0 + bar_w + pad
-            if icon is not None:
+        return min((ry for rx, ry, rw, rh in rects if rx < x0 + 1), default=None)
+
+    def _paint_card(self, c: tk.Canvas, a: Alert, x0: int, y: int) -> tuple[int, int]:
+        """One alert card at (x0, y): severity bar, game icon and the alert
+        text on the theme's card color (no outline). Returns its right and
+        bottom edges. Sized by self._k and self._fs, set by the caller."""
+        k, fs = self._k, self._fs
+        pad, bar_w = round(8 * k), round(4 * k)
+        icon_h = round((fs + 2) * 1.9)
+        icon = self._icon(_alert_icon(a), icon_h)
+        tx = x0 + bar_w + pad
+        if icon is not None:
+            # The icons are cropped from the game's dark panel and keep dark
+            # edges: on a light card they sit on a small dark plate, as in game.
+            # Every plate has the same size (the widest icon's), the icon centered on it.
+            if ICON_PLATE:
+                m = round(3 * k)
+                side = round(icon_h * 1.2) + 2 * m
+                _box(c, tx, y + pad - m, tx + side, y + pad + icon_h + m, round(RADIUS * k / 2), ICON_PLATE)
+                c.create_image(tx + side // 2, y + pad + icon_h // 2, image=icon, anchor="center")
+                tx += side + round(6 * k)
+            else:
                 c.create_image(tx, y + pad, image=icon, anchor="nw")
                 tx += icon.width() + round(6 * k)
-            t = c.create_text(tx, y + pad + icon_h // 2, text=a.text, fill=FG, anchor="w",
-                              font=(SERIF, fs + 2, "bold"))
-            _, _, x1, _ = c.bbox(t)
-            y1 = y + pad + icon_h
-            # The severity color fills the whole card shape; the card itself
-            # sits on top, shifted by the bar's width, so the bar follows
-            # the rounded corners too.
-            r = round(RADIUS * k)
-            card = _box(c, x0 + bar_w, y, x1 + pad, y1 + pad, r, CARD)
-            bar = _box(c, x0, y, x1 + pad, y1 + pad, r, SEVERITY_COLOR[a.severity])
-            c.tag_lower(card)
-            c.tag_lower(bar)
-            y = y1 + pad + gap
+        t = c.create_text(tx, y + pad + icon_h // 2, text=a.text, fill=FG, anchor="w",
+                          font=(SERIF, fs + 2, "bold"))
+        _, _, x1, _ = c.bbox(t)
+        y1 = y + pad + icon_h
+        # The severity color fills the whole card shape; the card sits on top
+        # from the bar's width on, rounded on the right and straight on the
+        # left, so the bar is a strip that follows the outer corners.
+        r = round(RADIUS * k)
+        card = _box(c, x0 + bar_w, y, x1 + pad, y1 + pad, r, CARD)
+        square = c.create_rectangle(x0 + bar_w, y, x0 + bar_w + r, y1 + pad, fill=CARD, outline="")
+        bar = _box(c, x0, y, x1 + pad, y1 + pad, r, SEVERITY_COLOR[a.severity])
+        for item in (square, card, bar):
+            c.tag_lower(item)
+        return x1 + pad, y1 + pad
 
+    def _draw_alerts(self, alerts: list[Alert], x0: int, y0: int, k: float, fs: int) -> None:
+        """Debug view: the cards drawn on the overlay's canvas, stacked down from (x0, y0)."""
+        self._k, self._fs = k, fs
+        gap, limit, y = round(6 * k), self._card_limit(x0), y0
+        height = 2 * round(8 * k) + round((fs + 2) * 1.9)
+        for a in alerts:
+            if limit is not None and y + height > limit - gap:
+                break
+            _, y1 = self._paint_card(self.canvas, a, x0, y)
+            y = y1 + gap
 
     # --- clean view: only the alerts, redrawn only when they change --------
     def _draw_clean(self, s: Step):
         alerts = s.alerts if s.status == "reading" else []
-        dot = _status_color(s)
-        sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom, dot)
-        if sig == self._shown:
-            return
-        self._shown = sig
-        self.canvas.delete("all")
         k = s.match.scale if s.match else 1.0
-        self._draw_watermark(k, dot)
-        self._draw_alerts(alerts, round(16 * k), round(s.win.height * 0.16), k, max(8, round(8 * k)))
+        sig = (self.geom, _status_color(s), CARD, MUTED, RADIUS, k)
+        if sig != self._shown:                   # the watermark: redrawn only when it changes
+            self._shown = sig
+            self.canvas.delete("all")
+            self._draw_watermark(k, sig[1])
+        self._k, self._fs = k, max(8, round(8 * k))
+        x0 = round(16 * k)
+        look = (CARD, FG, RADIUS, tuple(SEVERITY_COLOR.items()), k)
+        self.cards.update(alerts, (s.win.left, s.win.top), x0, round(s.win.height * 0.16), round(6 * k),
+                          self._card_limit(x0), look)
 
 
     # --- debug view ---------------------------------------------------------

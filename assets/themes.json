@@ -1,5 +1,5 @@
 {
-  "_doc": "Color themes of the hub, the match report and the in-game alert cards. Every theme defines the same tokens; resource colors default to the game's own (series_*) and a theme overrides them only where they would not read on its background.",
+  "_doc": "Color themes of the hub, the match report and the in-game alert cards. Every theme defines the same tokens; resource colors default to the game's own (series_*) and a theme overrides them only where they would not read on its background. card and card-ink (optional) color the in-game alert cards, panel and ink otherwise; card-icon (optional) is a dark plate behind the game icons on light cards.",
   "age": {
     "name": "Age",
     "description": "Gold on night blue, like the game's panels",
@@ -42,7 +42,8 @@
       "accent": "#e8508a", "accent-dim": "#f2a2c1", "accent-light": "#c2185b",
       "ink": "#3d2230", "ink-2": "#6b4a5a", "mist": "#977484",
       "info": "#3f8fc9", "warn": "#d99a00", "critical": "#e0103a", "good": "#2f9a63",
-      "series-stone": "#80868e", "series-gold": "#d4a00f"
+      "series-stone": "#80868e", "series-gold": "#d4a00f",
+      "card": "#fff4f8", "card-ink": "#c2185b", "card-icon": "#4a2638"
     }
   }
 }

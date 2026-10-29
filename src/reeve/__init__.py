@@ -8,4 +8,4 @@ import os
 # on FFTs), so one thread costs nothing.
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
-__version__ = "0.2.2.1"
+__version__ = "0.2.3"

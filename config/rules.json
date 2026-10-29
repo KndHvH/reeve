@@ -2,7 +2,7 @@
   "_doc": "Alert rules. Severities: info (blue), warn (yellow), critical (red). persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply; use `reeve replay` to test against a recorded session.",
   "idle_villager": {
     "enabled": true,
-    "persist_s": 4,
+    "persist_s": 0,
     "warn_at": 1,
     "critical_at": 3
   },
@@ -19,12 +19,13 @@
   },
   "floating": {
     "enabled": true,
-    "persist_s": 6,
-    "_doc": "One stockpile limit per age (I, II, III; the last also applies to Age IV). Above the current age's limit = info; above the next age's = warn; two ages ahead = critical.",
+    "persist_s": 0,
+    "_doc": "One stockpile limit per age (I, II, III, IV; null = no limit). Above the current age's limit = info; above the next age's = warn; two ages ahead = critical.",
     "age_limits": [
       400,
       800,
-      1500
+      1500,
+      null
     ]
   },
   "sound": {
@@ -57,7 +58,12 @@
     "check": true
   },
   "overlay": {
-    "_doc": "show_in_recordings: the alert cards appear in screen recordings, clips and streams (the debug view never does).",
-    "show_in_recordings": true
+    "_doc": "show_in_recordings: the alert cards appear in screen recordings, clips and streams (the debug view never does). animation: how a card appears (enter), leaves (exit) and moves into place (move): none, short_fade, long_fade or slide (in from and out to the left edge; for move, up or down to the new place).",
+    "show_in_recordings": true,
+    "animation": {
+      "enter": "slide",
+      "exit": "long_fade",
+      "move": "slide"
+    }
   }
 }

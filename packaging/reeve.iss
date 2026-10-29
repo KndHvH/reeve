@@ -72,7 +72,7 @@ Name: "{autodesktop}\Reeve"; Filename: "{app}\Reeve.exe"; AppUserModelID: "Reeve
 ; Name and icon Windows shows on notifications (the app also writes them at start).
 Root: HKCU; Subkey: "Software\Classes\AppUserModelId\Reeve"; ValueType: string; ValueName: "DisplayName"; ValueData: "Reeve"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\AppUserModelId\Reeve"; ValueType: string; ValueName: "IconUri"; ValueData: "{app}\_internal\assets\app.ico"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Reeve"; ValueData: """{app}\Reeve.exe"""; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Reeve"; ValueData: """{app}\Reeve.exe"" --startup"; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
 Filename: "{app}\Reeve.exe"; Description: "{cm:LaunchReeve}"; Flags: postinstall nowait skipifsilent

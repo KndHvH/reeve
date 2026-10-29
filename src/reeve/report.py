@@ -22,7 +22,6 @@ import json
 from pathlib import Path
 
 from . import themes
-from .version import shown as shown_version
 from .income import IncomeTracker
 from .paths import ROOT
 from .replay import _wall_seconds
@@ -209,7 +208,7 @@ def _ledger(s: dict, icons: dict[str, str]) -> str:
       </section>"""
     inc = "".join(
         f"<div class='income'><img src='{icons.get(r, '')}' alt='{r}' title='{r}'>"
-        f"<b>{'–' if v is None else v}</b><span>per minute</span></div>"
+        f"<b>{'–' if v is None else v}</b><span>/min</span></div>"
         for r, v in s["income"].items())
     income = f"""
       <section class='col'>
@@ -284,7 +283,6 @@ def render(tl: dict, title: str) -> str:
             .replace("__LOOK__", f"{name}/{corner}")
             .replace("__THEME__", themes.css(theme, corner))
             .replace("__TITLE__", html.escape(_session_label(title)))
-            .replace("__VERSION__", shown_version())
             .replace("__LEDGER__", _ledger(summarize(tl), icons))
             .replace("__SERIES__", json.dumps(SERIES_ORDER))
             .replace("__ICONS__", json.dumps(icons))
@@ -339,7 +337,7 @@ h2 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 .note { color: var(--mist); font-size: 12px; margin: 10px 0 0; }
 .ages { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
 .age { display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: baseline; }
-.age .roman { font: 600 18px/1 var(--serif); color: var(--accent); grid-row: span 2; }
+.age .roman { font: 600 18px/1 var(--serif); color: var(--accent); grid-row: span 2; min-width: 1.3em; }
 .age b { font-variant-numeric: tabular-nums; } .age span:last-child { color: var(--mist); font-size: 12px; grid-column: 2; }
 .m-age { font: 600 18px/1 var(--serif); color: var(--accent); margin-left: 12px; letter-spacing: .5px; }
 .income { display: grid; grid-template-columns: 26px auto 1fr; align-items: center; gap: 10px; padding: 6px 0; }
@@ -390,7 +388,6 @@ svg text { fill: var(--mist); font: 11px var(--sans); }
 .frame { width: 100%; border-radius: var(--radius); margin-top: 12px; border: 1px solid var(--rule); display: block; }
 .frame[hidden] { display: none; }
 .hint { color: var(--mist); font-size: 12px; margin-top: 8px; }
-footer { color: var(--mist); font-size: 12px; margin-top: 24px; }
 </style>
 <style>:root { __THEME__ }</style>
 </head>
@@ -410,7 +407,6 @@ footer { color: var(--mist); font-size: 12px; margin-top: 24px; }
     <div class="hint" id="sel-hint">Hover a chart to inspect a moment; click to pin it.</div>
   </aside>
 </div>
-<footer>Reeve __VERSION__</footer>
 </div>
 <script>
 const D = __DATA__;
