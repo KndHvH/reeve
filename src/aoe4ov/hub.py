@@ -113,6 +113,12 @@ class HubApi:
         play_file(path)
         return True
 
+    def storage(self) -> dict:
+        """Size of the recorded matches, shown next to the retention settings."""
+        sessions = [s for s in sessions_dir().iterdir() if s.is_dir()]
+        size = sum(f.stat().st_size for s in sessions for f in s.rglob("*") if f.is_file())
+        return {"matches": len(sessions), "mb": round(size / 1024 / 1024, 1)}
+
     def open_data_folder(self) -> bool:
         os.startfile(data_dir())
         return True

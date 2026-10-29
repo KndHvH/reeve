@@ -39,5 +39,12 @@
       "critical"
     ],
     "repeat_s": 5
+  },
+  "retention": {
+    "enabled": true,
+    "_doc": "Matches younger than full_days are kept whole; up to keep_days only the log, report and summary stay; older ones are deleted. Above max_mb in total, the oldest are made light, then deleted.",
+    "full_days": 7,
+    "keep_days": 90,
+    "max_mb": 500
   }
 }

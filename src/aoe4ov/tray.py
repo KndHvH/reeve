@@ -91,7 +91,17 @@ class TrayApp:
         self.overlay.quit_requested = True
         self.icon.stop()
 
+    @staticmethod
+    def _clean_sessions():
+        from .retention import apply
+
+        try:
+            apply()
+        except Exception:   # housekeeping must never stop the overlay
+            pass
+
     def run(self) -> None:
+        threading.Thread(target=self._clean_sessions, name="retention").start()
         threading.Thread(target=self.icon.run, name="tray", daemon=True).start()
         try:
             self.overlay.run()

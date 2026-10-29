@@ -81,6 +81,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .actions { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--night); padding: 12px 0; border-top: 1px solid var(--gold-dim); }
 .actions .primary { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); font-weight: 600; }
 .status { color: var(--mist); font-size: 13px; }
+.usage { color: var(--mist); font-size: 13px; margin: 8px 0 0; }
 </style>
 </head>
 <body>
@@ -148,6 +149,10 @@ const GROUPS = [
   { key: "housed", title: "Housed", fields: [
     ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
   { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
+  { key: "retention", title: "Match history storage", usage: true, fields: [
+    ["full_days", "Keep everything for", "days, including the audit images", "int"],
+    ["keep_days", "Keep log and report for", "days; older matches are deleted", "int"],
+    ["max_mb", "Size limit", "MB; above it the oldest matches are trimmed first", "int"] ] },
 ];
 const SEV = [["info", "Info"], ["warn", "Warning"], ["critical", "Critical"]];
 let cfg = null;
@@ -158,7 +163,7 @@ function input(path, value, kind) {
 }
 
 async function showSettings() {
-  const s = await api().settings();
+  const [s, storage] = await Promise.all([api().settings(), api().storage()]);
   cfg = s.values;
   let h = `<h2>Settings</h2><p class="lede">Changes apply to the running overlay within a few seconds. Only what differs from the defaults is saved.</p>`;
   GROUPS.forEach(g => {
@@ -167,6 +172,9 @@ async function showSettings() {
     g.fields.forEach(([k, label, unit, kind]) => {
       h += `<div class="row"><label>${label}<small>${unit}</small></label>${input(`${g.key}.${k}`, v[k], kind)}</div>`;
     });
+    if (g.usage) {
+      h += `<p class="usage">${storage.matches} matches use ${storage.mb} MB. Applied when the app starts.</p>`;
+    }
     if (g.bands) {
       h += `<div class="row wide"><label>Limit per age<small>above the current age's limit is info; above a later age's limit escalates. Age IV uses the Age III limit</small></label><div class="bands">`;
       v.age_limits.forEach((lim, i) => {

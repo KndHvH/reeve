@@ -16,6 +16,8 @@ When the match ends, it produces a **per-second report**: villagers on each reso
 
 ## Your data
 Settings, recorded matches and your own sounds live in `%APPDATA%\aoe4ov`: `config\rules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds. Set `AOE4OV_HOME` to use another folder.
+
+Old matches are trimmed when the app starts: everything is kept for 7 days, then only the log, report and summary (the audit images go) up to 90 days, and older matches are deleted; above 500 MB in total the oldest are trimmed first. All three limits are in the hub's settings; `aoe4ov clean --dry-run` shows what would be removed.
 ules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds). Set `AOE4OV_HOME` to use another folder.
 
 ## Requirements
@@ -29,6 +31,7 @@ Run `uv run aoe4ov` (or the windowless `aoe4ov-app`): the overlay starts with a 
 uv sync                                 # install dependencies
 uv run aoe4ov                           # the app: overlay + tray icon
 uv run aoe4ov hub                       # the hub on its own: match history, reports, settings
+uv run aoe4ov clean [--dry-run]         # apply session retention now (the app runs it at startup)
 uv run aoe4ov window                    # show the detected game window and its resolution
 uv run aoe4ov snap --count 6 --every 20 # save in-game screenshots to captures/
 uv run aoe4ov inspect captures/*.png    # write .inspect.html files showing every reading stage, field by field
