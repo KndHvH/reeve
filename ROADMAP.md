@@ -34,6 +34,18 @@ Turns the command-line tool into an installable app.
 | A7 | Packaging: PyInstaller (one-folder build, fewer antivirus false positives than one-file) + Inno Setup installer; version shown in the hub and watermark | ✅ |
 | A8 | Performance review against the targets (RAM currently ~60 MB vs. 50 MB target) with `perf-guardian` |  |
 | A9 | Themes for the overlay and the report: the current Age-inspired gold theme (default), a neutral dark mode, and community palettes such as Dracula and Kitty; chosen in the hub |  |
+| A10 | GitHub releases: each version is a tag `vX.Y.Z` with the installer attached and its notes in `docs/releases/`; `scripts/build.py --release` publishes it. Versions: `0.MINOR.PATCH`, patch releases for fixes and small additions | ✅ (v0.2.0) |
+| A11 | Updates from the hub: at most one check a day against the latest GitHub release (stdlib HTTPS, no new dependency); a tray notice and a banner in the hub when a newer version exists, never during a match; "Update" downloads the installer and runs it silently (it closes and reopens Reeve). Needs public releases (see Public launch) |  |
+
+## Public launch
+The repository goes public once the project feels complete enough.
+
+| # | Deliverable | Status |
+|---|-------------|--------|
+| P1 | License for the code (and a note on the bundled third-party assets: game icons, Pixabay sounds) |  |
+| P2 | README for players first: what Reeve does, screenshots of the overlay, the report and the hub, install steps; development notes below |  |
+| P3 | Support link (Buy Me a Coffee) in the README, the hub and `.github/FUNDING.yml` |  |
+| P4 | Issue templates for bug reports (with `reeve doctor` output and `reeve.log`) and suggestions |  |
 
 ## Game data (prerequisite of v0.3)
 Build orders need the whole game catalog, and the match history wants to know who played what.
@@ -55,5 +67,5 @@ Economy simulator: given the number of villagers per resource and the gather rat
 ## Later
 - Income-based alerts (e.g. low income per villager on wood: drop-off too far).
 - Sound themes and per-alert sound packs shared between users.
-- Code signing (avoids SmartScreen warnings) and auto-update.
+- Code signing (avoids SmartScreen warnings; auto-update is A11).
 - Localization (affects text only; digits and icons are language-independent).

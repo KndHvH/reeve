@@ -1,6 +1,6 @@
 ; Inno Setup script: Reeve installer (built by scripts/build.py after PyInstaller).
 ;
-;   ISCC /DAppVersion=0.1.0 packaging\reeve.iss
+;   ISCC /DAppVersion=0.2.0 packaging\reeve.iss
 ;
 ; Per-user install, no admin rights: %LOCALAPPDATA%\Programs\Reeve. Start
 ; menu shortcut carrying the app's AppUserModelID, so notifications show as

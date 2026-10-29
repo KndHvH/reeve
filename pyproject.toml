@@ -1,6 +1,6 @@
 [project]
 name = "reeve"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lightweight Age of Empires IV overlay: reads the game UI through template matching and provides macro tips."
 authors = [
     { name = "Matias Herklotz", email = "delend89@gmail.com" }

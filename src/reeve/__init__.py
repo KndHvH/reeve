@@ -1,3 +1,3 @@
-"""Lightweight overlay for Age of Empires IV."""
+"""Reeve: a lightweight macro assistant for Age of Empires IV."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
