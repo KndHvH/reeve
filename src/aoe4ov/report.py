@@ -201,7 +201,7 @@ def _ledger(s: dict, icons: dict[str, str]) -> str:
         for p in s["problems"])
     problems = f"""
       <section class='col'>
-        <h2>Time with problems</h2>
+        <h2>Total time with alerts</h2>
         {rows}
         <p class='note'>Bar color is the worst level the alert reached.</p>
       </section>"""

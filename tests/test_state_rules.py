@@ -5,13 +5,13 @@ CFG = {
     "idle_villager": {"enabled": True, "persist_s": 4, "warn_at": 1, "critical_at": 3},
     "tc_idle": {"enabled": True, "persist_s": 0, "critical_after_s": 10},
     "housed": {"enabled": True, "warn_ratio": 0.9, "critical_ratio": 1.0, "max_pop": 200},
-    "floating": {"enabled": True, "persist_s": 6,
-                 "bands": [{"until_s": 300, "max": 400}, {"until_s": 900, "max": 800}, {"until_s": None, "max": 1500}]},
+    "floating": {"enabled": True, "persist_s": 6, "age_limits": [400, 800, 1500]},
 }
 
 
-def _values(clock, pop=(20, 30), idle=0, producing=True, food=100, wood=100, gold=100, stone=0, vils=(5, 5, 0, 0)):
-    return {
+def _values(clock, pop=(20, 30), idle=0, producing=True, food=100, wood=100, gold=100, stone=0, vils=(5, 5, 0, 0),
+            age=None):
+    return {"age": age,
         "clock": clock, "pop": pop, "idle": idle, "producing_villager": producing,
         "food": food, "wood": wood, "gold": gold, "stone": stone,
         "vil_food": vils[0], "vil_wood": vils[1], "vil_gold": vils[2], "vil_stone": vils[3],
@@ -94,13 +94,15 @@ def test_housed_levels_by_population_ratio():
     assert sev((199, 200)) is None          # max population: nothing to build
 
 
-def test_floating_threshold_depends_on_game_time():
-    early = [_values(200 + 2 * i, food=500) for i in range(5)]
-    _, active, _ = _run(early)
-    assert "floating" in active[-1]          # > 400 before 5:00
-    mid = [_values(600 + 2 * i, food=500) for i in range(5)]
-    _, active, _ = _run(mid)
-    assert "floating" not in active[-1]      # limit is 800 between 5:00 and 15:00
+def _floating_at(age, food):
+    _, active, _ = _run([_values(200 + 2 * i, food=food, age=age) for i in range(8)])
+    return active[-1].get("floating")
+
+
+def test_floating_threshold_depends_on_the_age():
+    assert _floating_at(1, 500) == "info"    # > 400 in Age I
+    assert _floating_at(2, 500) is None      # limit is 800 in Age II
+    assert _floating_at(None, 500) == "info"  # age not read yet: Age I
 
 
 def test_idle_villager_levels():
@@ -122,16 +124,14 @@ def test_tc_idle_escalates_after_10_seconds():
     assert any(k == "change" and a == "tc_idle" for _, k, a in log)
 
 
-def test_floating_escalates_within_the_same_phase():
-    def sev(clock, food):
-        _, active, _ = _run([_values(clock + 2 * i, food=food) for i in range(5)])
-        return active[-1].get("floating")
-    assert sev(200, 450) == "info"        # > 400 before 5:00
-    assert sev(200, 900) == "warn"        # already above the 5:00-15:00 limit
-    assert sev(200, 1600) == "critical"   # above the late-game limit
-    assert sev(600, 900) == "info"        # > 800 between 5:00 and 15:00
-    assert sev(600, 1600) == "warn"
-    assert sev(1000, 1600) == "info"      # late game: only the last band
+def test_floating_escalates_within_the_same_age():
+    assert _floating_at(1, 450) == "info"        # > 400 in Age I
+    assert _floating_at(1, 900) == "warn"        # already above the Age II limit
+    assert _floating_at(1, 1600) == "critical"   # above the Age III limit
+    assert _floating_at(2, 900) == "info"
+    assert _floating_at(2, 1600) == "warn"
+    assert _floating_at(3, 1600) == "info"       # Age III: only its own limit
+    assert _floating_at(4, 1600) == "info"       # Age IV uses the Age III limit
 
 
 SOUND_CFG = {"enabled": True, "repeat_s": 5, "info": "blip", "warn": "chime", "critical": "alarm_low"}

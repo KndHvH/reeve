@@ -86,13 +86,12 @@ def _tc_idle(s: GameState, cfg: dict, held: float):
 
 
 def _floating(s: GameState, cfg: dict, held: float):
-    """Above the current band's max = info; above the next band's max while
-    still in the current band = warn; two bands ahead = critical."""
-    if s.clock is None:
-        return None
-    bands = cfg["bands"]
-    i = next(k for k, b in enumerate(bands) if b["until_s"] is None or s.clock < b["until_s"])
-    limits = [b["max"] for b in bands[i:i + len(SEVERITIES)]]
+    """One limit per age; the last one also covers later ages. Above the
+    current age's limit = info; above the next age's = warn; two ages ahead =
+    critical. Until the age is read, Age I is assumed."""
+    caps = cfg["age_limits"]
+    i = min(s.age or 1, len(caps)) - 1
+    limits = caps[i:i + len(SEVERITIES)]
     over, level = {}, -1
     for r in RESOURCES:
         v = s.resources.get(r)

@@ -19,6 +19,7 @@ from . import __version__
 from .paths import DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir
 
 HUB_HTML = ROOT / "assets" / "hub" / "hub.html"
+APP_ICON = ROOT / "assets" / "app.ico"   # the tray icon (tray._tray_image), all sizes
 
 
 def diff(defaults: dict, values: dict) -> dict:
@@ -70,12 +71,15 @@ class HubApi:
         return match_summaries()
 
     def report_url(self, session: str) -> str:
-        """The report's file URL, shown inside the hub; rebuilt when the log is newer."""
+        """The report's file URL, shown inside the hub. Rebuilt when the log or
+        the report code is newer, so layout changes reach older matches too."""
+        from . import report as report_module
         from .report import write_report
 
         folder = sessions_dir() / session
         report = folder / "report.html"
-        if not report.exists() or report.stat().st_mtime < (folder / "log.jsonl").stat().st_mtime:
+        newest = max((folder / "log.jsonl").stat().st_mtime, Path(report_module.__file__).stat().st_mtime)
+        if not report.exists() or report.stat().st_mtime < newest:
             report = write_report(folder)
         return report.as_uri()
 
@@ -115,12 +119,18 @@ class HubApi:
 
 
 def main() -> None:
+    import ctypes
+
     import webview
+
+    # Own taskbar identity, so Windows shows the app icon instead of grouping
+    # the hub under python.exe.
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("aoe4ov.hub")
 
     api = HubApi()
     api._window = webview.create_window("aoe4-overlay", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,
                                        min_size=(900, 600), background_color="#0e1319")
-    webview.start()
+    webview.start(icon=str(APP_ICON))
 
 
 if __name__ == "__main__":

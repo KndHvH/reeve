@@ -74,7 +74,10 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .pair { display: flex; gap: 6px; align-items: center; }
 .pair button, .actions button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--gold-dim); border-radius: 3px; padding: 5px 10px; cursor: pointer; font: 13px var(--sans); }
 .pair button:hover, .actions button:hover { border-color: var(--gold); }
-.bands { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.row.wide { grid-template-columns: 1fr 330px; }
+.bands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.age-limit { display: flex; align-items: center; gap: 4px; }
+.age-limit i { font: normal 600 13px var(--serif); color: var(--gold); min-width: 20px; text-align: right; }
 .actions { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--night); padding: 12px 0; border-top: 1px solid var(--gold-dim); }
 .actions .primary { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); font-weight: 600; }
 .status { color: var(--mist); font-size: 13px; }
@@ -165,10 +168,9 @@ async function showSettings() {
       h += `<div class="row"><label>${label}<small>${unit}</small></label>${input(`${g.key}.${k}`, v[k], kind)}</div>`;
     });
     if (g.bands) {
-      h += `<div class="row"><label>Limits by game phase<small>stockpile above the limit of the current phase is info; above a later phase's limit escalates</small></label><div class="bands">`;
-      v.bands.forEach((b, i) => {
-        h += `<input type="number" min="0" step="60" data-band="${i}" data-field="until_s" value="${b.until_s ?? ""}" placeholder="end" title="phase ends at (seconds), empty = rest of the match">`;
-        h += `<input type="number" min="0" step="50" data-band="${i}" data-field="max" value="${b.max}" title="limit">`;
+      h += `<div class="row wide"><label>Limit per age<small>above the current age's limit is info; above a later age's limit escalates. Age IV uses the Age III limit</small></label><div class="bands">`;
+      v.age_limits.forEach((lim, i) => {
+        h += `<span class="age-limit"><i>${["I", "II", "III"][i]}</i><input type="number" min="0" step="50" data-age-limit="${i}" value="${lim}" aria-label="Age ${["I", "II", "III"][i]} limit"></span>`;
       });
       h += `</div></div>`;
     }
@@ -204,9 +206,8 @@ function collect() {
     else v = el.value;
     out[a][b] = v;
   });
-  document.querySelectorAll("[data-band]").forEach(el => {
-    const band = out.floating.bands[Number(el.dataset.band)];
-    band[el.dataset.field] = el.value === "" ? null : Number(el.value);
+  document.querySelectorAll("[data-age-limit]").forEach(el => {
+    out.floating.age_limits[Number(el.dataset.ageLimit)] = Number(el.value);
   });
   out.sound.repeat = [...document.querySelectorAll("[data-repeat]")].filter(c => c.checked).map(c => c.dataset.repeat);
   return out;

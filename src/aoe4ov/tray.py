@@ -22,18 +22,20 @@ from .paths import data_dir, sessions_dir
 ICON_SIZE = 64
 
 
-def _tray_image() -> Image.Image:
-    """Gold villager on a night-blue rounded square, like the overlay cards."""
+def _tray_image(size: int = ICON_SIZE) -> Image.Image:
+    """Gold villager on a night-blue rounded square, like the overlay cards.
+    Also the source of assets/app.ico (hub window and installer)."""
     from .report import ICONS
 
-    im = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
+    k = size / ICON_SIZE
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((2, 2, ICON_SIZE - 3, ICON_SIZE - 3), radius=12, fill=(21, 28, 37, 255),
-                        outline=(201, 164, 92, 255), width=3)
+    d.rounded_rectangle((2 * k, 2 * k, size - 3 * k, size - 3 * k), radius=12 * k, fill=(21, 28, 37, 255),
+                        outline=(201, 164, 92, 255), width=max(1, round(3 * k)))
     villager = Image.open(ICONS / "villager.png").convert("RGBA")
-    h = ICON_SIZE - 18
+    h = round(size - 18 * k)
     villager = villager.resize((max(1, round(villager.width * h / villager.height)), h), Image.LANCZOS)
-    im.alpha_composite(villager, ((ICON_SIZE - villager.width) // 2, 9))
+    im.alpha_composite(villager, ((size - villager.width) // 2, round(9 * k)))
     return im
 
 
