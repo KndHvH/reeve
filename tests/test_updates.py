@@ -13,6 +13,7 @@ API = {"tag_name": "v0.3.0", "html_url": "https://github.com/KndHvH/reeve/releas
 def test_versions_compare_as_numbers():
     assert updates.parse_version("v0.10.0") > updates.parse_version("0.9.9")
     assert updates.parse_version("garbage") == (0,)
+    assert updates.parse_version("0.2.2.1") > updates.parse_version("0.2.2") > updates.parse_version("0.2.1.99")
     rel = updates._from_api(API)
     assert updates.newer(rel, "0.2.1") and not updates.newer(rel, "0.3.0") and not updates.newer(None)
 
@@ -51,3 +52,25 @@ def test_download_is_verified(tmp_path):
         updates.download(updates.Release("9.9.8", "page", src.as_uri(), 3, "00" * 32))
     with pytest.raises(ValueError, match="incomplete"):
         updates.download(updates.Release("9.9.7", "page", src.as_uri(), 4, None))
+
+
+@pytest.mark.skipif(not hasattr(__import__("subprocess"), "CREATE_NO_WINDOW"), reason="Windows only")
+def test_install_command_starts_the_installer_through_cmd(tmp_path):
+    # A stand-in installer in a folder with spaces, run through the real cmd.exe
+    # line: it must receive the path intact and the silent arguments.
+    import subprocess
+    import time
+
+    folder = tmp_path / "Temp dir"
+    folder.mkdir()
+    out = folder / "ran.txt"
+    fake = folder / "Reeve-0.3.0-setup.cmd"
+    fake.write_text(f'@echo %* > "{out}"\r\n', encoding="ascii")
+    line = updates.install_command(fake)
+    assert '\\"' not in line
+    subprocess.run(line, creationflags=subprocess.CREATE_NO_WINDOW, check=True, timeout=30)
+    for _ in range(50):
+        if out.exists() and out.read_text().strip():
+            break
+        time.sleep(0.1)
+    assert "/SILENT" in out.read_text() and "/RELAUNCH=1" in out.read_text()

@@ -36,11 +36,15 @@ uv run reeve migrate                    # move sessions recorded in ./sessions i
 Building the installer also needs [Inno Setup 6](https://jrsoftware.org/isdl.php).
 
 ```powershell
-uv run python scripts/build.py              # dist/Reeve/Reeve.exe (PyInstaller, one folder) and dist/Reeve-<version>-setup.exe
-uv run python scripts/build.py --release    # also publish GitHub release v<version>, notes from docs/releases/v<version>.md
+uv run python scripts/build.py              # dist/<version>/Reeve/Reeve.exe and dist/Reeve-<version>-setup.exe
+uv run python scripts/release.py status     # where the next release stands
+uv run python scripts/release.py prepare 0.2.3
+uv run python scripts/release.py pr         # release PR unstable -> main, waits for CI
+uv run python scripts/release.py publish    # after the squash merge: release from main, unstable realigned
+uv run python scripts/release.py test-installer 0.2.2.99   # numbered below the latest release, to try updates
 ```
 
-The version comes from `src/reeve/__init__.py`. `Reeve.exe` runs the tray app, `Reeve.exe hub` the hub; a second start while Reeve runs opens the hub. The packaged app has no console: output and errors go to `reeve.log` in the data folder.
+Work goes to `unstable`; `main` only receives it through a release pull request merged with squash (one commit per version), and each release is a tag `vX.Y.Z` on `main`. Local builds show where they come from (e.g. `0.2.2-dev.9+3fc03e0`); only a release build shows the plain number. `Reeve.exe` runs the tray app, `Reeve.exe hub` the hub; a second start while Reeve runs opens the hub. The packaged app has no console: output and errors go to `reeve.log` in the data folder. The `git-release` agent (`.claude/agents/`) follows this process.
 
 ## Configuration and data
 - `config/rules.json` holds the shipped defaults of every setting. The user's `%APPDATA%\reeve\config\rules.json` holds only what they changed and is merged on top. `REEVE_HOME` points the whole data folder elsewhere (the tests always do).

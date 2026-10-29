@@ -12,6 +12,9 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
+#ifndef SourceDir
+  #define SourceDir "..\dist\Reeve"
+#endif
 #ifndef FileVersion
   #define FileVersion "0.0.0"
 #endif
@@ -55,7 +58,7 @@ Name: "startup"; Description: "{cm:StartWithWindows}"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\Reeve\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
 ; A new version replaces the bundled code and data completely.
