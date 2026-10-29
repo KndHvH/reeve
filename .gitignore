@@ -10,3 +10,4 @@ sessions/
 *.inspect.html
 .playwright-mcp/
 packaging/version_info.txt
+packaging/build_info.json

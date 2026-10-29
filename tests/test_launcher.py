@@ -7,10 +7,10 @@ from reeve.tray import TrayApp
 
 def test_second_start_asks_the_running_app_for_its_hub():
     name = f"Local\ReeveTest.{uuid.uuid4().hex}"
-    assert launcher.request_open_hub(name) is False        # nobody listening yet
+    assert launcher.signal(name) is False        # nobody listening yet
     asked = threading.Event()
-    launcher.listen_for_open_hub(asked.set, name)
-    assert launcher.request_open_hub(name) is True
+    launcher.listen_for(name, asked.set)
+    assert launcher.signal(name) is True
     assert asked.wait(2)
 
 

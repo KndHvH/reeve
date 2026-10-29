@@ -7,9 +7,11 @@ Two modes share the same window and engine:
   confidence, production queue) plus a HUD with window, scale, timings, RAM,
   CPU and the active alerts.
 
-- The window is excluded from screen captures (WDA_EXCLUDEFROMCAPTURE),
-  otherwise the overlay itself would show up in the image being read. As an
-  extra safeguard, nothing is drawn inside the regions that are read.
+- The alert cards show in recordings and streams (a setting, on by default):
+  they sit away from the regions that are read, and the stack stops before
+  the panel's region. The debug view draws on the read regions, so it is
+  always excluded from screen captures (WDA_EXCLUDEFROMCAPTURE), as is the
+  whole overlay when the setting is off.
 - Clicks pass through (WS_EX_TRANSPARENT) and the window never takes focus,
   so the game stays in the foreground.
 - The canvas is only redrawn on each reading (default 2 s), with no animation;
@@ -26,7 +28,7 @@ from pathlib import Path
 
 from PIL import Image, ImageTk
 
-from . import __version__
+from .version import shown as shown_version
 from .digits import MIN_SCORE
 from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
@@ -48,7 +50,7 @@ ICONS = ROOT / "assets" / "report_icons"
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT = 0x80000, 0x20
 WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE = 0x80, 0x8000000
-WDA_EXCLUDEFROMCAPTURE = 0x11
+WDA_NONE, WDA_EXCLUDEFROMCAPTURE = 0x0, 0x11
 
 user32 = ctypes.windll.user32
 
@@ -135,6 +137,7 @@ class Overlay:
         self.excluded = self._win32_setup()
         self.geom = None
         self.last_events: list[str] = []
+        self.last_status = "no_game"
         # First-run and environment notices; the tray replaces `notify` with
         # its notifications, the bare overlay prints them.
         from .checks import Notices
@@ -180,7 +183,22 @@ class Overlay:
         style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
         user32.SetWindowLongW(hwnd, GWL_EXSTYLE,
                               style | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
-        return bool(user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE))
+        self.hwnd = hwnd
+        return self._set_excluded(True)
+
+    def _set_excluded(self, excluded: bool) -> bool:
+        """Hides the overlay from screen captures (recordings, streams, and
+        Reeve's own reading) or shows it; returns whether it is hidden."""
+        ok = user32.SetWindowDisplayAffinity(self.hwnd, WDA_EXCLUDEFROMCAPTURE if excluded else WDA_NONE)
+        return excluded if ok else not excluded
+
+    def _sync_capture(self) -> None:
+        """The debug view always stays out of captures (it draws on the read
+        regions); the alert cards show in recordings unless the setting is off."""
+        show = (self.live.rules.config.get("overlay") or {}).get("show_in_recordings", True)
+        want = self.debug or not show
+        if want != self.excluded:
+            self.excluded = self._set_excluded(want)
 
     # --- loop -------------------------------------------------------------
     def tick(self):
@@ -194,7 +212,9 @@ class Overlay:
             return
         try:
             self._reload_config_if_changed()
+            self._sync_capture()
             s = self.live.step()
+            self.last_status = s.status   # "reading"/"hidden": a match is open (no update notices)
             if s.events:
                 self.last_events = (self.last_events + s.events)[-3:]
             for title, message in self.notices.observe(s):
@@ -242,7 +262,7 @@ class Overlay:
         c = self.canvas
         x, y = round(5 * k), round(2 * k)
         r = max(2, round(2 * k))
-        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"reeve {__version__}", fill=MUTED,
+        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"reeve {shown_version()}", fill=MUTED,
                           anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
         cy = (y0 + y1) // 2
@@ -269,7 +289,13 @@ class Overlay:
         pad, gap, bar_w = round(8 * k), round(6 * k), round(4 * k)
         icon_h = round((fs + 2) * 1.9)
         y = y0
+        # Never reach the bottom-left region that is read (the cards may be
+        # visible to screen capture): stop the stack above it.
+        rects = getattr(getattr(getattr(self, "live", None), "cap", None), "rects", None) or []
+        limit = min((ry for rx, ry, rw, rh in rects if rx < x0 + 1), default=None)
         for a in alerts:
+            if limit is not None and y + 2 * pad + icon_h > limit - gap:
+                break
             icon = self._icon(_alert_icon(a), icon_h)
             tx = x0 + bar_w + pad
             if icon is not None:

@@ -18,6 +18,7 @@ a = Analysis(
         (str(REPO / "assets"), "assets"),
         (str(REPO / "config"), "config"),
         (str(REPO / "LICENSE"), "."),
+        (str(REPO / "packaging" / "build_info.json"), "."),   # version shown (scripts/build.py)
     ],
     hiddenimports=["reeve.hub", "reeve.tray", "pystray._win32"],
     excludes=[

@@ -136,3 +136,13 @@ def test_sessions_without_game_time_are_not_listed():
     empty.mkdir()
     (empty / "log.jsonl").write_text('{"wall": "10:00:00", "event": "panel_hidden"}\n', encoding="utf-8")
     assert [m["session"] for m in match_summaries()] == ["20260101-100000"]
+
+
+def test_delete_matches_removes_only_recorded_matches():
+    a, b = _session("20260101-100000"), _session("20260102-100000")
+    keep = paths.data_dir() / "config"
+    keep.mkdir(exist_ok=True)
+    api = HubApi()
+    assert api.delete_matches(["20260101-100000", "../config", "..", "nope", ""]) == 1
+    assert not a.exists() and b.exists() and keep.exists()
+    assert [m["session"] for m in match_summaries()] == ["20260102-100000"]

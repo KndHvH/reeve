@@ -4,8 +4,10 @@
     uv run python scripts/build.py --no-installer
     uv run python scripts/build.py --release   # also publish a GitHub release (gh)
 
-1. Writes packaging/version_info.txt (the version shown in the file's
-   properties) from reeve.__version__, the single source of the version.
+1. Writes packaging/version_info.txt (the file's properties) from
+   reeve.__version__, the single source of the version, and
+   packaging/build_info.json with the version the app shows: plain for
+   --release, otherwise e.g. 0.2.2-dev.7+b0c37b9 (see reeve.version).
 2. PyInstaller, one-folder build: dist/Reeve/Reeve.exe.
 3. Inno Setup (ISCC.exe, found on PATH or in its default folders), if
    installed: dist/Reeve-<version>-setup.exe.
@@ -16,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -61,6 +64,17 @@ def main() -> int:
     ap.add_argument("--release", action="store_true", help="publish the installer as a GitHub release")
     args = ap.parse_args()
 
+    # The version the app shows: the plain number only for a release, built from
+    # a clean tree; otherwise where the build comes from (reeve.version).
+    from reeve.version import _git, from_git
+
+    if args.release and _git("status", "--porcelain"):
+        print("a release is built from a clean working tree: commit or stash first")
+        return 1
+    shown = __version__ if args.release else from_git()
+    (REPO / "packaging" / "build_info.json").write_text(json.dumps({"version": shown}), encoding="utf-8")
+    print(f"version shown: {shown}")
+
     parts = [int(x) for x in __version__.split(".")] + [0] * 4
     tup = tuple(parts[:4])
     (REPO / "packaging" / "version_info.txt").write_text(VERSION_INFO.format(tup=tup, ver=__version__),
@@ -78,9 +92,9 @@ def main() -> int:
     if compiler is None:
         print("Inno Setup not found (ISCC.exe): skipping the installer. Get it from https://jrsoftware.org/isdl.php")
         return 0
-    subprocess.run([compiler, f"/DAppVersion={__version__}", str(REPO / "packaging" / "reeve.iss")],
-                   check=True, cwd=REPO)
-    installer = REPO / "dist" / f"Reeve-{__version__}-setup.exe"
+    subprocess.run([compiler, f"/DAppVersion={shown}", f"/DFileVersion={__version__}",
+                    str(REPO / "packaging" / "reeve.iss")], check=True, cwd=REPO)
+    installer = REPO / "dist" / f"Reeve-{shown}-setup.exe"
     print(f"installer: {installer}")
 
     if args.release:

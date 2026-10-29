@@ -157,7 +157,7 @@ class Notices:
 
     def _remember(self, **kv) -> None:
         self.state.update(kv)
-        try:
-            save_state(self.state)
+        try:   # re-read first: other parts of the app keep their own keys in the same file
+            save_state(load_state() | kv)
         except OSError:
             pass

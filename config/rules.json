@@ -51,5 +51,13 @@
     "_doc": "theme: age, dark, dracula or kitty (assets/themes.json); corners: square or rounded. Applies to the hub, match reports and the alert cards.",
     "theme": "age",
     "corners": "square"
+  },
+  "updates": {
+    "_doc": "check: look for a new Reeve on GitHub once a day (the only network request Reeve makes; it sends nothing about you).",
+    "check": true
+  },
+  "overlay": {
+    "_doc": "show_in_recordings: the alert cards appear in screen recordings, clips and streams (the debug view never does).",
+    "show_in_recordings": true
   }
 }

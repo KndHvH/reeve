@@ -18,6 +18,7 @@ import sys
 
 MUTEX_NAME = "Local\\Reeve.App"
 OPEN_HUB_EVENT = "Local\\Reeve.OpenHub"
+QUIT_EVENT = "Local\\Reeve.Quit"   # the hub asks the app to quit (to install an update)
 ERROR_ALREADY_EXISTS = 183
 EVENT_MODIFY_STATE = 0x0002
 LOG_MAX = 1024 * 1024
@@ -43,9 +44,9 @@ def already_running() -> bool:
     return kernel32.GetLastError() == ERROR_ALREADY_EXISTS
 
 
-def listen_for_open_hub(callback, name: str = OPEN_HUB_EVENT) -> None:
-    """In the running app: calls `callback` each time another start asks for
-    the hub (a named auto-reset event), so the app owns every hub it shows."""
+def listen_for(name: str, callback) -> None:
+    """In the running app: calls `callback` each time the named auto-reset event
+    is signalled (another start asking for the hub, the hub asking to quit)."""
     import threading
 
     kernel32 = ctypes.windll.kernel32
@@ -56,11 +57,11 @@ def listen_for_open_hub(callback, name: str = OPEN_HUB_EVENT) -> None:
         while kernel32.WaitForSingleObject(ctypes.c_void_p(handle), 0xFFFFFFFF) == 0:
             callback()
 
-    threading.Thread(target=wait, name="open-hub", daemon=True).start()
+    threading.Thread(target=wait, name=f"event {name}", daemon=True).start()
 
 
-def request_open_hub(name: str = OPEN_HUB_EVENT) -> bool:
-    """From a second start: asks the running app to show its hub."""
+def signal(name: str) -> bool:
+    """From another process: signals the running app; False if none listens."""
     kernel32 = ctypes.windll.kernel32
     kernel32.OpenEventW.restype = ctypes.c_void_p
     handle = kernel32.OpenEventW(EVENT_MODIFY_STATE, False, name)
@@ -79,7 +80,7 @@ def main() -> None:
         hub_main()
         return
     if already_running():
-        if not request_open_hub():   # an older Reeve without the event: start a hub of our own
+        if not signal(OPEN_HUB_EVENT):   # an older Reeve without the event: start a hub of our own
             hub = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
             subprocess.Popen(hub)
         return

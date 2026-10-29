@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 
-from . import __version__
 from .paths import (DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir,
                     user_config_path, user_sounds_dir)
 
@@ -94,7 +94,9 @@ class HubApi:
         self._window = None
 
     def version(self) -> str:
-        return __version__
+        from .version import shown
+
+        return shown()
 
     def matches(self) -> list[dict]:
         return match_summaries()
@@ -201,6 +203,65 @@ class HubApi:
         sessions = [s for s in sessions_dir().iterdir() if s.is_dir()]
         size = sum(f.stat().st_size for s in sessions for f in s.rglob("*") if f.is_file())
         return {"matches": len(sessions), "mb": round(size / 1024 / 1024, 1)}
+
+    def delete_matches(self, sessions: list[str]) -> int:
+        """Deletes recorded matches (their whole folders); returns how many.
+        Only folders directly inside sessions/ that hold a match log qualify."""
+        import shutil
+
+        root = sessions_dir().resolve()
+        done = 0
+        for name in sessions:
+            folder = (root / name).resolve()
+            if folder.parent == root and (folder / "log.jsonl").is_file():
+                shutil.rmtree(folder, ignore_errors=True)
+                done += not folder.exists()
+        return done
+
+    def set_setting(self, section: str, key: str, value) -> bool:
+        """Saves one setting at once (used by switches that apply instantly)."""
+        values = load_config()
+        values[section] = dict(values.get(section) or {}, **{key: value})
+        save_overrides(diff(json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")), values))
+        return True
+
+    def update_status(self, force: bool = False) -> dict:
+        """What the hub shows about updates: the latest release (from the daily
+        check, or asked now with `force`) and whether this copy can install it."""
+        from . import updates
+
+        enabled = (load_config().get("updates") or {}).get("check", True)
+        latest = updates.check(force=force) if (enabled or force) else None
+        from .version import shown
+
+        return {"current": shown(), "enabled": enabled, "newer": updates.newer(latest),
+                "latest": latest.version if latest else None, "page": latest.page if latest else None,
+                "can_install": updates.can_install() and bool(latest and latest.installer)}
+
+    def update_now(self) -> dict:
+        """Downloads and verifies the installer, schedules it, and asks the app
+        (and this hub) to close; the installer reopens Reeve when it is done."""
+        from . import updates
+        from .launcher import QUIT_EVENT, signal
+
+        latest = updates.check()
+        if not updates.newer(latest) or not updates.can_install():
+            return {"error": "no update to install"}
+        try:
+            installer = updates.download(latest)
+        except Exception as e:
+            return {"error": f"download failed: {e}"}
+        updates.install(installer)
+        signal(QUIT_EVENT)
+        if self._window is not None:
+            threading.Timer(0.5, self._window.destroy).start()
+        return {"installing": latest.version}
+
+    def open_url(self, url: str) -> bool:
+        if url.startswith("https://github.com/"):
+            os.startfile(url)
+            return True
+        return False
 
     def open_data_folder(self) -> bool:
         os.startfile(data_dir())
