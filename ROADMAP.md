@@ -33,7 +33,7 @@ Turns the command-line tool into an installable app.
 | A6 | First-run checks: game in Borderless/Windowed mode, WebView2 present, first calibration | ✅ |
 | A7 | Packaging: PyInstaller (one-folder build, fewer antivirus false positives than one-file) + Inno Setup installer; version shown in the hub and watermark | ✅ |
 | A8 | Performance review against the targets: packaged app at ~30 MB private memory (Task Manager), 33 MB committed (was 515 MB), 10 threads (was 24), 0% CPU without the game; reading cycle at 1440p 3.9 ms with a still screen, ~11 ms when every field changes (was 20 ms) | ✅ |
-| A9 | Themes for the overlay and the report: the current Age-inspired gold theme (default), a neutral dark mode, and community palettes such as Dracula and Kitty; chosen in the hub |  |
+| A9 | Themes for the alert cards, the hub and the report: Age (gold on night blue, default), Dark, Dracula and Kitty (light pink), plus square or rounded corners; chosen in the hub, applied at once everywhere | ✅ |
 | A10 | GitHub releases: each version is a tag `vX.Y.Z` with the installer attached and its notes in `docs/releases/`; `scripts/build.py --release` publishes it. Versions: `0.MINOR.PATCH`, patch releases for fixes and small additions | ✅ (v0.2.0) |
 | A11 | Updates from the hub: at most one check a day against the latest GitHub release (stdlib HTTPS, no new dependency); a tray notice and a banner in the hub when a newer version exists, never during a match; "Update" downloads the installer and runs it silently (it closes and reopens Reeve). Needs public releases (see Public launch) |  |
 

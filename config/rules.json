@@ -46,5 +46,10 @@
     "full_days": 7,
     "keep_days": 90,
     "max_mb": 500
+  },
+  "appearance": {
+    "_doc": "theme: age, dark, dracula or kitty (assets/themes.json); corners: square or rounded. Applies to the hub, match reports and the alert cards.",
+    "theme": "age",
+    "corners": "square"
   }
 }

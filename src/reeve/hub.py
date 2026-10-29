@@ -71,6 +71,15 @@ def _code_mtime(module) -> float:
     return 0.0
 
 
+def _report_look(report: Path) -> str | None:
+    """The theme/corners a report was written with (its reeve-look meta tag)."""
+    import re
+
+    with open(report, encoding="utf-8", errors="ignore") as f:
+        m = re.search(r'name="reeve-look" content="([^"]*)"', f.read(1024))
+    return m.group(1) if m else None
+
+
 def _user_sounds() -> list[str]:
     return sorted(p.stem for p in user_sounds_dir().glob("*.wav"))
 
@@ -99,7 +108,8 @@ class HubApi:
         folder = sessions_dir() / session
         report = folder / "report.html"
         newest = max((folder / "log.jsonl").stat().st_mtime, _code_mtime(report_module))
-        if not report.exists() or report.stat().st_mtime < newest:
+        if (not report.exists() or report.stat().st_mtime < newest
+                or _report_look(report) != report_module.look()):   # theme or corners changed
             report = write_report(folder)
         return report.as_uri()
 
@@ -111,8 +121,24 @@ class HubApi:
     def settings(self) -> dict:
         from .sound import library
 
+        from . import themes
+
         return {"values": load_config(), "defaults": json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")),
-                "sounds": library(), "user_sounds": _user_sounds()}
+                "sounds": library(), "user_sounds": _user_sounds(), "themes": themes.themes()}
+
+    def theme_css(self) -> str:
+        """CSS custom properties of the chosen theme and corner style."""
+        from . import themes
+
+        return themes.css(themes.current()[1], themes.corners())
+
+    def set_appearance(self, theme: str, corners: str) -> str:
+        """Saves the theme and corner style at once (they apply instantly) and
+        returns the new CSS; other unsaved settings on the form are untouched."""
+        values = load_config()
+        values["appearance"] = dict(values.get("appearance") or {}, theme=theme, corners=corners)
+        save_overrides(diff(json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")), values))
+        return self.theme_css()
 
     def save_settings(self, values: dict) -> dict:
         defaults = json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))

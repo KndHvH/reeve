@@ -1,0 +1,48 @@
+{
+  "_doc": "Color themes of the hub, the match report and the in-game alert cards. Every theme defines the same tokens; resource colors default to the game's own (series_*) and a theme overrides them only where they would not read on its background.",
+  "age": {
+    "name": "Age",
+    "description": "Gold on night blue, like the game's panels",
+    "scheme": "dark",
+    "colors": {
+      "night": "#0e1319", "panel": "#151c25", "panel-2": "#1a2330", "rule": "#263140",
+      "accent": "#c9a45c", "accent-dim": "#6b5734", "accent-light": "#ead39a",
+      "ink": "#ece4d0", "ink-2": "#c4bfb2", "mist": "#98a0a8",
+      "info": "#7fb2c9", "warn": "#f0b429", "critical": "#e5484d", "good": "#5cc98a"
+    }
+  },
+  "dark": {
+    "name": "Dark",
+    "description": "Neutral grays with a cool accent",
+    "scheme": "dark",
+    "colors": {
+      "night": "#111214", "panel": "#1a1b1e", "panel-2": "#222327", "rule": "#303237",
+      "accent": "#8fa3bf", "accent-dim": "#3f4756", "accent-light": "#d3dbe7",
+      "ink": "#e8e8ea", "ink-2": "#bdbec2", "mist": "#8b8d93",
+      "info": "#6cb6ff", "warn": "#f0b429", "critical": "#ef5350", "good": "#57c78a"
+    }
+  },
+  "dracula": {
+    "name": "Dracula",
+    "description": "The Dracula palette: purple, pink and soft neon",
+    "scheme": "dark",
+    "colors": {
+      "night": "#21222c", "panel": "#282a36", "panel-2": "#303341", "rule": "#44475a",
+      "accent": "#bd93f9", "accent-dim": "#6272a4", "accent-light": "#ff79c6",
+      "ink": "#f8f8f2", "ink-2": "#d6d6ce", "mist": "#8e95b8",
+      "info": "#8be9fd", "warn": "#f1fa8c", "critical": "#ff5555", "good": "#50fa7b"
+    }
+  },
+  "kitty": {
+    "name": "Kitty",
+    "description": "Light and pink, with a red bow",
+    "scheme": "light",
+    "colors": {
+      "night": "#fff0f5", "panel": "#ffffff", "panel-2": "#ffe3ee", "rule": "#f5c4d6",
+      "accent": "#e8508a", "accent-dim": "#f2a2c1", "accent-light": "#c2185b",
+      "ink": "#3d2230", "ink-2": "#6b4a5a", "mist": "#977484",
+      "info": "#3f8fc9", "warn": "#d99a00", "critical": "#e0103a", "good": "#2f9a63",
+      "series-stone": "#80868e", "series-gold": "#d4a00f"
+    }
+  }
+}

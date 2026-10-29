@@ -38,6 +38,7 @@ Double-click the tray icon to open the hub:
 - **Matches**: every recorded match, newest first, with the ages reached and the alerts of each. Open one to see its report.
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
+- **Appearance**: four themes for the hub, the reports and the alert cards (Age, Dark, Dracula and Kitty), with square or rounded corners.
 
 | Matches | Settings |
 |---|---|

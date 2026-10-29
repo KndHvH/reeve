@@ -35,11 +35,12 @@ from .metrics import CpuMeter, ram_mb
 from .paths import ROOT
 
 KEY = "#010203"  # color treated as transparent
-# Same visual language as the post-match report: night-blue panels, gold
-# rules, parchment text, a classic serif for the alert text.
+# Same visual language as the hub and the report: colors from the chosen
+# theme (apply_theme), a classic serif for the alert text. Defaults: Age.
 CARD, RULE, FG, MUTED = "#151c25", "#263140", "#ece4d0", "#98a0a8"
-GOLD, GOLD_DIM, GOLD_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
-GOOD, WARN, BAD, ACCENT = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
+ACCENT, ACCENT_DIM, ACCENT_LIGHT = "#c9a45c", "#6b5734", "#ead39a"
+GOOD, WARN, BAD, INFO = "#5cc98a", "#f0b429", "#e5484d", "#7fb2c9"
+RADIUS = 0          # card corner radius at k = 1 (0: square)
 FONT = "Segoe UI"
 SERIF = "Palatino Linotype"
 ICONS = ROOT / "assets" / "report_icons"
@@ -52,7 +53,31 @@ WDA_EXCLUDEFROMCAPTURE = 0x11
 user32 = ctypes.windll.user32
 
 
-SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": ACCENT}
+SEVERITY_COLOR = {"critical": BAD, "warn": WARN, "info": INFO}
+
+
+def apply_theme(config: dict | None = None) -> None:
+    """Takes the colors and corner style of the chosen theme (settings)."""
+    global CARD, RULE, FG, MUTED, ACCENT, ACCENT_DIM, ACCENT_LIGHT, GOOD, WARN, BAD, INFO, RADIUS
+    from . import themes
+
+    c = themes.colors(themes.current(config)[1])
+    CARD, RULE, FG, MUTED = c["panel"], c["rule"], c["ink"], c["mist"]
+    ACCENT, ACCENT_DIM, ACCENT_LIGHT = c["accent"], c["accent-dim"], c["accent-light"]
+    GOOD, WARN, BAD, INFO = c["good"], c["warn"], c["critical"], c["info"]
+    SEVERITY_COLOR.update(critical=BAD, warn=WARN, info=INFO)
+    RADIUS = 8 if themes.corners(config) == "rounded" else 0
+
+
+def _box(c: tk.Canvas, x0: int, y0: int, x1: int, y1: int, r: int, fill: str) -> int:
+    """A filled rectangle, with corners of radius `r` (Tk has no rounded
+    rectangle: a smoothed polygon with each corner point doubled)."""
+    r = min(r, (x1 - x0) // 2, (y1 - y0) // 2)
+    if r <= 0:
+        return c.create_rectangle(x0, y0, x1, y1, fill=fill, outline="")
+    pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1,
+           x1 - r, y1, x0 + r, y1, x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]
+    return c.create_polygon(pts, fill=fill, outline="", smooth=True)
 
 
 def _alert_icon(a: Alert) -> str:
@@ -93,6 +118,7 @@ class Overlay:
         self.enabled = True         # False: paused, nothing read or drawn
         self.quit_requested = False
         self._shown = None          # clean view: last drawn signature
+        apply_theme()
         self.live = LiveReader(every)
         self.muted = mute           # tray mute, on top of the config's sound switch
         self._config_stamp = self._config_mtime()
@@ -145,6 +171,7 @@ class Overlay:
 
             self._config_stamp = stamp
             self.live.rules.config = load_config()
+            apply_theme(self.live.rules.config)
             self._apply_sounds()
             self._shown = None
 
@@ -219,7 +246,7 @@ class Overlay:
                           anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
         cy = (y0 + y1) // 2
-        bg = c.create_rectangle(x - 2, y0, x1 + 3, y1, fill=CARD, outline="")
+        bg = _box(c, x - 2, y0, x1 + 3, y1, round(RADIUS * k / 2), CARD)
         c.create_oval(x + 1, cy - r, x + 1 + 2 * r, cy + r, fill=color, outline="")
         c.tag_lower(bg, t)
 
@@ -252,10 +279,14 @@ class Overlay:
                               font=(SERIF, fs + 2, "bold"))
             _, _, x1, _ = c.bbox(t)
             y1 = y + pad + icon_h
-            card = c.create_rectangle(x0, y, x1 + pad, y1 + pad, fill=CARD, outline="")
-            bar = c.create_rectangle(x0 + 1, y + 1, x0 + bar_w, y1 + pad, fill=SEVERITY_COLOR[a.severity], outline="")
-            c.tag_lower(bar)
+            # The severity color fills the whole card shape; the card itself
+            # sits on top, shifted by the bar's width, so the bar follows
+            # the rounded corners too.
+            r = round(RADIUS * k)
+            card = _box(c, x0 + bar_w, y, x1 + pad, y1 + pad, r, CARD)
+            bar = _box(c, x0, y, x1 + pad, y1 + pad, r, SEVERITY_COLOR[a.severity])
             c.tag_lower(card)
+            c.tag_lower(bar)
             y = y1 + pad + gap
 
 
@@ -372,10 +403,10 @@ class Overlay:
         pad, lh = round(10 * k), round(fs * 1.9)
         width = round(fs * 34)
         height = pad * 2 + lh * len(lines)
-        c.create_rectangle(x0, y0, x0 + width, y0 + height, fill=CARD, outline=GOLD_DIM)
-        c.create_rectangle(x0 + 1, y0 + 1, x0 + 3, y0 + height, fill=GOLD, outline="")
+        c.create_rectangle(x0, y0, x0 + width, y0 + height, fill=CARD, outline=ACCENT_DIM)
+        c.create_rectangle(x0 + 1, y0 + 1, x0 + 3, y0 + height, fill=ACCENT, outline="")
         for i, (text, color, bold) in enumerate(lines):
-            c.create_text(x0 + pad + 4, y0 + pad + i * lh + lh // 2, text=text, fill=GOLD_LIGHT if bold else color,
+            c.create_text(x0 + pad + 4, y0 + pad + i * lh + lh // 2, text=text, fill=ACCENT_LIGHT if bold else color,
                           anchor="w", font=(SERIF, fs + 2, "bold") if bold else (FONT, fs))
         return y0 + height
 
