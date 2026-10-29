@@ -133,10 +133,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 button.danger { border-color: var(--critical) !important; color: var(--critical) !important; }
 .bar .danger { margin-left: 8px; background: none; border: 1px solid; border-radius: var(--radius); padding: 3px 10px; font: 13px var(--sans); }
 .match.sel { grid-template-columns: 26px 170px 90px 1fr 210px; }
-.match .tick { width: 18px; height: 18px; border: 1px solid var(--accent-dim); border-radius: var(--radius-sm);
-  display: grid; place-items: center; color: var(--accent-light); font-size: 13px; }
+.match .tick { position: relative; width: 18px; height: 18px; box-sizing: border-box;
+  border: 1px solid var(--accent-dim); border-radius: var(--radius-sm); }
 .match[aria-pressed="true"] { background: var(--panel); }
 .match[aria-pressed="true"] .tick { background: var(--accent-dim); border-color: var(--accent); }
+/* The check is drawn, not a text glyph: a font's line height would push it off center. */
+.match[aria-pressed="true"] .tick::after { content: ""; position: absolute; left: 50%; top: 45%; width: 4px; height: 8px;
+  border: solid var(--accent-light); border-width: 0 2px 2px 0; transform: translate(-50%, -50%) rotate(45deg); }
 </style>
 <style id="look"></style>
 </head>
@@ -178,7 +181,7 @@ async function showMatches() {
     const on = picked.has(m.session);
     return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
       ${selecting ? `aria-pressed="${on}" title="Select"` : 'title="Open the report"'}>
-      ${selecting ? `<span class="tick" aria-hidden="true">${on ? "✓" : ""}</span>` : ""}
+      ${selecting ? `<span class="tick" aria-hidden="true"></span>` : ""}
       <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
@@ -471,7 +474,7 @@ function updatesSection(u) {
   const line = !u.latest ? "Not checked yet."
     : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
   return `<section class="group"><header><h3>Updates</h3></header>
-    <div class="row"><label>Check for updates<small>once a day, on GitHub; nothing about you is sent</small></label>
+    <div class="row"><label>Check for updates<small>once a day, on GitHub</small></label>
       <input type="checkbox" class="switch" data-path="updates.check" ${cfg.updates?.check !== false ? "checked" : ""} aria-label="Check for updates"></div>
     <div class="row"><label>Version ${u.current}<small id="upd-line">${line}</small></label>
       <div class="upd"><button type="button" id="upd-check">Check now</button></div></div></section>`;
