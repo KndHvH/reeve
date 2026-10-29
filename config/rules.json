@@ -58,7 +58,12 @@
     "check": true
   },
   "overlay": {
-    "_doc": "show_in_recordings: the alert cards appear in screen recordings, clips and streams (the debug view never does).",
-    "show_in_recordings": true
+    "_doc": "show_in_recordings: the alert cards appear in screen recordings, clips and streams (the debug view never does). animation: how a card appears (enter), leaves (exit) and moves into place (move): none, short_fade, long_fade or slide (in from and out to the left edge; for move, up or down to the new place).",
+    "show_in_recordings": true,
+    "animation": {
+      "enter": "short_fade",
+      "exit": "short_fade",
+      "move": "slide"
+    }
   }
 }

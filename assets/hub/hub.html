@@ -268,6 +268,15 @@ function input(path, value, kind) {
 const applyLook = css => { $("#look").textContent = `:root { ${css} }`; };
 let themeList = {};
 
+// Alert card animations: one effect per moment (cards.py), applied at once.
+const ANIM_DEFAULT = { enter: "short_fade", exit: "short_fade", move: "slide" };
+const ANIM_EFFECTS = [["none", "None"], ["short_fade", "Short fade"], ["long_fade", "Long fade"], ["slide", "Slide"]];
+const ANIM_MOMENTS = [
+  ["enter", "Alert appears", "slide comes in from the left edge of the screen"],
+  ["exit", "Alert clears", "slide goes out to the left edge"],
+  ["move", "Alerts rearrange", "when one clears, the others move to their new place"],
+];
+
 function appearance() {
   const a = cfg.appearance || { theme: "age", corners: "square" };
   const cards = Object.entries(themeList).map(([id, th]) => {
@@ -280,10 +289,18 @@ function appearance() {
   const seg = [["square", "Square"], ["rounded", "Rounded"]].map(([v, l]) =>
     `<button type="button" role="radio" data-corners="${v}" aria-checked="${a.corners === v}">${l}</button>`).join("");
   const rec = (cfg.overlay || {}).show_in_recordings !== false;
+  const anim = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}) };
+  const motion = ANIM_MOMENTS.map(([moment, label, hint]) => {
+    const opts = ANIM_EFFECTS.map(([v, l]) =>
+      `<button type="button" role="radio" data-anim="${moment}" data-effect="${v}" aria-checked="${anim[moment] === v}">${l}</button>`).join("");
+    return `<div class="row"><label>${label}<small>${hint}</small></label>
+      <div class="seg" role="radiogroup" aria-label="${label}">${opts}</div></div>`;
+  }).join("");
   return `<section class="group" id="appearance"><header><h3>Appearance</h3></header>
     <div class="themes">${cards}</div>
     <div class="row"><label>Corners<small>panels here and in reports, and the alert cards in game</small></label>
       <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div>
+    ${motion}
     <div class="row"><label>Show alerts in recordings and streams<small>clips, screen recordings and streaming apps capture the alert cards</small></label>
       <input type="checkbox" class="switch" id="show-rec" ${rec ? "checked" : ""} aria-label="Show alerts in recordings and streams"></div></section>`;
 }
@@ -296,6 +313,12 @@ function bindAppearance() {
     cfg.overlay = { ...(cfg.overlay || {}), show_in_recordings: e.target.checked };
     api().set_setting("overlay", "show_in_recordings", e.target.checked);
   });
+  document.querySelectorAll("[data-anim]").forEach(b => b.addEventListener("click", () => {
+    const animation = { ...ANIM_DEFAULT, ...((cfg.overlay || {}).animation || {}), [b.dataset.anim]: b.dataset.effect };
+    cfg.overlay = { ...(cfg.overlay || {}), animation };
+    api().set_setting("overlay", "animation", animation);
+    document.querySelectorAll(`[data-anim="${b.dataset.anim}"]`).forEach(o => o.setAttribute("aria-checked", o === b));
+  }));
 }
 
 async function setLook(theme, corners) {
