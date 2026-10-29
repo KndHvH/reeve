@@ -264,3 +264,14 @@ def test_the_build_is_over_a_while_after_its_last_step():
     assert t.finished
     t.end_after_s = 60
     assert not t.finished
+
+
+def test_no_build_alert_when_already_placed_for_the_next_step(stored_mali):
+    e = _engine(stored_mali)
+    _eval(e, _state(food=1, wood=6, clock=100), 0)               # 7 villagers: step 2 (wood 6)
+    assert e.build.index == 1
+    _eval(e, _state(food=0, wood=6, clock=120), 20)              # one building, wood as step 2 wants
+    assert "build" not in e.active
+    # Placed for step 3 (food 4, wood 5) before the 14th villager is counted.
+    _eval(e, _state(food=4, wood=5, clock=140), 40)
+    assert e.build.index == 1 and "build" not in e.active

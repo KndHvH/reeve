@@ -31,7 +31,7 @@
   "build": {
     "enabled": true,
     "persist_s": 0,
-    "grace_s": 2,
+    "grace_s": 6,
     "_doc": "Villagers not where the active build order's current step puts them (move them, or put more on a resource). grace_s: game seconds after a step is reached before it is checked (0: at once)."
   },
   "sound": {
