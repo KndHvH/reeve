@@ -81,6 +81,9 @@ def _tc_idle(s: GameState, cfg: dict, held: float):
         return None
     if s.pop >= s.pop_cap:
         return None  # housed: the housed alert explains it
+    on_resources = sum(v or 0 for v in s.villagers.values())
+    if on_resources >= cfg.get("max_villagers", 100):
+        return None  # enough villagers: no longer making them is a choice
     severity = "critical" if held >= cfg["critical_after_s"] else "warn"
     return severity, "Town center idle: queue a villager", {"pop": s.pop, "pop_cap": s.pop_cap, "idle_s": round(held)}
 

@@ -9,7 +9,9 @@
   "tc_idle": {
     "enabled": true,
     "persist_s": 0,
-    "critical_after_s": 10
+    "critical_after_s": 10,
+    "max_villagers": 100,
+    "_doc": "max_villagers: from this many villagers on resources, an idle town center is no longer an alert."
   },
   "housed": {
     "enabled": true,

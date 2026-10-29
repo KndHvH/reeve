@@ -17,7 +17,7 @@ Alert cards appear over the game, each with its own sound, in three levels: **in
 | Alert | Warning | Critical |
 |---|---|---|
 | Idle villagers | 1 or 2 idle | 3 or more |
-| Town center not producing villagers | right away | after 10 s |
+| Town center not producing villagers (until 100 villagers on resources) | right away | after 10 s |
 | Housed | 90% of the population cap | at the cap |
 | Floating resources | above the next age's limit | two ages ahead |
 

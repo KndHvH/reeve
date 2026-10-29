@@ -410,7 +410,8 @@ const GROUPS = [
     ["warn_at", "Warn from", "idle villagers", "int"], ["critical_at", "Critical from", "idle villagers", "int"],
     ["persist_s", "Show after", "seconds", "int"] ] },
   { key: "tc_idle", title: "Town center idle", fields: [
-    ["persist_s", "Show after", "seconds", "int"], ["critical_after_s", "Critical after", "seconds idle", "int"] ] },
+    ["persist_s", "Show after", "seconds", "int"], ["critical_after_s", "Critical after", "seconds idle", "int"],
+    ["max_villagers", "Stop at", "villagers on resources; past this, no longer making villagers is your choice", "int"] ] },
   { key: "housed", title: "Housed", fields: [
     ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
   { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
