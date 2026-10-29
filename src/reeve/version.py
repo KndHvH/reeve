@@ -39,10 +39,21 @@ def from_git() -> str:
 
 
 @lru_cache(maxsize=1)
+def _build_info() -> dict:
+    try:
+        return json.loads((ROOT / "build_info.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+@lru_cache(maxsize=1)
 def shown() -> str:
     if FROZEN:
-        try:
-            return json.loads((ROOT / "build_info.json").read_text(encoding="utf-8"))["version"]
-        except (OSError, ValueError, KeyError):
-            return __version__
+        return _build_info().get("version", __version__)
     return from_git()
+
+
+def number() -> str:
+    """The plain version update checks compare: __version__, unless a test
+    build was numbered lower on purpose (build.py --as-version)."""
+    return _build_info().get("number", __version__) if FROZEN else __version__

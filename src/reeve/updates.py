@@ -50,8 +50,11 @@ def parse_version(text: str) -> tuple[int, ...]:
         return (0,)
 
 
-def newer(release: Release | None, current: str = __version__) -> bool:
-    return release is not None and parse_version(release.version) > parse_version(current)
+def newer(release: Release | None, current: str | None = None) -> bool:
+    """Is `release` newer than this copy (its build number, see version.number)?"""
+    from .version import number
+
+    return release is not None and parse_version(release.version) > parse_version(current or number())
 
 
 def _from_api(data: dict) -> Release:
