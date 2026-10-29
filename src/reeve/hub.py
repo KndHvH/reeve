@@ -167,13 +167,11 @@ class HubApi:
 
 
 def main() -> None:
-    import ctypes
-
     import webview
 
-    # Own taskbar identity, so Windows shows the app icon instead of grouping
-    # the hub under python.exe.
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("reeve.hub")
+    from .checks import use_app_identity
+
+    use_app_identity()   # taskbar shows Reeve's icon instead of grouping under python.exe
 
     api = HubApi()
     api._window = webview.create_window("Reeve", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,

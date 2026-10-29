@@ -231,6 +231,9 @@ def cmd_app(args) -> int:
     """Overlay plus tray icon (also the default when no command is given)."""
     from .tray import TrayApp
 
+    from .checks import use_app_identity
+
+    use_app_identity()
     print("Reeve running in the tray. Use its menu to quit.")
     TrayApp(args.every, args.debug, args.mute).run()
     return 0
@@ -242,6 +245,48 @@ def cmd_clean(args) -> int:
 
     p = retention.plan() if args.dry_run else retention.apply()
     print(("Would do: " if args.dry_run else "") + retention.describe(p))
+    return 0
+
+
+def cmd_doctor(args) -> int:
+    """Every environment check, printed: what the first-run notices are based on."""
+    import time
+
+    from . import __version__
+    from .capture import Capture
+    from .checks import exclusive_fullscreen, load_state, webview2_version, window_mode
+    from .paths import data_dir
+
+    if args.wait:
+        print(f"Switch to the game now: checking in {args.wait} s...")
+        time.sleep(args.wait)
+    ok = lambda good: "ok  " if good else "FIX "
+    wv = webview2_version()
+    print(f"Reeve {__version__}, data in {data_dir()}")
+    print(f"{ok(wv is not None)}WebView2 runtime: {wv or 'missing (the hub needs it; alerts work without it)'}")
+    win = find_game_window()
+    if win is None:
+        print("FIX Game: AoE4 window not found. Is the game running?")
+        return 1
+    mode = window_mode(win.hwnd)
+    print(f"ok  Game: {win.width}x{win.height} at ({win.left}, {win.top}), {mode}")
+    if not win.foreground:
+        print("--  Fullscreen and panel checks need the game in front: run `reeve doctor --wait 5` "
+              "and switch to the game.")
+        return 0
+    full = exclusive_fullscreen()
+    print(f"{ok(not full)}Display mode: " + ("exclusive fullscreen: the overlay can't draw over it, "
+                                              "set Borderless or Windowed" if full else "the overlay can draw over it"))
+    m = Capture().probe(win)
+    if m.ok:
+        ui = round(100 * m.scale * 720 / win.height)
+        print(f"ok  Resource panel: found (scale {m.scale:.3f}, UI about {ui}%, match {m.score:.2f})")
+    else:
+        print(f"--  Resource panel: not on screen (best match {m.score:.2f}). Normal in menus; "
+              "in a match, keep the game UI visible.")
+    cal = load_state().get("calibrated")
+    if cal:
+        print(f"    First calibration seen: {cal['width']}x{cal['height']}, scale {cal['scale']}")
     return 0
 
 
@@ -296,6 +341,9 @@ def main(argv: list[str] | None = None) -> int:
     cl = sub.add_parser("clean", help="apply session retention (old matches made light or deleted)")
     cl.add_argument("--dry-run", action="store_true", help="only show what would be removed")
 
+    dr = sub.add_parser("doctor", help="check WebView2, the game window, display mode and the resource panel")
+    dr.add_argument("--wait", type=int, default=0, help="seconds to wait first, to switch to the game")
+
     sub.add_parser("hub", help="match history, reports and settings")
 
     ap = sub.add_parser("app", help="overlay with a tray icon (default)")
@@ -308,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
         args = p.parse_args(["app"])
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate, "app": cmd_app, "hub": cmd_hub, "clean": cmd_clean,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate, "app": cmd_app, "hub": cmd_hub, "clean": cmd_clean, "doctor": cmd_doctor,
     }
     return cmds[args.cmd](args)
 

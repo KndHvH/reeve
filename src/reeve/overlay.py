@@ -108,6 +108,12 @@ class Overlay:
         self.excluded = self._win32_setup()
         self.geom = None
         self.last_events: list[str] = []
+        # First-run and environment notices; the tray replaces `notify` with
+        # its notifications, the bare overlay prints them.
+        from .checks import Notices
+
+        self.notices = Notices()
+        self.notify = lambda title, message: print(f"{title}: {message}")
         self._icon_cache: dict[tuple[str, int], ImageTk.PhotoImage] = {}
         self.root.after(100, self.tick)
 
@@ -163,6 +169,8 @@ class Overlay:
             s = self.live.step()
             if s.events:
                 self.last_events = (self.last_events + s.events)[-3:]
+            for title, message in self.notices.observe(s):
+                self.notify(title, message)
             if s.win is None or s.status == "no_game":
                 self.root.withdraw()
             else:

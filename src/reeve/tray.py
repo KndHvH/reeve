@@ -76,9 +76,32 @@ class TrayApp:
     def _toggle_mute(self):
         self.overlay.set_muted(not self.overlay.muted)
 
+    def _notify(self, title: str, message: str) -> None:
+        try:
+            self.icon.notify(message, title)
+        except Exception:   # a notice must never stop the overlay
+            pass
+
+    def _on_ready(self, icon) -> None:
+        """Runs once the tray icon exists: welcome on first run, WebView2 check."""
+        from .checks import webview2_version
+
+        icon.visible = True
+        for title, message in self.overlay.notices.start():
+            self._notify(title, message)
+        if webview2_version() is None:
+            self._notify("The hub needs Microsoft Edge WebView2",
+                         "Alerts work without it. Choose \"Open hub\" to get the free runtime from Microsoft.")
+
     def _open_hub(self):
         """The hub is its own process: it costs nothing while closed and does
-        not compete with the overlay's Tk loop for the main thread."""
+        not compete with the overlay's Tk loop for the main thread. Without
+        WebView2 it opens Microsoft's download page instead."""
+        from .checks import WEBVIEW2_DOWNLOAD, webview2_version
+
+        if webview2_version() is None:
+            os.startfile(WEBVIEW2_DOWNLOAD)
+            return
         if self._hub is None or self._hub.poll() is not None:
             self._hub = subprocess.Popen([sys.executable, "-m", "reeve.hub"])
 
@@ -102,7 +125,8 @@ class TrayApp:
 
     def run(self) -> None:
         threading.Thread(target=self._clean_sessions, name="retention").start()
-        threading.Thread(target=self.icon.run, name="tray", daemon=True).start()
+        self.overlay.notify = self._notify
+        threading.Thread(target=self.icon.run, args=(self._on_ready,), name="tray", daemon=True).start()
         try:
             self.overlay.run()
         finally:
@@ -111,4 +135,7 @@ class TrayApp:
 
 def main() -> None:
     """Entry point of the windowless app (`reeve-app`)."""
+    from .checks import use_app_identity
+
+    use_app_identity()   # notifications from "Reeve", not "Python"
     TrayApp().run()

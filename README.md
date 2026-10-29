@@ -14,6 +14,9 @@ When the match ends, it produces a **per-second report**: villagers on each reso
 - **Zero configuration**: the resolution comes from Windows, and the UI scale is detected from an anchor (the resource icon column).
 - **No black boxes**: every stage has a visual inspection tool (see `docs/DECISIONS.md` and `ROADMAP.md`).
 
+## First run
+Reeve tells you through Windows notifications (never a window over the game): a welcome the first time, when it first finds the resource panel (with the resolution and UI scale it read), when the game is in exclusive fullscreen (no overlay can draw over it: use Borderless or Windowed), and when the game has been in front for five minutes without the panel ever being found. Without the Microsoft Edge WebView2 Runtime the alerts still work and "Open hub" opens its download page. `reeve doctor` prints all of these checks.
+
 ## Your data
 Settings, recorded matches and your own sounds live in `%APPDATA%\reeve`: `config\rules.json` holds only the settings you changed, on top of the shipped defaults in `config/rules.json`; `sessions\` holds each match's log, audit frames and report; `sounds\` holds your own alert sounds. Set `REEVE_HOME` to use another folder.
 
@@ -31,6 +34,7 @@ uv sync                                 # install dependencies
 uv run reeve                           # the app: overlay + tray icon
 uv run reeve hub                       # the hub on its own: match history, reports, settings
 uv run reeve clean [--dry-run]         # apply session retention now (the app runs it at startup)
+uv run reeve doctor [--wait 5]         # check WebView2, the game window, display mode and the resource panel
 uv run reeve window                    # show the detected game window and its resolution
 uv run reeve snap --count 6 --every 20 # save in-game screenshots to captures/
 uv run reeve inspect captures/*.png    # write .inspect.html files showing every reading stage, field by field
