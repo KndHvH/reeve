@@ -252,7 +252,7 @@ def cmd_doctor(args) -> int:
     """Every environment check, printed: what the first-run notices are based on."""
     import time
 
-    from . import __version__
+    from .version import shown
     from .capture import Capture
     from .checks import exclusive_fullscreen, load_state, webview2_version, window_mode
     from .paths import data_dir
@@ -262,7 +262,7 @@ def cmd_doctor(args) -> int:
         time.sleep(args.wait)
     ok = lambda good: "ok  " if good else "FIX "
     wv = webview2_version()
-    print(f"Reeve {__version__}, data in {data_dir()}")
+    print(f"Reeve {shown()}, data in {data_dir()}")
     print(f"{ok(wv is not None)}WebView2 runtime: {wv or 'missing (the hub needs it; alerts work without it)'}")
     win = find_game_window()
     if win is None:

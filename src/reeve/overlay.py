@@ -28,7 +28,7 @@ from pathlib import Path
 
 from PIL import Image, ImageTk
 
-from . import __version__
+from .version import shown as shown_version
 from .digits import MIN_SCORE
 from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
@@ -262,7 +262,7 @@ class Overlay:
         c = self.canvas
         x, y = round(5 * k), round(2 * k)
         r = max(2, round(2 * k))
-        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"reeve {__version__}", fill=MUTED,
+        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"reeve {shown_version()}", fill=MUTED,
                           anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
         cy = (y0 + y1) // 2

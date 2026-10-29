@@ -7,8 +7,13 @@
 ; Reeve. Optional start with Windows and desktop shortcut. The user's data
 ; (%APPDATA%\reeve: matches, settings, sounds) is kept on uninstall.
 
+; AppVersion: the version shown (e.g. 0.2.2-dev.7+b0c37b9 for a local build);
+; FileVersion: its plain number, the only form Windows file metadata accepts.
 #ifndef AppVersion
   #define AppVersion "0.0.0"
+#endif
+#ifndef FileVersion
+  #define FileVersion "0.0.0"
 #endif
 
 [Setup]
@@ -17,7 +22,7 @@ AppName=Reeve
 AppVersion={#AppVersion}
 AppVerName=Reeve {#AppVersion}
 AppPublisher=Reeve
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#FileVersion}
 DefaultDirName={localappdata}\Programs\Reeve
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest

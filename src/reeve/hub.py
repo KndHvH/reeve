@@ -16,7 +16,6 @@ import os
 import threading
 from pathlib import Path
 
-from . import __version__
 from .paths import (DEFAULT_CONFIG, ROOT, data_dir, load_config, save_overrides, sessions_dir,
                     user_config_path, user_sounds_dir)
 
@@ -95,7 +94,9 @@ class HubApi:
         self._window = None
 
     def version(self) -> str:
-        return __version__
+        from .version import shown
+
+        return shown()
 
     def matches(self) -> list[dict]:
         return match_summaries()
@@ -231,7 +232,9 @@ class HubApi:
 
         enabled = (load_config().get("updates") or {}).get("check", True)
         latest = updates.check(force=force) if (enabled or force) else None
-        return {"current": __version__, "enabled": enabled, "newer": updates.newer(latest),
+        from .version import shown
+
+        return {"current": shown(), "enabled": enabled, "newer": updates.newer(latest),
                 "latest": latest.version if latest else None, "page": latest.page if latest else None,
                 "can_install": updates.can_install() and bool(latest and latest.installer)}
 

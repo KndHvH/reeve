@@ -21,7 +21,8 @@ import html
 import json
 from pathlib import Path
 
-from . import __version__, themes
+from . import themes
+from .version import shown as shown_version
 from .income import IncomeTracker
 from .paths import ROOT
 from .replay import _wall_seconds
@@ -283,7 +284,7 @@ def render(tl: dict, title: str) -> str:
             .replace("__LOOK__", f"{name}/{corner}")
             .replace("__THEME__", themes.css(theme, corner))
             .replace("__TITLE__", html.escape(_session_label(title)))
-            .replace("__VERSION__", __version__)
+            .replace("__VERSION__", shown_version())
             .replace("__LEDGER__", _ledger(summarize(tl), icons))
             .replace("__SERIES__", json.dumps(SERIES_ORDER))
             .replace("__ICONS__", json.dumps(icons))

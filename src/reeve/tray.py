@@ -15,7 +15,7 @@ import threading
 
 from PIL import Image, ImageDraw
 
-from . import __version__
+from .version import shown as shown_version
 from .overlay import Overlay
 from .paths import data_dir, sessions_dir
 
@@ -76,7 +76,7 @@ class TrayApp:
         self._hub: subprocess.Popen | None = None
         item, menu = pystray.MenuItem, pystray.Menu
         self.icon = pystray.Icon(
-            "reeve", _tray_image(), f"Reeve {__version__}",
+            "reeve", _tray_image(), f"Reeve {shown_version()}",
             menu=menu(
                 item("Overlay", self._toggle_enabled, checked=lambda _: self.overlay.enabled),
                 item("Debug view", self._toggle_debug, checked=lambda _: self.overlay.debug),
