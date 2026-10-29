@@ -39,6 +39,30 @@ def _tray_image(size: int = ICON_SIZE) -> Image.Image:
     return im
 
 
+def _bring_to_front(pid: int) -> None:
+    """Restores and focuses the visible top-level window of process `pid`."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    found = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def check(hwnd, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == pid and user32.IsWindowVisible(hwnd) and user32.GetWindowTextLengthW(hwnd):
+            found.append(hwnd)
+            return False
+        return True
+
+    user32.EnumWindows(check, 0)
+    if found:
+        SW_RESTORE = 9
+        user32.ShowWindow(found[0], SW_RESTORE)
+        user32.SetForegroundWindow(found[0])
+
+
 def latest_report():
     reports = sorted(sessions_dir().glob("*/report.html"))
     return reports[-1] if reports else None
@@ -102,10 +126,17 @@ class TrayApp:
         if webview2_version() is None:
             os.startfile(WEBVIEW2_DOWNLOAD)
             return
-        if self._hub is None or self._hub.poll() is not None:
-            # Packaged, the app's executable starts the hub with an argument (no -m there).
-            args = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
-            self._hub = subprocess.Popen(args)
+        if self._hub is not None and self._hub.poll() is None:
+            _bring_to_front(self._hub.pid)   # already open: show it instead of a second hub
+            return
+        # Packaged, the app's executable starts the hub with an argument (no -m there).
+        args = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
+        self._hub = subprocess.Popen(args)
+
+    def _close_hub(self) -> None:
+        """The hub belongs to the app: quitting Reeve closes it too."""
+        if self._hub is not None and self._hub.poll() is None:
+            self._hub.terminate()
 
     def _open_report(self):
         r = latest_report()
@@ -126,12 +157,16 @@ class TrayApp:
             pass
 
     def run(self) -> None:
+        from .launcher import listen_for_open_hub
+
         threading.Thread(target=self._clean_sessions, name="retention").start()
         self.overlay.notify = self._notify
+        listen_for_open_hub(self._open_hub)   # Reeve started again: show the hub
         threading.Thread(target=self.icon.run, args=(self._on_ready,), name="tray", daemon=True).start()
         try:
             self.overlay.run()
         finally:
+            self._close_hub()
             self.icon.stop()
 
 

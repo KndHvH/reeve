@@ -1,8 +1,9 @@
 """Entry point of the packaged app (Reeve.exe).
 
 - `Reeve.exe` starts the overlay with its tray icon. If Reeve is already
-  running (a named mutex says so), it opens the hub instead, so launching it
-  again from the Start menu never starts a second overlay.
+  running (a named mutex says so), it asks that app to show its hub (a named
+  event) and exits, so launching it again from the Start menu never starts a
+  second overlay, and the running app owns the hub (Quit closes it).
 - `Reeve.exe hub` starts the hub; the tray uses it, since a packaged
   executable cannot run `python -m reeve.hub`.
 - The packaged app has no console: output and errors go to reeve.log in the
@@ -16,7 +17,9 @@ import subprocess
 import sys
 
 MUTEX_NAME = "Local\\Reeve.App"
+OPEN_HUB_EVENT = "Local\\Reeve.OpenHub"
 ERROR_ALREADY_EXISTS = 183
+EVENT_MODIFY_STATE = 0x0002
 LOG_MAX = 1024 * 1024
 
 
@@ -40,6 +43,34 @@ def already_running() -> bool:
     return kernel32.GetLastError() == ERROR_ALREADY_EXISTS
 
 
+def listen_for_open_hub(callback, name: str = OPEN_HUB_EVENT) -> None:
+    """In the running app: calls `callback` each time another start asks for
+    the hub (a named auto-reset event), so the app owns every hub it shows."""
+    import threading
+
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateEventW.restype = ctypes.c_void_p
+    handle = kernel32.CreateEventW(None, False, False, name)
+
+    def wait():
+        while kernel32.WaitForSingleObject(ctypes.c_void_p(handle), 0xFFFFFFFF) == 0:
+            callback()
+
+    threading.Thread(target=wait, name="open-hub", daemon=True).start()
+
+
+def request_open_hub(name: str = OPEN_HUB_EVENT) -> bool:
+    """From a second start: asks the running app to show its hub."""
+    kernel32 = ctypes.windll.kernel32
+    kernel32.OpenEventW.restype = ctypes.c_void_p
+    handle = kernel32.OpenEventW(EVENT_MODIFY_STATE, False, name)
+    if not handle:
+        return False
+    ok = bool(kernel32.SetEvent(ctypes.c_void_p(handle)))
+    kernel32.CloseHandle(ctypes.c_void_p(handle))
+    return ok
+
+
 def main() -> None:
     _log_to_file()
     if sys.argv[1:2] == ["hub"]:
@@ -48,8 +79,9 @@ def main() -> None:
         hub_main()
         return
     if already_running():
-        hub = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
-        subprocess.Popen(hub)
+        if not request_open_hub():   # an older Reeve without the event: start a hub of our own
+            hub = [sys.executable, "hub"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "reeve.hub"]
+            subprocess.Popen(hub)
         return
     from .tray import main as tray_main
 

@@ -46,6 +46,7 @@ The repository goes public once the project feels complete enough.
 | P2 | README for players first: what Reeve does, screenshots of the overlay, the report and the hub, install steps; development notes below |  |
 | P3 | Support link (Buy Me a Coffee) in the README, the hub and `.github/FUNDING.yml` |  |
 | P4 | Issue templates for bug reports (with `reeve doctor` output and `reeve.log`) and suggestions |  |
+| P5 | Workflow with two branches: `unstable` receives the day-to-day work (and contributors' pull requests); `main` is stable, protected, and only receives `unstable` through a pull request when a version is ready, tagged `vX.Y.Z` there. GitHub Actions runs the tests on Windows for every pull request |  |
 
 ## Game data (prerequisite of v0.3)
 Build orders need the whole game catalog, and the match history wants to know who played what.
