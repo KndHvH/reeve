@@ -17,6 +17,7 @@ a = Analysis(
     datas=[
         (str(REPO / "assets"), "assets"),
         (str(REPO / "config"), "config"),
+        (str(REPO / "LICENSE"), "."),
     ],
     hiddenimports=["reeve.hub", "reeve.tray", "pystray._win32"],
     excludes=[

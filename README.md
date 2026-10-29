@@ -76,6 +76,11 @@ Uninstalling Reeve (Windows Settings, Apps) keeps this folder, so your history i
 ## Development
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), the [roadmap](ROADMAP.md) and the [decision log](docs/DECISIONS.md).
 
+## License
+Reeve is free software under the [GNU General Public License v3](LICENSE): you can use, study, share and modify it, and versions you distribute must remain under the same license.
+
+Age of Empires IV © Microsoft Corporation. Reeve was created under Microsoft's "Game Content Usage Rules" using assets from Age of Empires IV, and it is not endorsed by or affiliated with Microsoft. Alert sounds come from Pixabay ([sources](assets/sounds/library/SOURCE.md)).
+
 ---
 
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/kndhvh)

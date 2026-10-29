@@ -42,11 +42,11 @@ The repository goes public once the project feels complete enough.
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| P1 | License for the code (and a note on the bundled third-party assets: game icons, Pixabay sounds) |  |
-| P2 | README for players first: what Reeve does, screenshots of the overlay, the report and the hub, install steps; development notes below |  |
-| P3 | Support link (Buy Me a Coffee) in the README, the hub and `.github/FUNDING.yml` |  |
-| P4 | Issue templates for bug reports (with `reeve doctor` output and `reeve.log`) and suggestions |  |
-| P5 | Workflow with two branches: `unstable` receives the day-to-day work (and contributors' pull requests); `main` is stable, protected, and only receives `unstable` through a pull request when a version is ready, tagged `vX.Y.Z` there. GitHub Actions runs the tests on Windows for every pull request |  |
+| P1 | License for the code (and a note on the bundled third-party assets: game icons, Pixabay sounds) | ✅ GPL-3.0, Microsoft notice |
+| P2 | README for players first: what Reeve does, screenshots of the overlay, the report and the hub, install steps; development notes below | ✅ (overlay screenshot to add) |
+| P3 | Support link (Buy Me a Coffee) in the README, the hub and `.github/FUNDING.yml` | ✅ README and GitHub sponsor button (hub link to do) |
+| P4 | Issue templates for bug reports (with `reeve doctor` output and `reeve.log`) and suggestions | ✅ |
+| P5 | Workflow with two branches: `unstable` receives the day-to-day work (and contributors' pull requests); `main` is stable, protected, and only receives `unstable` through a pull request when a version is ready, tagged `vX.Y.Z` there. GitHub Actions runs the tests on Windows for every pull request | CI ✅; `unstable` and branch protection when public |
 
 ## Game data (prerequisite of v0.3)
 Build orders need the whole game catalog, and the match history wants to know who played what.

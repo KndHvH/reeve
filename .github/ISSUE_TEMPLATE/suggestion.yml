@@ -1,0 +1,11 @@
+name: Suggestion
+description: An idea for a new alert, report or feature
+labels: [suggestion]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What you would like Reeve to do, and in which moment of a match it would help.
+    validations:
+      required: true

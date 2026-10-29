@@ -1,0 +1,34 @@
+name: Bug report
+description: Something in Reeve does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Reeve version
+      description: Shown at the bottom of the hub, e.g. 0.2.1.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Resolution, UI scale and display mode
+      description: e.g. 2560x1440, UI 100%, Borderless.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Paste the end of %APPDATA%\reeve\reeve.log, if there is anything in it.
+      render: text
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: A screenshot of the game when it happened helps a lot with reading problems.

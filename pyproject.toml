@@ -1,10 +1,12 @@
 [project]
 name = "reeve"
 version = "0.2.1"
-description = "Lightweight Age of Empires IV overlay: reads the game UI through template matching and provides macro tips."
+description = "A lightweight macro assistant for Age of Empires IV: live alerts and match reports from the game UI."
 authors = [
-    { name = "Matias Herklotz", email = "delend89@gmail.com" }
+    { name = "Matias Herklotz" }
 ]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "mss>=10.2",
