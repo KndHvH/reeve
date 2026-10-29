@@ -43,7 +43,7 @@ h2 { font: 600 24px/1.2 var(--serif); color: var(--accent-light); margin: 0 0 4p
 h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 
 /* Matches */
-.match { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 170px 90px 1fr 210px; gap: 16px;
+.match { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 170px 90px 1fr auto; gap: 16px;
   align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--rule); cursor: pointer; }
 .match:hover, .match:focus-visible { background: var(--panel); outline: none; }
 .match .when b { display: block; font-family: var(--serif); font-size: 16px; }
@@ -53,9 +53,16 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 .ages { display: flex; gap: 14px; flex-wrap: wrap; }
 .ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .ages i { font: normal 600 15px var(--serif); color: var(--accent); margin-right: 4px; }
-.probs { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-.prob { font-size: 12px; padding: 1px 7px; border-radius: var(--radius); background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.prob.warn { box-shadow: inset 3px 0 0 var(--warn); } .prob.critical { box-shadow: inset 3px 0 0 var(--critical); } .prob.info { box-shadow: inset 3px 0 0 var(--info); }
+.probs { display: grid; grid-template-columns: repeat(4, 106px); gap: 6px; justify-content: end; }
+@media (max-width: 1320px) { .probs { grid-template-columns: repeat(2, 106px); } }
+/* One column per alert, always in the same order; the dot carries the worst severity. */
+.prob { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px; border-radius: var(--radius-sm);
+  background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prob i { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--mist); }
+.prob.warn i { background: var(--warn); } .prob.critical i { background: var(--critical); } .prob.info i { background: var(--info); }
+.prob b { margin-left: auto; font-weight: normal; color: var(--ink); }
+.prob.none { visibility: hidden; }
+.prob.clean { grid-column: 1 / -1; justify-self: end; color: var(--mist); }
 .empty { color: var(--mist); padding: 30px 0; }
 
 /* Settings */
@@ -143,7 +150,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .tools button:disabled { opacity: .45; cursor: default; }
 button.danger { border-color: var(--critical) !important; color: var(--critical) !important; }
 .bar .danger { margin-left: 8px; background: none; border: 1px solid; border-radius: var(--radius); padding: 3px 10px; font: 13px var(--sans); }
-.match.sel { grid-template-columns: 26px 170px 90px 1fr 210px; }
+.match.sel { grid-template-columns: 26px 170px 90px 1fr auto; }
 .match .tick { position: relative; width: 18px; height: 18px; box-sizing: border-box;
   border: 1px solid var(--accent-dim); border-radius: var(--radius-sm); }
 .match[aria-pressed="true"] { background: var(--panel); }
@@ -167,7 +174,7 @@ const api = () => window.pywebview.api;
 const $ = s => document.querySelector(s);
 const fmt = s => s == null ? "–" : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const ROMAN = { 2: "II", 3: "III", 4: "IV" };
-const PROB = { tc_idle: "TC idle", housed: "Housed", idle_villager: "Idle", floating: "Floating" };
+const PROB = { tc_idle: "TC idle", idle_villager: "Idle", housed: "Housed", floating: "Floating" };   // column order
 let current = "matches";
 let selecting = false;          // Matches: select mode for deleting
 const picked = new Set();
@@ -186,8 +193,13 @@ async function showMatches() {
   const list = await api().matches();
   const rows = list.map(m => {
     const ages = (m.ages || []).map(a => `<span><i>${ROMAN[a.age] || a.age}</i>${fmt(a.reached)}</span>`).join("");
-    const probs = Object.entries(m.problems || {}).filter(([, p]) => p.seconds > 0)
-      .map(([id, p]) => `<span class="prob ${p.severity || ""}" title="${PROB[id]}">${PROB[id]} ${fmt(p.seconds)}</span>`).join("");
+    const had = Object.keys(PROB).filter(id => (m.problems || {})[id]?.seconds > 0);
+    const probs = had.length && Object.keys(PROB).map(id => {
+      const p = (m.problems || {})[id];
+      return p?.seconds > 0
+        ? `<span class="prob ${p.severity || ""}" title="${PROB[id]}: ${fmt(p.seconds)} in total"><i></i>${PROB[id]}<b>${fmt(p.seconds)}</b></span>`
+        : `<span class="prob none" aria-hidden="true"></span>`;
+    }).join("");
     const vil = m.villagers_at || {};
     const on = picked.has(m.session);
     return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
@@ -196,7 +208,7 @@ async function showMatches() {
       <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
-      <div class="probs">${probs || '<span class="prob">no problems</span>'}</div></button>`;
+      <div class="probs">${probs || '<span class="prob clean">no alerts</span>'}</div></button>`;
   }).join("");
   const tools = !list.length ? "" : selecting
     ? `<div class="tools"><span>${picked.size} selected</span>
