@@ -227,10 +227,19 @@ def cmd_migrate(args) -> int:
     return 0
 
 
+def cmd_app(args) -> int:
+    """Overlay plus tray icon (also the default when no command is given)."""
+    from .tray import TrayApp
+
+    print("aoe4-overlay running in the tray. Use its menu to quit.")
+    TrayApp(args.every, args.debug, args.mute).run()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(prog="aoe4ov")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")
 
     sub.add_parser("window", help="show the detected AoE4 window and its resolution")
 
@@ -267,10 +276,17 @@ def main(argv: list[str] | None = None) -> int:
     mg = sub.add_parser("migrate", help="move recorded sessions from an old folder into the data folder")
     mg.add_argument("source", nargs="?", default="sessions", help="old sessions folder (default: ./sessions)")
 
+    ap = sub.add_parser("app", help="overlay with a tray icon (default)")
+    ap.add_argument("--every", type=float, default=2.0)
+    ap.add_argument("--debug", action="store_true")
+    ap.add_argument("--mute", action="store_true")
+
     args = p.parse_args(argv)
+    if args.cmd is None:  # plain `aoe4ov`: the app
+        args = p.parse_args(["app"])
     cmds = {
         "window": cmd_window, "snap": cmd_snap, "inspect": cmd_inspect,
-        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate,
+        "label": cmd_label, "glyphs": cmd_glyphs, "watch": cmd_watch, "overlay": cmd_overlay, "replay": cmd_replay, "sounds": cmd_sounds, "report": cmd_report, "migrate": cmd_migrate, "app": cmd_app,
     }
     return cmds[args.cmd](args)
 

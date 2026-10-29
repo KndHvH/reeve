@@ -8,7 +8,7 @@ An AoE4 overlay that reads the game UI through template matching. See `README.md
 - **Everything inspectable**: every new pipeline stage needs a visual output (`inspect.html`, `--debug`) for the user to validate.
 - **Milestone checkpoints**: deliver a ROADMAP milestone, ask the user to validate it, and only then move on.
 - Record non-obvious decisions in `docs/DECISIONS.md`.
-- Use only ctypes for Win32 (no pywin32).
+- Use only ctypes for Win32 (no pywin32). Exception: the tray icon uses `pystray` (pure Python over ctypes).
 - **Language**: all code, comments, docs, CLI/UI text, log keys and commit messages are in English. Conversation with the user may be in Portuguese.
 
 ## Commands

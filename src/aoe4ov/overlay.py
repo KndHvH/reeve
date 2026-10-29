@@ -82,10 +82,16 @@ def _conf_color(c: float) -> str:
 
 
 class Overlay:
-    """Window, engine loop and alert cards shared by both modes."""
+    """Window, engine loop and both views. The mode, pause, mute and quit are
+    plain attributes so the tray (another thread) can change them; the Tk loop
+    in the main thread picks them up on the next tick."""
 
-    def __init__(self, every: float, mute: bool = False):
+    def __init__(self, every: float, mute: bool = False, debug: bool = False):
         self.every = every
+        self.debug = debug          # debug view vs clean alert cards
+        self.enabled = True         # False: paused, nothing read or drawn
+        self.quit_requested = False
+        self._shown = None          # clean view: last drawn signature
         self.live = LiveReader(every)
         sound_cfg = dict(self.live.rules.config.get("sound", {}))
         if mute:
@@ -115,6 +121,14 @@ class Overlay:
 
     # --- loop -------------------------------------------------------------
     def tick(self):
+        if self.quit_requested:
+            self.root.destroy()
+            return
+        if not self.enabled:
+            self.root.withdraw()
+            self._shown = None
+            self.root.after(int(self.every * 1000), self.tick)
+            return
         try:
             s = self.live.step()
             if s.events:
@@ -150,15 +164,19 @@ class Overlay:
             self.live.close()
 
     def draw(self, s: Step):
-        raise NotImplementedError
+        if self.debug:
+            self._shown = None
+            self._draw_debug(s)
+        else:
+            self._draw_clean(s)
 
     def _draw_watermark(self, k: float, color: str) -> None:
-        """Tiny "aoe4ol <version>" tag in the top-left corner, above the game's
+        """Tiny "aoe4ov <version>" tag in the top-left corner, above the game's
         own icons; the dot carries the state (see _status_color)."""
         c = self.canvas
         x, y = round(5 * k), round(2 * k)
         r = max(2, round(2 * k))
-        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"aoe4ol {__version__}", fill=MUTED,
+        t = c.create_text(x + 2 * r + round(3 * k), y, text=f"aoe4ov {__version__}", fill=MUTED,
                           anchor="nw", font=(FONT, max(5, round(4 * k))))
         x0, y0, x1, y1 = c.bbox(t)
         cy = (y0 + y1) // 2
@@ -202,14 +220,8 @@ class Overlay:
             y = y1 + pad + gap
 
 
-class CleanOverlay(Overlay):
-    """Only the alerts. Redraws only when they change."""
-
-    def __init__(self, every: float, mute: bool = False):
-        self._shown = None
-        super().__init__(every, mute)
-
-    def draw(self, s: Step):
+    # --- clean view: only the alerts, redrawn only when they change --------
+    def _draw_clean(self, s: Step):
         alerts = s.alerts if s.status == "reading" else []
         dot = _status_color(s)
         sig = (tuple((a.id, a.severity, a.text) for a in alerts), self.geom, dot)
@@ -222,9 +234,8 @@ class CleanOverlay(Overlay):
         self._draw_alerts(alerts, round(16 * k), round(s.win.height * 0.16), k, max(8, round(8 * k)))
 
 
-class DebugOverlay(Overlay):
-    # --- drawing ----------------------------------------------------------
-    def draw(self, s: Step):
+    # --- debug view ---------------------------------------------------------
+    def _draw_debug(self, s: Step):
         c = self.canvas
         c.delete("all")
         k = s.match.scale if s.match else 1.0
@@ -331,4 +342,4 @@ class DebugOverlay(Overlay):
 
 
 def run(every: float, debug: bool = False, mute: bool = False) -> None:
-    (DebugOverlay if debug else CleanOverlay)(every, mute).run()
+    Overlay(every, mute, debug).run()

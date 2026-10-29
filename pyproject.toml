@@ -10,10 +10,14 @@ dependencies = [
     "mss>=10.2",
     "numpy>=2.1",
     "pillow>=13.0.0",
+    "pystray>=0.19.5",
 ]
 
 [project.scripts]
 aoe4ov = "aoe4ov.cli:main"
+
+[project.gui-scripts]
+aoe4ov-app = "aoe4ov.tray:main"
 
 [dependency-groups]
 dev = ["pytest>=8.3"]

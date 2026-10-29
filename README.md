@@ -23,8 +23,11 @@ ules.json` holds only the settings you changed, on top of the shipped defaults i
 - [uv](https://docs.astral.sh/uv/)
 
 ## Usage
+Run `uv run aoe4ov` (or the windowless `aoe4ov-app`): the overlay starts with a tray icon whose menu turns the overlay on/off, switches to the debug view, mutes the sounds, opens the last report or the data folder, and quits.
+
 ```powershell
 uv sync                                 # install dependencies
+uv run aoe4ov                           # the app: overlay + tray icon
 uv run aoe4ov window                    # show the detected game window and its resolution
 uv run aoe4ov snap --count 6 --every 20 # save in-game screenshots to captures/
 uv run aoe4ov inspect captures/*.png    # write .inspect.html files showing every reading stage, field by field
