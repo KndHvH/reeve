@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 EFFECTS = ("none", "short_fade", "long_fade", "slide")
-DEFAULTS = {"enter": "short_fade", "exit": "short_fade", "move": "slide"}
+DEFAULTS = {"enter": "slide", "exit": "long_fade", "move": "slide"}
 DURATION_S = {"short_fade": 0.15, "long_fade": 0.45, "slide": 0.25}
 FRAME_MS = 15
 

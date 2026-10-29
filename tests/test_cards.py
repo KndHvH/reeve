@@ -11,7 +11,7 @@ from reeve.cards import CardStack, Tween, settings, stack_layout
 def test_settings_fall_back_to_defaults():
     assert settings(None) == cards.DEFAULTS
     cfg = {"overlay": {"animation": {"enter": "slide", "exit": "bogus"}}}
-    assert settings(cfg) == {"enter": "slide", "exit": "short_fade", "move": "slide"}
+    assert settings(cfg) == {"enter": "slide", "exit": "long_fade", "move": "slide"}
 
 
 def test_stack_stops_before_the_read_region():

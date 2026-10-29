@@ -280,7 +280,7 @@ const applyLook = css => { $("#look").textContent = `:root { ${css} }`; };
 let themeList = {};
 
 // Alert card animations: one effect per moment (cards.py), applied at once.
-const ANIM_DEFAULT = { enter: "short_fade", exit: "short_fade", move: "slide" };
+const ANIM_DEFAULT = { enter: "slide", exit: "long_fade", move: "slide" };
 const ANIM_EFFECTS = [["none", "None"], ["short_fade", "Short fade"], ["long_fade", "Long fade"], ["slide", "Slide"]];
 const ANIM_MOMENTS = [
   ["enter", "Alert appears", "slide comes in from the left edge of the screen"],
