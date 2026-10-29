@@ -76,7 +76,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pair button, .actions button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--accent-dim); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font: 13px var(--sans); }
 .pair button:hover, .actions button:hover { border-color: var(--accent); }
 .row.wide { grid-template-columns: 1fr 330px; }
-.bands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.row.limits { grid-template-columns: 1fr 440px; }
+.bands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .age-limit { display: flex; align-items: center; gap: 4px; }
 .age-limit i { font: normal 600 13px var(--serif); color: var(--accent); min-width: 20px; text-align: right; }
 .actions { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; background: var(--night); padding: 12px 0; border-top: 1px solid var(--accent-dim); }
@@ -345,7 +346,7 @@ async function showSettings() {
       h += `<p class="usage">${storage.matches} matches use ${storage.mb} MB. Applied when the app starts.</p>`;
     }
     if (g.bands) {
-      h += `<div class="row wide"><label>Limit per age<small>above the current age's limit is info; above a later age's limit escalates. Empty means no limit</small></label><div class="bands">`;
+      h += `<div class="row limits"><label>Limit per age<small>a later age's limit escalates; empty is no limit</small></label><div class="bands">`;
       ["I", "II", "III", "IV"].forEach((age, i) => {
         const lim = v.age_limits[i];
         h += `<span class="age-limit"><i>${age}</i><input type="number" min="0" step="50" data-age-limit="${i}" value="${lim ?? ""}" placeholder="none" aria-label="Age ${age} limit"></span>`;
