@@ -64,7 +64,10 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings and your sounds are stored in `%APPDATA%\reeve` on your computer. Nothing is sent anywhere.
+Matches, settings and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Once a day Reeve asks GitHub whether a new version exists (it can be turned off in the hub's settings); nothing about you or your matches is sent.
+
+## Updates
+When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.
 
 Older matches are trimmed automatically: everything is kept for 7 days, the report alone for up to 90 days, and the folder never grows beyond 500 MB. These limits are in the hub's settings.
 
