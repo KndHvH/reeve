@@ -180,7 +180,8 @@ def summarize(tl: dict) -> dict:
         spans = [a for a in alerts if a["id"] == aid]
         worst = max((a["severity"] for a in spans), key=SEVERITIES.index, default=None)
         problems.append({"id": aid, "label": label, "seconds": sum(a["end"] - a["start"] for a in spans),
-                         "severity": worst})
+                         "severity": worst,
+                         "critical": sum(a["end"] - a["start"] for a in spans if a["severity"] == "critical")})
 
     income = {}
     for r in RESOURCES:
@@ -275,7 +276,8 @@ def write_summary(session: Path, tl: dict | None = None) -> dict:
         "ages": s.get("ages", []),
         "civ": (tl.get("build") or {}).get("civ") or None,   # the followed build's; None without one
         "build": (tl.get("build") or {}).get("name") or None,
-        "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"]} for p in s.get("problems", [])},
+        "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"], "critical": p["critical"]}
+                     for p in s.get("problems", [])},
         "income": s.get("income", {}),
     }
     (session / "summary.json").write_text(json.dumps(digest, ensure_ascii=False), encoding="utf-8")

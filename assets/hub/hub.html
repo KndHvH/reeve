@@ -54,9 +54,8 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 .ages { display: flex; gap: 14px; flex-wrap: wrap; }
 .ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .ages i { font: normal 600 15px var(--serif); color: var(--accent); margin-right: 4px; }
-.probs { display: grid; grid-template-columns: repeat(4, 106px); gap: 6px; justify-content: end; }
-.probs.five { grid-template-columns: repeat(5, 96px); }
-@media (max-width: 1320px) { .probs { grid-template-columns: repeat(2, 106px); } .probs.five { grid-template-columns: repeat(3, 96px); } }
+.probs { display: grid; grid-template-columns: repeat(var(--n, 4), 106px); gap: 6px; justify-content: end; }
+@media (max-width: 1320px) { .probs.wide { grid-template-columns: repeat(2, 106px); } }
 /* One column per alert, always in the same order; the dot carries the worst severity. */
 .prob { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px; border-radius: var(--radius-sm);
   background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -244,17 +243,16 @@ const flagImg = (abbr, civ) => abbr ? `<img class="flag" src="../flags/${abbr}.p
 
 async function showMatches() {
   const list = await api().matches();
-  // The Build column only once some match followed a build order.
-  const cols = Object.keys(PROB).filter(id => id !== "build" || list.some(m => (m.problems || {}).build));
+  // Only the time each alert spent critical; the report has the rest. A
+  // column only for the alerts some listed match had critical.
+  const crit = (m, id) => (m.problems || {})[id]?.critical || 0;
+  const cols = Object.keys(PROB).filter(id => list.some(m => crit(m, id) > 0));
   const rows = list.map(m => {
     const ages = (m.ages || []).map(a => `<span><i>${ROMAN[a.age] || a.age}</i>${fmt(a.reached)}</span>`).join("");
-    const had = cols.filter(id => (m.problems || {})[id]?.seconds > 0);
-    const probs = had.length && cols.map(id => {
-      const p = (m.problems || {})[id];
-      return p?.seconds > 0
-        ? `<span class="prob ${p.severity || ""}" title="${PROB[id]}: ${fmt(p.seconds)} in total"><i></i>${PROB[id]}<b>${fmt(p.seconds)}</b></span>`
-        : `<span class="prob none" aria-hidden="true"></span>`;
-    }).join("");
+    const had = cols.filter(id => crit(m, id) > 0);
+    const probs = had.length && cols.map(id => crit(m, id) > 0
+      ? `<span class="prob critical" title="${PROB[id]}: ${fmt(crit(m, id))} critical (${fmt(m.problems[id].seconds)} with any alert)"><i></i>${PROB[id]}<b>${fmt(crit(m, id))}</b></span>`
+      : `<span class="prob none" aria-hidden="true"></span>`).join("");
     const vil = m.villagers_at || {};
     const on = picked.has(m.session);
     return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
@@ -263,7 +261,7 @@ async function showMatches() {
       <div class="when"><b>${flagImg(m.flag, m.civ)}${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
-      <div class="probs${cols.length > 4 ? " five" : ""}">${probs || '<span class="prob clean">no alerts</span>'}</div></button>`;
+      <div class="probs${cols.length > 2 ? " wide" : ""}" style="--n:${Math.max(cols.length, 1)}">${probs || '<span class="prob clean">no critical alerts</span>'}</div></button>`;
   }).join("");
   const tools = !list.length ? "" : selecting
     ? `<div class="tools"><span>${picked.size} selected</span>
@@ -271,7 +269,7 @@ async function showMatches() {
         <button type="button" class="danger" id="sel-delete" ${picked.size ? "" : "disabled"}>Delete ${picked.size || ""} match${picked.size === 1 ? "" : "es"}</button>
         <button type="button" id="sel-cancel">Done</button></div>`
     : `<div class="tools"><button type="button" id="sel-start">Select</button></div>`;
-  $("#main").innerHTML = `<div class="head"><div><h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first. Open one to see its report.</p></div>${tools}</div>
+  $("#main").innerHTML = `<div class="head"><div><h2>Matches</h2><p class="lede">Every match the overlay recorded, newest first, with the time each alert was critical. Open one to see its report.</p></div>${tools}</div>
     ${rows || '<p class="empty">No matches yet. Play a match with the overlay on and it will show up here.</p>'}`;
   document.querySelectorAll(".match").forEach(b => b.addEventListener("click", () => {
     if (!selecting) return showReport(b.dataset.session, b.dataset.started);

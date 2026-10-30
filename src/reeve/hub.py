@@ -35,7 +35,8 @@ def match_summaries() -> list[dict]:
             digest = None
             if summary.exists() and summary.stat().st_mtime >= log.stat().st_mtime:
                 digest = json.loads(summary.read_text(encoding="utf-8"))
-            if digest is None or "civ" not in digest:   # missing, stale, or written before the civilization was
+            if (digest is None or "civ" not in digest   # missing, stale, or written before the civilization was
+                    or any("critical" not in p for p in digest.get("problems", {}).values())):   # or the critical time
                 digest = write_summary(s)
         except Exception:  # a broken log must not hide the others
             continue
