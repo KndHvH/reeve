@@ -81,7 +81,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .switch.big { width: 52px; height: 28px; border-radius: 14px; }
 .switch.big::after { top: 4px; left: 4px; width: 20px; height: 20px; } .switch.big:checked::after { left: 28px; }
-.master { display: flex; align-items: center; gap: 10px; padding-top: 4px; color: var(--ink); font-size: 14px; cursor: pointer; }
+.switch.big { flex: none; margin-top: 6px; }
 .off { opacity: .45; filter: grayscale(1); transition: opacity .15s; }
 .row > .switch, .row > .seg { justify-self: end; }
 .pair { display: flex; gap: 6px; align-items: center; }
@@ -332,7 +332,7 @@ async function showBuilds() {
   }).join("");
   $("#main").innerHTML = `<div class="head"><div><h2>Builds</h2><p class="lede">During a match, the build in use shows its previous, current and next step on the right of the screen.
     A step is reached when you have its villagers and its age. If your villagers are not where the step puts them, an alert says what to move.</p></div>
-    <label class="master">Build orders<input type="checkbox" class="switch big" id="bo-show" ${r.show ? "checked" : ""} aria-label="Build orders on or off"></label></div>
+    <input type="checkbox" class="switch big" id="bo-show" ${r.show ? "checked" : ""} title="Build orders on or off" aria-label="Build orders on or off"></div>
     <div id="bo-body"${r.show ? "" : ' class="off"'}>
     <section class="group"><header><h3>Import a build</h3></header>
       <form class="import" id="bo-form"><input type="text" id="bo-url" placeholder="https://aoe4guides.com/builds/…" aria-label="Link to a build on aoe4guides.com, or its JSON" autocomplete="off">
