@@ -63,7 +63,6 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 .prob.warn i { background: var(--warn); } .prob.critical i { background: var(--critical); } .prob.info i { background: var(--info); }
 .prob b { margin-left: auto; font-weight: normal; color: var(--ink); }
 .prob.none { visibility: hidden; }
-.prob.clean { grid-column: 1 / -1; justify-self: end; color: var(--mist); }
 .empty { color: var(--mist); padding: 30px 0; }
 
 /* Settings */
@@ -261,7 +260,7 @@ async function showMatches() {
       <div class="when"><b>${flagImg(m.flag, m.civ)}${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
-      <div class="probs${cols.length > 2 ? " wide" : ""}" style="--n:${Math.max(cols.length, 1)}">${probs || '<span class="prob clean">no critical alerts</span>'}</div></button>`;
+      <div class="probs${cols.length > 2 ? " wide" : ""}" style="--n:${Math.max(cols.length, 1)}">${probs || ""}</div></button>`;
   }).join("");
   const tools = !list.length ? "" : selecting
     ? `<div class="tools"><span>${picked.size} selected</span>
