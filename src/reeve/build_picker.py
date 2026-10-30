@@ -17,6 +17,21 @@ WIDTH = 230       # at k = 1
 NONE_LABEL = "None"
 
 
+def elide(text: str, width: int, measure) -> str:
+    """`text` cut to fit `width` pixels with an ellipsis; `measure(text)` gives
+    its width. Long build names otherwise wrap and spill over the next rows."""
+    if measure(text) <= width:
+        return text
+    lo, hi = 0, len(text)
+    while lo < hi:   # the longest prefix that fits with the ellipsis
+        mid = (lo + hi + 1) // 2
+        if measure(text[:mid].rstrip() + "…") <= width:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo].rstrip() + "…"
+
+
 class BuildPicker:
     def __init__(self, root: tk.Tk, key: str, setup_window, box):
         """`setup_window(win)` makes it a no-focus tool window (returns its
@@ -84,8 +99,9 @@ class BuildPicker:
         c.create_text(pad + round(3 * k), y, text="Build order", fill=look["muted"], anchor="nw", font=small)
         y += small.metrics("linespace")
         current = names.get(active, NONE_LABEL)
+        current = elide(current, width - 2 * pad - round(3 * k) - bold.measure("▾") - pad, bold.measure)
         c.create_text(pad + round(3 * k), y, text=current, fill=look["ink"] if active in names else look["muted"],
-                      anchor="nw", font=bold, width=width - 3 * pad)
+                      anchor="nw", font=bold)
         c.create_text(width - pad, y + bold.metrics("linespace") // 2, text="▴" if self.open else "▾",
                       fill=look["accent"], anchor="e", font=bold)
         y += bold.metrics("linespace") + pad
@@ -103,7 +119,9 @@ class BuildPicker:
                 if bid == active or (bid is None and active not in names):
                     c.create_rectangle(round(3 * k), y0 + round(4 * k), round(6 * k), y0 + lh - round(4 * k),
                                        fill=look["accent"], outline="")
-                t = c.create_text(pad + round(3 * k), y0 + lh // 2, text=label, fill=look["ink"], anchor="w", font=plain)
+                room = width - 2 * pad - round(3 * k) - (small.measure(sub) + round(6 * k) if sub else 0)
+                t = c.create_text(pad + round(3 * k), y0 + lh // 2, text=elide(label, room, plain.measure),
+                                  fill=look["ink"], anchor="w", font=plain)
                 if sub:
                     x1 = c.bbox(t)[2]
                     c.create_text(x1 + round(6 * k), y0 + lh // 2, text=sub, fill=look["muted"], anchor="w", font=small)

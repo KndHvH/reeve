@@ -114,23 +114,27 @@ def _floating(s: GameState, cfg: dict, held: float):
 def _build(s: GameState, cfg: dict, held: float, tracker=None):
     """Villagers not where the build's current step puts them: move them from
     a resource with more than the step to one with less, or put more on a
-    resource. Checked grace_s game seconds after the step is reached (moving
-    villagers takes a moment); at most two instructions, in one card."""
+    resource; at most two instructions, in one card. Builds are rarely exact
+    and villagers take a moment to walk, so it starts as info and escalates
+    with the game seconds the villagers stay off the step: warn after
+    warn_after_s, critical after critical_after_s; a new step starts over.
+    A resource that reached the step's count once stays reached."""
     from .builds import describe, instructions
 
     if tracker is None or s.clock is None or tracker.reached_at is None or tracker.finished:
         return None
-    if s.clock - tracker.reached_at < cfg.get("grace_s", 6):
-        return None
     _, step, nxt = tracker.window()
-    todo = instructions(step.targets, s.villagers)
-    if not todo:
+    todo = instructions(step.targets, tracker.placed(s))
+    if not todo or (nxt is not None and not instructions(nxt.targets, s.villagers)):
+        tracker.off_since = None   # on the step, or already placed for the next one (not counted yet)
         return None
-    if nxt is not None and not instructions(nxt.targets, s.villagers):
-        return None     # already placed for the next step, which is just not counted yet
+    if tracker.off_since is None:
+        tracker.off_since = s.clock
+    off = s.clock - tracker.off_since
+    level = 2 if off >= cfg.get("critical_after_s", 12) else 1 if off >= cfg.get("warn_after_s", 6) else 0
     text = "; ".join(describe(i) for i in todo[:2])
-    return "warn", text, {"step": tracker.index + 1, "to": todo[0][-1],
-                          "todo": [list(i) for i in todo], "villagers": dict(s.villagers)}
+    return SEVERITIES[level], text, {"step": tracker.index + 1, "to": todo[0][-1], "off_s": off,
+                                     "todo": [list(i) for i in todo], "villagers": dict(s.villagers)}
 
 
 RULES = {
@@ -169,11 +173,13 @@ class RuleEngine:
         self._sync_build()
         if self.build is not None:
             self.build.update(s)
+        # No alert in the first seconds of a match.
+        quiet = s.clock is not None and s.clock < (self.config.get("alerts") or {}).get("quiet_start_s", 10)
         for rid, cond in RULES.items():
             cfg = self.config.get(rid, {})
             since = self._since.get(rid)
             held = wall - since if since is not None else 0.0
-            if not cfg.get("enabled", True):
+            if quiet or not cfg.get("enabled", True):
                 hit = None
             elif rid == "build":
                 hit = cond(s, cfg, held, self.build)

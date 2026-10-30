@@ -89,6 +89,12 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     tracker, engine, income = StateTracker(), RuleEngine(config=config), IncomeTracker()
     rows, intervals, open_alerts = [], [], {}
     readings = [r for r in lines if "values" in r]
+    moves, pending = {}, []   # steps moved by hand, applied before the next reading as in the match
+    for r in lines:
+        if r.get("event") == "build_move":
+            pending.append(r["dir"])
+        elif "values" in r and pending:
+            moves[id(r)], pending = pending, []
     backfill, keys = {}, []
     if readings and not any("age" in r["values"] for r in readings):
         scale = next((r["anchor"][2] for r in readings if r.get("anchor")), None)
@@ -108,6 +114,9 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
         s = tracker.update(values, wall)
         if s.clock is None:
             continue
+        for d in moves.get(id(row), ()):
+            if engine.build is not None:
+                engine.build.step_back() if d == "back" else engine.build.step_forward()
         for tr in engine.evaluate(s, wall):
             a = tr.alert
             if tr.kind in ("on", "change"):
@@ -171,7 +180,8 @@ def summarize(tl: dict) -> dict:
         spans = [a for a in alerts if a["id"] == aid]
         worst = max((a["severity"] for a in spans), key=SEVERITIES.index, default=None)
         problems.append({"id": aid, "label": label, "seconds": sum(a["end"] - a["start"] for a in spans),
-                         "severity": worst})
+                         "severity": worst,
+                         "critical": sum(a["end"] - a["start"] for a in spans if a["severity"] == "critical")})
 
     income = {}
     for r in RESOURCES:
@@ -266,7 +276,8 @@ def write_summary(session: Path, tl: dict | None = None) -> dict:
         "ages": s.get("ages", []),
         "civ": (tl.get("build") or {}).get("civ") or None,   # the followed build's; None without one
         "build": (tl.get("build") or {}).get("name") or None,
-        "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"]} for p in s.get("problems", [])},
+        "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"], "critical": p["critical"]}
+                     for p in s.get("problems", [])},
         "income": s.get("income", {}),
     }
     (session / "summary.json").write_text(json.dumps(digest, ensure_ascii=False), encoding="utf-8")

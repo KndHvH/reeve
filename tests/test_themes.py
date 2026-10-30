@@ -22,18 +22,18 @@ def test_css_carries_colors_resources_and_corners():
 
 def test_unknown_choices_fall_back_to_defaults():
     cfg = {"appearance": {"theme": "nope", "corners": "wavy"}}
-    assert themes.current(cfg)[0] == "age" and themes.corners(cfg) == "square"
+    assert themes.current(cfg)[0] == "age" and themes.corners(cfg) == "rounded"
 
 
 def test_appearance_is_saved_at_once_and_reports_follow_it():
     api = HubApi()
-    css = api.set_appearance("dracula", "rounded")
-    assert "--accent: #bd93f9" in css and "--radius: 10px" in css
+    css = api.set_appearance("dracula", "square")
+    assert "--accent: #bd93f9" in css and "--radius: 3px" in css
     saved = json.loads(paths.user_config_path().read_text(encoding="utf-8"))
-    assert saved["appearance"] == {"theme": "dracula", "corners": "rounded"}
-    assert report.look() == "dracula/rounded"
+    assert saved["appearance"] == {"theme": "dracula", "corners": "square"}
+    assert report.look() == "dracula/square"
     html = report.render({"rows": [], "alerts": [], "frames": [], "ages": []}, "20260101-100000")
-    assert 'content="dracula/rounded"' in html and "--accent: #bd93f9" in html
+    assert 'content="dracula/square"' in html and "--accent: #bd93f9" in html
 
 
 def test_hub_rewrites_a_report_drawn_with_another_look():
@@ -46,7 +46,7 @@ def test_hub_rewrites_a_report_drawn_with_another_look():
     (folder / "log.jsonl").write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
     api = HubApi()
     api.report_url(folder.name)
-    assert 'content="age/square"' in (folder / "report.html").read_text(encoding="utf-8")
+    assert 'content="age/rounded"' in (folder / "report.html").read_text(encoding="utf-8")
     api.set_appearance("kitty", "square")
     api.report_url(folder.name)
     assert 'content="kitty/square"' in (folder / "report.html").read_text(encoding="utf-8")

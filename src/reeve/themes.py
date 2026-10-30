@@ -42,8 +42,8 @@ def colors(theme: dict) -> dict[str, str]:
 
 
 def corners(config: dict | None = None) -> str:
-    c = ((config or load_config()).get("appearance") or {}).get("corners", "square")
-    return c if c in CORNERS else "square"
+    c = ((config or load_config()).get("appearance") or {}).get("corners", "rounded")
+    return c if c in CORNERS else "rounded"
 
 
 def css(theme: dict, corner: str = "square") -> str:

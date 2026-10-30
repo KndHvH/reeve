@@ -73,6 +73,9 @@ class LiveReader:
         self.size: tuple[int, int] | None = None
         self.fails = 0
         self.hidden = 0
+        self._found: AnchorMatch | None = None   # where the panel was last found (its regions are captured)
+        self._probe: AnchorMatch | None = None   # the last full search
+        self._waits = 0                          # cycles in the menus, for the full search every RECAL_EVERY
         self.session: Path | None = None
         self.log = None
         self.saved_fails = 0
@@ -108,6 +111,17 @@ class LiveReader:
             self._match_clock = None
             self.readings = 0
             events.append(f"recording to {self.session}")
+
+    def move_build(self, direction: str) -> bool:
+        """The player moved the build order a step by hand ("back" or
+        "forward"); logged, so the report replays it."""
+        b = self.rules.build
+        if self.log is None or b is None or b.finished:
+            return False
+        if not (b.step_back() if direction == "back" else b.step_forward()):
+            return False
+        self._write({"event": "build_move", "dir": direction, "clock": b.clock})
+        return True
 
     def close(self, events: list[str] | None = None) -> None:
         if self.log:
@@ -153,6 +167,30 @@ class LiveReader:
                 self._report(s.events)
         return s
 
+    def _find_panel(self, win) -> AnchorMatch:
+        """Where the resource panel is. A full search (whole-window grab and a
+        multi-scale match, ~70 ms at 1440p) runs at once after a resize or
+        failed readings, but in the menus only every RECAL_EVERY cycles; in
+        between, the place it was last found is checked on the small regions
+        (~1 ms), so a new match at the same UI scale is still found at once."""
+        size = (win.width, win.height)
+        if size != self.size:
+            self._found = None             # its regions belong to the old size
+        elif self.fails < 3:
+            last = self._found
+            if last is not None:
+                shape, contrast = panel_state(self.cap.grab(win), last)
+                if shape >= max(MIN_SCORE, SHAPE_RATIO * last.score) and contrast >= MIN_CONTRAST:
+                    return last
+            self._waits += 1
+            if self._waits % RECAL_EVERY and self._probe is not None and not self._probe.ok:
+                return self._probe          # the last full search, which found nothing
+        m = self._probe = self.cap.probe(win)
+        if m.ok:
+            self.cap.adopt(m, win)
+            self._found = m
+        return m
+
     def _step(self) -> Step:
         events: list[str] = []
         win = find_game_window()
@@ -160,7 +198,7 @@ class LiveReader:
             return Step("no_game", win)
 
         if self.match is None or self.size != (win.width, win.height) or self.fails >= 3:
-            self.match = self.cap.calibrate(win)
+            self.match = self._find_panel(win)
             self.size = (win.width, win.height)
             self.fails = 0
             if not self.match.ok:
@@ -200,7 +238,8 @@ class LiveReader:
                 moved = abs(new.scale - match.scale) > 0.01 * match.scale or abs(new.x - match.x) + abs(new.y - match.y) > 2
                 if new.ok and moved:
                     self.cap.adopt(new, win)
-                    self.match, self.hidden = new, 0
+                    self.match = self._found = new
+                    self.hidden = 0
                     self._write({"event": "recalibrated", "anchor": [new.x, new.y, round(new.scale, 3), round(new.score, 3)]})
                     events.append(f"panel moved: recalibrated (scale {new.scale:.3f})")
                     return Step("hidden", win, new, grab_ms=grab_ms, shape=shape, contrast=contrast, events=events)

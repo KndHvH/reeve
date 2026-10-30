@@ -30,7 +30,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .version import shown as shown_version
-from .build_panel import BuildPanel
+from .build_panel import BuildPanel, StepControls
 from .build_picker import BuildPicker
 from .cards import CardStack, settings as animation_settings
 from .digits import MIN_SCORE
@@ -147,8 +147,10 @@ class Overlay:
         self.cards = CardStack(self.root, KEY, self._setup_card_window, self._paint_card)
         self.cards.effects = animation_settings(self.live.rules.config)
         self.build_panel = BuildPanel(self.root, KEY, self._setup_card_window, _box)
-        self.build_panel.stack.effects = self.cards.effects
+        self.build_panel.set_effects(self.cards.effects)
         self.build_picker = BuildPicker(self.root, KEY, self._setup_picker_window, _box)
+        self.step_controls = StepControls(self.root, KEY, self._setup_picker_window, _box, self._move_build)
+        self._build_args = None   # what the build panel was last drawn with
         self._builds_stamp, self._builds = None, []
         self.geom = None
         self.last_events: list[str] = []
@@ -159,6 +161,8 @@ class Overlay:
 
         self.notices = Notices()
         self.notify = lambda title, message: print(f"{title}: {message}")
+        self.on_match = lambda: None   # a match started (the tray closes the hub)
+        self._session = None
         self._icon_cache: dict[tuple[str, int], ImageTk.PhotoImage] = {}
         self.root.after(100, self.tick)
 
@@ -190,7 +194,8 @@ class Overlay:
             self._config_stamp = stamp
             self.live.rules.config = load_config()
             apply_theme(self.live.rules.config)
-            self.cards.effects = self.build_panel.stack.effects = animation_settings(self.live.rules.config)
+            self.cards.effects = animation_settings(self.live.rules.config)
+            self.build_panel.set_effects(self.cards.effects)
             self._apply_sounds()
             self._shown = None
 
@@ -249,6 +254,7 @@ class Overlay:
             self.root.withdraw()
             self.cards.clear()
             self.build_panel.hide()
+            self.step_controls.hide()
             self.build_picker.hide()
             self._shown = None
             self.root.after(int(self.every * 1000), self.tick)
@@ -258,6 +264,10 @@ class Overlay:
             self._sync_capture()
             s = self.live.step()
             self.last_status = s.status   # "reading"/"hidden": a match is open (no update notices)
+            if self.live.session != self._session:
+                self._session = self.live.session
+                if self._session is not None:
+                    self.on_match()
             if s.events:
                 self.last_events = (self.last_events + s.events)[-3:]
             for title, message in self.notices.observe(s):
@@ -266,6 +276,7 @@ class Overlay:
                 self.root.withdraw()
                 self.cards.clear()
                 self.build_panel.hide()
+                self.step_controls.hide()
             else:
                 g = (s.win.width, s.win.height, s.win.left, s.win.top)
                 if g != self.geom:
@@ -287,6 +298,7 @@ class Overlay:
     def _show_error(self) -> None:
         self.cards.clear()
         self.build_panel.hide()
+        self.step_controls.hide()
         self.build_picker.hide()
         self.canvas.delete("all")
         self._shown = None
@@ -303,6 +315,7 @@ class Overlay:
             self._shown = None
             self.cards.clear()
             self.build_panel.hide()
+            self.step_controls.hide()
             self._draw_debug(s)
         else:
             self._draw_clean(s)
@@ -407,6 +420,7 @@ class Overlay:
         """The build order panel, on the right at the cards' height, while a match is read."""
         if s.status != "reading" or s.build is None:
             self.build_panel.hide()
+            self.step_controls.hide()
             return
         bo = self.live.rules.config.get("build_order") or {}
         # The previous step only for a while after the step changed; the next
@@ -415,8 +429,23 @@ class Overlay:
         show_prev = not bo.get("previous_s", 10) or on_step < bo.get("previous_s", 10)
         show_next = on_step >= bo.get("next_after_s", 10)
         look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
-        self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, round(16 * k), round(s.win.height * 0.16),
-                                k * bo.get("scale", 1.0), look, show_prev, show_next)
+        top = round(s.win.height * 0.16)
+        kp, margin = k * bo.get("scale", 1.0), round(16 * k)
+        # The arrows first: the rally card sits to their left in the top row.
+        if bo.get("arrows", True):
+            controls_w = self.step_controls.update(s.build, s.win.left + s.win.width - margin, s.win.top + top, kp, look)
+        else:
+            controls_w = 0
+            self.step_controls.hide()
+        self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, margin, top,
+                                kp, look, show_prev, show_next, controls_w)
+        self._build_args = (s, k)
+
+    def _move_build(self, direction: str) -> None:
+        """An arrow over the build panel was clicked: the build moves at once,
+        and the panel follows without waiting for the next reading."""
+        if self.live.move_build(direction) and self._build_args is not None:
+            self._draw_build(*self._build_args)
 
     def _draw_picker(self, s: Step) -> None:
         """Over the game's menus (AoE4 in front, no match read): the build order picker."""

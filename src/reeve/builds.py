@@ -276,7 +276,10 @@ class BuildTracker:
     The population also grows with trained units, so the estimate never goes
     beyond the villagers that can exist: those of the first reading plus one
     per training time the town center was seen producing. Without that (no
-    production seen yet), only the villagers seen count."""
+    production seen yet), only the villagers seen count.
+
+    The player can also move it a step back or forward by hand (the arrows
+    over the panel) when the count is wrong; see `step_back`."""
 
     def __init__(self, build: Build):
         self.build = build
@@ -291,6 +294,9 @@ class BuildTracker:
         self.reached_at: int | None = None   # game clock when the current step was reached
         self.clock: int | None = None        # latest game clock
         self.end_after_s = 30                # the last step stays this long, then the build is over
+        self.hold: int | None = None         # count when stepped back by hand: no advancing until it is passed
+        self.met: set[str] = set()           # resources that reached the current step's count (stay reached)
+        self.off_since: int | None = None    # game clock when the villagers went off the current step
         self.villager_s = min(catalog.villager_s(build.civ, VILLAGER_DEFAULT_S), VILLAGER_DEFAULT_S)
 
     def _production(self, s: GameState) -> None:
@@ -332,19 +338,68 @@ class BuildTracker:
     def update(self, s: GameState) -> bool:
         """Advances with the new state; True when the step changed."""
         seen = self.counted(s)
-        if seen is not None and seen == self._last:   # two reads in a row: one misread never moves the build
-            self.peak = max(self.peak, seen)
+        if seen is not None and seen == self._last and (self.hold is None or seen > self.hold):
+            self.peak = max(self.peak, seen)          # two reads in a row: one misread never moves the build
+            self.hold = None
         self._last = seen
         if s.clock is not None:
             self.clock = s.clock
         if self.reached_at is None and s.clock is not None:
             self.reached_at = s.clock
         steps, i = self.build.steps, self.index
-        while i + 1 < len(steps) and self._reached(steps[i + 1], s):
+        while self.hold is None and i + 1 < len(steps) and self._reached(steps[i + 1], s):
             i += 1
-        if i == self.index:
+        changed = i != self.index
+        if changed:
+            self.index, self.reached_at = i, s.clock
+            self._new_step()
+        self._mark_met(s)
+        return changed
+
+    def _new_step(self) -> None:
+        self.met, self.off_since = set(), None
+
+    def _mark_met(self, s: GameState) -> None:
+        """A resource that reached the step's count once stays reached: one
+        villager fewer later is most likely off building, not off the build."""
+        for r, target in self.build.steps[self.index].targets.items():
+            have = (s.villagers or {}).get(r)
+            if target and have is not None and have >= target:
+                self.met.add(r)
+
+    def placed(self, s: GameState) -> dict[str, int | None]:
+        """The villagers as the current step's check sees them: a resource
+        already reached counts as at least the step's count."""
+        targets = self.build.steps[self.index].targets
+        return {r: max(a, targets[r]) if r in self.met and a is not None and targets.get(r) is not None else a
+                for r, a in (s.villagers or {}).items()}
+
+    def step_back(self) -> bool:
+        """The player says the build is not there yet (the count ran ahead):
+        one step back, and no advancing until more villagers are counted than
+        now, so the step it came back from needs one more villager."""
+        if self.index == 0:
             return False
-        self.index, self.reached_at = i, s.clock
+        self.index -= 1
+        self.reached_at = self.clock
+        self._new_step()
+        self.hold = max(self._last or 0, self.peak)
+        v = self.build.steps[self.index + 1].villagers
+        if v is not None:
+            self.peak = min(self.peak, v - 1)
+        return True
+
+    def step_forward(self) -> bool:
+        """The player is further on than the count says: one step forward."""
+        if self.index + 1 >= len(self.build.steps):
+            return False
+        self.index += 1
+        self.reached_at = self.clock
+        self._new_step()
+        self.hold = None
+        v = self.build.steps[self.index].villagers
+        if v is not None:
+            self.peak = max(self.peak, v)
         return True
 
     def window(self) -> tuple[BuildStep | None, BuildStep, BuildStep | None]:

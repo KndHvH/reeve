@@ -84,6 +84,35 @@ def test_tracker_keeps_the_step_when_villagers_leave_to_build():
     assert t.index == 2
 
 
+def test_stepping_back_by_hand_waits_for_one_more_villager():
+    t = BuildTracker(_mali())
+    _read(t, _state(food=1, wood=6))           # 7 villagers: step 2
+    assert t.index == 1
+    assert t.step_back() and t.index == 0
+    _read(t, _state(food=1, wood=6))           # the same count does not move it again
+    assert t.index == 0
+    _read(t, _state(food=2, wood=6))           # one more villager: step 2 again
+    assert t.index == 1
+
+
+def test_stepping_forward_by_hand_then_on_by_villagers():
+    t = BuildTracker(_mali())
+    _read(t, _state(food=6, wood=0))           # step 1
+    assert t.step_forward() and t.index == 1
+    _read(t, _state(food=6, wood=0))           # fewer than the step: it stays
+    assert t.index == 1
+    _read(t, _state(food=6, wood=8))           # 14: step 3
+    assert t.index == 2
+
+
+def test_manual_moves_stop_at_the_ends():
+    t = BuildTracker(_mali())
+    assert not t.step_back()
+    for _ in range(11):
+        assert t.step_forward()
+    assert not t.step_forward() and t.index == 11
+
+
 def test_landmark_builders_count_as_villagers():
     t = BuildTracker(_mali())
     _read(t, _state(food=4, wood=6, landmark=5))   # 15 with the landmark builders
@@ -104,7 +133,8 @@ OTHERS_OFF = {r: {"enabled": False} for r in ("idle_villager", "tc_idle", "house
 
 
 def _engine(tmp_build):
-    cfg = OTHERS_OFF | {"build": {"enabled": True, "grace_s": 10}, "build_order": {"active": tmp_build.id, "show": True}}
+    cfg = OTHERS_OFF | {"build": {"enabled": True, "warn_after_s": 6, "critical_after_s": 12},
+                        "build_order": {"active": tmp_build.id, "show": True}}
     return RuleEngine(config=cfg)
 
 
@@ -116,21 +146,29 @@ def stored_mali():
     builds.delete(b.id)
 
 
-def test_build_alert_waits_for_the_grace_then_says_what_to_move(stored_mali):
+def test_build_alert_starts_as_info_and_escalates_while_off_the_step(stored_mali):
     e = _engine(stored_mali)
-    _eval(e, _state(food=4, wood=8, clock=100), 0)           # 12 villagers: step 2 (7), wants wood 6 food 0
-    assert e.build.index == 1
-    assert "build" not in e.active
-    _eval(e, _state(food=0, wood=12, clock=104), 4)          # still within the grace
-    assert "build" not in e.active
-    _eval(e, _state(food=0, wood=12, clock=112), 12)         # wood 12 > 6 is only being ahead
-    assert "build" not in e.active
-    _eval(e, _state(food=7, wood=7, clock=114), 14)          # 14: step 3 (food 4, wood 5): reached now
+    _eval(e, _state(food=0, wood=12, clock=100), 0)          # 12 villagers: step 2 (wood 6); more is only being ahead
+    assert e.build.index == 1 and "build" not in e.active
+    _eval(e, _state(food=2, wood=12, clock=110), 10)         # 14: step 3 (food 4, wood 5) reached now
     assert e.build.index == 2
-    _eval(e, _state(food=2, wood=12, clock=126), 26)
     a = e.active["build"]
-    assert (a.severity, a.text) == ("warn", "Move 2 villagers from wood to food")
+    assert (a.severity, a.text) == ("info", "Move 2 villagers from wood to food")
     assert a.reason["to"] == "food"
+    _eval(e, _state(food=2, wood=12, clock=116), 16)
+    assert e.active["build"].severity == "warn"
+    _eval(e, _state(food=2, wood=12, clock=122), 22)
+    assert e.active["build"].severity == "critical"
+    _eval(e, _state(food=4, wood=10, clock=124), 24)         # placed: the alert goes
+    assert "build" not in e.active
+
+
+def test_a_resource_reached_once_stays_reached(stored_mali):
+    e = _engine(stored_mali)
+    _eval(e, _state(food=4, wood=10, clock=100), 0)          # 14: step 3 (food 4, wood 5), food reached
+    assert e.build.index == 2 and "build" not in e.active
+    _eval(e, _state(food=3, wood=10, clock=110), 10)         # one left food (to build, most likely)
+    assert "build" not in e.active
 
 
 def test_no_build_chosen_means_no_build_alert():
@@ -275,3 +313,12 @@ def test_no_build_alert_when_already_placed_for_the_next_step(stored_mali):
     # Placed for step 3 (food 4, wood 5) before the 14th villager is counted.
     _eval(e, _state(food=4, wood=5, clock=140), 40)
     assert e.build.index == 1 and "build" not in e.active
+
+
+def test_no_alert_in_the_first_seconds_of_a_match(stored_mali):
+    e = _engine(stored_mali)
+    e.config["alerts"] = {"quiet_start_s": 10}
+    _eval(e, _state(food=0, wood=0, idle=3, clock=4), 0)       # off the step from the start
+    assert not e.active
+    _eval(e, _state(food=0, wood=0, idle=3, clock=10), 6)
+    assert "build" in e.active

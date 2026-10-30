@@ -27,7 +27,8 @@ Floating resources start as info above the limit of your current age: 400 in the
 Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting its link in the hub. During a match, the right of the screen shows its previous, current and next step: the age, the villagers and where they go (food, wood, gold, stone, building), and the step's notes with the site's icons.
 
 - A step is reached when you have its number of villagers and its age, so the build follows your pace.
-- When your villagers are not where the step puts them, a warning says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
+- If the panel is ahead of or behind your game, the arrows above it move the build one step back or forward.
+- When your villagers are not where the step puts them, an alert shows: it starts as info, turns into a warning after 6 seconds and critical after 12 (both can be changed in the hub). A resource that reached the step's count stays reached, so a villager who leaves it to build is not an alert. The alert says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
 - When Reeve starts, it updates the builds their author changed on aoe4guides.com.
 - In the game's menus, a card on the right of the screen picks the build for the next match, or None to show nothing.
@@ -51,7 +52,7 @@ When a match ends, Reeve writes its report:
 ![Report charts with a moment selected](docs/screenshots/report-charts.png)
 
 ### The hub
-Double-click the tray icon to open the hub:
+Double-click the tray icon to open the hub. It closes by itself when a match starts, to leave its memory to the game (this can be turned off in its settings).
 
 - **Matches**: every recorded match, newest first, with the civilization's flag when the match followed a build, the ages reached and the alerts of each. Open one to see its report, or select matches to delete them.
 - **Builds**: import build orders from aoe4guides.com, each with its civilization's flag, choose the one in use, and turn the build panel on or off.

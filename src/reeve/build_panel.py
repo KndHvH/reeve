@@ -7,6 +7,8 @@ A step is a block: its age and planned time, the villager count and the five
 villager places (food, wood, gold, stone, builder), then its notes with
 aoe4guides' icons inline, wrapped to the panel's width. The current step
 stands out (accent bar, full ink); the other two are dimmed.
+Above them, one row: where the rally point goes and, on its right, the
+arrows that move the build a step by hand.
 """
 
 from __future__ import annotations
@@ -26,6 +28,11 @@ ICONS = ROOT / "assets" / "report_icons"
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
 WIDTH = 300        # panel width at k = 1
 DIM_ALPHA = 0.5    # icons of the previous and next step
+
+
+def row_height(k: float) -> int:
+    """Height of the panel's top row: the rally card and the step arrows."""
+    return 2 * round(6 * k) + round(22 * k)
 
 
 def _fmt(t: int | None) -> str:
@@ -60,34 +67,47 @@ class BuildPanel:
         self.root, self.box = root, box
         self.stack = CardStack(root, key, setup_window, self._paint_card, side="right",
                                signature=lambda card: card.sig)
+        # The rally card has a stack of its own: it shares the top row with
+        # the step arrows (StepControls), to their left.
+        self.rally_stack = CardStack(root, key, setup_window, self._paint_card, side="right",
+                                     signature=lambda card: card.sig)
         self._k, self._look = 1.0, {}
         self._images: dict[tuple, ImageTk.PhotoImage] = {}
         self._fonts: dict[tuple, tkfont.Font] = {}
 
+    def set_effects(self, effects) -> None:
+        self.stack.effects = self.rally_stack.effects = effects
+
     def windows(self) -> list[int]:
-        return self.stack.windows()
+        return self.stack.windows() + self.rally_stack.windows()
 
     def hide(self) -> None:
         self.stack.clear()
+        self.rally_stack.clear()
 
     def update(self, tracker, origin: tuple[int, int], game_width: int, margin: int, top: int, k: float,
-               look: dict, show_prev: bool = True, show_next: bool = True) -> None:
+               look: dict, show_prev: bool = True, show_next: bool = True, controls_w: int = 0) -> None:
         """Shows the tracker's steps on the right of the game window at
         `origin` (its top-left on screen), `margin` from its right edge and
-        from `top` down, under a card with where the rally point goes;
+        from `top` down, under a row with where the rally point goes and the
+        step arrows (`controls_w` wide, 0 without them);
         `look`: theme colors and radius. A finished build leaves the screen."""
-        if tracker is None:
+        if tracker is None or tracker.finished:
             self.hide()
             return
         prev, cur, nxt = tracker.window()
         i, bid = tracker.index, tracker.build.id
         rally = tracker.rally()
-        cards = ([RallyCard(f"{bid}:rally:{rally}", rally)] if rally else []) +                 ([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +                 [StepCard(f"{bid}:{i}", cur, True)] +                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else [])
-        if tracker.finished:
-            cards = []
+        steps = (([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +
+                 [StepCard(f"{bid}:{i}", cur, True)] +
+                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else []))
         self._k, self._look = k, look
-        self.stack.update(cards, origin, margin, top, round(5 * k), None, (round(k, 3), tuple(sorted(look.items()))),
-                          right=game_width)
+        gap, sig = round(5 * k), (round(k, 3), tuple(sorted(look.items())))
+        self.rally_stack.update([RallyCard(f"{bid}:rally:{rally}", rally)] if rally else [], origin,
+                                margin + (controls_w + gap if controls_w else 0), top, gap, None, sig, right=game_width)
+        if rally or controls_w:
+            top += row_height(k) + gap
+        self.stack.update(steps, origin, margin, top, gap, None, sig, right=game_width)
 
     def _paint_card(self, c: tk.Canvas, card, x: int, y: int) -> tuple[int, int]:
         if isinstance(card, RallyCard):
@@ -204,3 +224,89 @@ class BuildPanel:
             c.tag_lower(item)
         return y1
 
+
+
+class StepControls:
+    """Two arrows above the build panel ("‹ 4 / 14 ›") that move the build a
+    step back or forward when the villager count got it wrong. Like the build
+    picker it takes clicks but never the focus, and stays out of captures."""
+
+    def __init__(self, root: tk.Tk, key: str, setup_window, box, on_move):
+        """`on_move("back" | "forward")` moves the build."""
+        self.root, self.key, self.setup_window, self.box, self.on_move = root, key, setup_window, box, on_move
+        self.win: tk.Toplevel | None = None
+        self.hwnd: int | None = None
+        self.canvas: tk.Canvas | None = None
+        self._sig = None
+        self._split = (0, 0)     # x where the back arrow ends and the forward one starts
+        self._width = 0
+        self._fonts: dict[tuple, tkfont.Font] = {}
+
+    def windows(self) -> list[int]:
+        return [self.hwnd] if self.hwnd else []
+
+    def _ensure(self) -> None:
+        if self.win is not None:
+            return
+        w = tk.Toplevel(self.root)
+        w.overrideredirect(True)
+        w.attributes("-topmost", True)
+        w.attributes("-transparentcolor", self.key)
+        w.configure(bg=self.key)
+        self.canvas = tk.Canvas(w, bg=self.key, highlightthickness=0, cursor="hand2")
+        self.canvas.pack(fill="both", expand=True)
+        self.canvas.bind("<Button-1>", self._click)
+        w.update_idletasks()
+        self.hwnd = self.setup_window(w)
+        self.win = w
+
+    def hide(self) -> None:
+        if self.win is not None and self._sig is not None:
+            self.win.withdraw()
+        self._sig = None
+
+    def update(self, tracker, right: int, top: int, k: float, look: dict) -> int:
+        """(right, top): the control's top-right corner on screen, in the
+        panel's top row (as tall as the rally card). Returns its width, 0 when
+        hidden."""
+        if tracker is None or tracker.finished:
+            self.hide()
+            return 0
+        self._ensure()
+        n = len(tracker.build.steps)
+        sig = (tracker.index, n, right, top, round(k, 3), tuple(sorted(look.items())))
+        if sig == self._sig:
+            return self._width
+        self._sig = sig
+        c = self.canvas
+        c.delete("all")
+        pad, gap = round(6 * k), round(10 * k)
+        arrow, text = self._font(max(9, round(13 * k)), True), self._font(max(7, round(8 * k)))
+        label = f"{tracker.index + 1} / {n}"
+        aw = arrow.measure("‹") + 2 * pad
+        width = self._width = 2 * aw + text.measure(label) + 2 * gap
+        height = row_height(k)
+        cy = height // 2
+        back = tracker.index > 0
+        fwd = tracker.index + 1 < n
+        c.create_text(aw // 2, cy, text="‹", fill=look["accent"] if back else look["muted"], font=arrow)
+        c.create_text(width // 2, cy, text=label, fill=look["muted"], font=text)
+        c.create_text(width - aw // 2, cy, text="›", fill=look["accent"] if fwd else look["muted"], font=arrow)
+        self._split = (aw + gap // 2, width - aw - gap // 2)
+        c.tag_lower(self.box(c, 0, 0, width, height, round(look["radius"] * k), look["card"]))
+        c.configure(width=width, height=height)
+        self.win.geometry(f"{width}x{height}+{right - width}+{top}")
+        self.win.deiconify()
+        return width
+
+    def _font(self, size: int, bold: bool = False) -> tkfont.Font:
+        key = (size, bold)
+        if key not in self._fonts:
+            self._fonts[key] = tkfont.Font(root=self.root, family="Segoe UI", size=size, weight="bold" if bold else "normal")
+        return self._fonts[key]
+
+    def _click(self, e) -> None:
+        if e.x < self._split[0]:
+            self.on_move("back")
+        elif e.x >= self._split[1]:
+            self.on_move("forward")

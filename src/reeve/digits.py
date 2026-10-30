@@ -175,7 +175,10 @@ class GlyphBank:
         return cls([c for c, _ in samples], np.stack([v for _, v in samples]))
 
     def classify(self, g: Glyph) -> None:
-        scores = self.mat @ g.vec
+        # Not `self.mat @ g.vec`: a matrix product goes through OpenBLAS, whose
+        # first gemv/gemm commits a 32 MB work buffer for the life of the
+        # process. vecdot is numpy's own loop: same scores, ~7 us per glyph.
+        scores = np.vecdot(self.mat, g.vec)
         order = np.argsort(scores)[::-1]
         best = order[0]
         g.char, g.score = self.chars[best], float(scores[best])
