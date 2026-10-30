@@ -109,6 +109,17 @@ class LiveReader:
             self.readings = 0
             events.append(f"recording to {self.session}")
 
+    def move_build(self, direction: str) -> bool:
+        """The player moved the build order a step by hand ("back" or
+        "forward"); logged, so the report replays it."""
+        b = self.rules.build
+        if self.log is None or b is None or b.finished:
+            return False
+        if not (b.step_back() if direction == "back" else b.step_forward()):
+            return False
+        self._write({"event": "build_move", "dir": direction, "clock": b.clock})
+        return True
+
     def close(self, events: list[str] | None = None) -> None:
         if self.log:
             self.log.close()

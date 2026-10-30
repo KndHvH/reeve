@@ -84,6 +84,35 @@ def test_tracker_keeps_the_step_when_villagers_leave_to_build():
     assert t.index == 2
 
 
+def test_stepping_back_by_hand_waits_for_one_more_villager():
+    t = BuildTracker(_mali())
+    _read(t, _state(food=1, wood=6))           # 7 villagers: step 2
+    assert t.index == 1
+    assert t.step_back() and t.index == 0
+    _read(t, _state(food=1, wood=6))           # the same count does not move it again
+    assert t.index == 0
+    _read(t, _state(food=2, wood=6))           # one more villager: step 2 again
+    assert t.index == 1
+
+
+def test_stepping_forward_by_hand_then_on_by_villagers():
+    t = BuildTracker(_mali())
+    _read(t, _state(food=6, wood=0))           # step 1
+    assert t.step_forward() and t.index == 1
+    _read(t, _state(food=6, wood=0))           # fewer than the step: it stays
+    assert t.index == 1
+    _read(t, _state(food=6, wood=8))           # 14: step 3
+    assert t.index == 2
+
+
+def test_manual_moves_stop_at_the_ends():
+    t = BuildTracker(_mali())
+    assert not t.step_back()
+    for _ in range(11):
+        assert t.step_forward()
+    assert not t.step_forward() and t.index == 11
+
+
 def test_landmark_builders_count_as_villagers():
     t = BuildTracker(_mali())
     _read(t, _state(food=4, wood=6, landmark=5))   # 15 with the landmark builders

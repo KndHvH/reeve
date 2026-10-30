@@ -147,6 +147,12 @@ class TrayApp:
         if self._hub is not None and self._hub.poll() is None:
             self._hub.terminate()
 
+    def _on_match(self) -> None:
+        """A match started: the hub gives its memory back to the game, unless
+        the user keeps it open (setting `hub.close_on_match`)."""
+        if (self.overlay.live.rules.config.get("hub") or {}).get("close_on_match", True):
+            self._close_hub()
+
     def _open_report(self):
         r = latest_report()
         if r is not None:
@@ -214,6 +220,7 @@ class TrayApp:
         threading.Thread(target=self._watch_updates, name="updates", daemon=True).start()
         threading.Thread(target=self._refresh_builds, name="builds", daemon=True).start()
         self.overlay.notify = self._notify
+        self.overlay.on_match = self._on_match
         listen_for(OPEN_HUB_EVENT, self._open_hub)   # Reeve started again: show the hub
         listen_for(QUIT_EVENT, self._quit)           # the hub is installing an update
         threading.Thread(target=self.icon.run, args=(self._on_ready,), name="tray", daemon=True).start()

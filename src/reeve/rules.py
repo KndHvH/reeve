@@ -120,7 +120,7 @@ def _build(s: GameState, cfg: dict, held: float, tracker=None):
 
     if tracker is None or s.clock is None or tracker.reached_at is None or tracker.finished:
         return None
-    if s.clock - tracker.reached_at < cfg.get("grace_s", 6):
+    if s.clock - tracker.reached_at < cfg.get("grace_s", 10):
         return None
     _, step, nxt = tracker.window()
     todo = instructions(step.targets, s.villagers)

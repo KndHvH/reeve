@@ -258,7 +258,7 @@ class HubApi:
 
         bo = load_config().get("build_order") or {}
         return {"builds": [b.summary() | {"flag": _flag(b.civ)} for b in builds.stored()], "active": bo.get("active"),
-                "show": bo.get("show", True), "auto_update": bo.get("auto_update", True),
+                "show": bo.get("show", True), "auto_update": bo.get("auto_update", True), "arrows": bo.get("arrows", True),
                 "previous_s": bo.get("previous_s", 10), "next_after_s": bo.get("next_after_s", 10),
                 "end_after_s": bo.get("end_after_s", 30)}
 
@@ -335,6 +335,7 @@ class HubApi:
         tracker.index = i
         rally = tracker.rally()
         return {"name": b.name, "steps": [step(s, cur) for s, cur in window], "icons": icons,
+                "index": i, "count": len(b.steps),
                 "rally": piece("icon", rally) if rally else None}
 
     def open_url(self, url: str) -> bool:

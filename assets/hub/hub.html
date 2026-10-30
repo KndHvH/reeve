@@ -183,7 +183,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .bstep .slots span.zero { color: var(--mist); font-weight: normal; }
 .bstep .slots img { height: 11px; width: 13px; object-fit: contain; }
 .bstep .note img { height: 15px; vertical-align: -3px; margin: 0 1px; }
-.brally { align-self: flex-end; display: flex; align-items: center; gap: 4px; padding: 5px 6px; background: var(--card, var(--panel)); }
+.btop { display: flex; justify-content: flex-end; gap: 5px; }
+.barrows { display: flex; align-items: center; gap: 10px; padding: 0 8px; background: var(--card, var(--panel)); color: var(--mist); font-size: 11px; }
+.bpreview.rounded .barrows { border-radius: 8px; }
+.barrows b { color: var(--accent); font-size: 17px; }
+.brally { display: flex; align-items: center; gap: 4px; padding: 5px 6px; background: var(--card, var(--panel)); }
 .bpreview.rounded .brally { border-radius: 8px; }
 .brally img { height: 22px; } .brally b { color: var(--accent); font-size: 16px; } .brally span { color: var(--card-ink, var(--ink)); }
 /* Matches: select and delete */
@@ -333,6 +337,8 @@ async function showBuilds() {
       <p class="usage" id="bo-status" role="status">Paste the link of a build on aoe4guides.com, or the JSON the site exports.</p>
       <div class="row"><label>Show the build panel in matches<small>off: no panel and no build alerts</small></label>
         <input type="checkbox" class="switch" id="bo-show" ${r.show ? "checked" : ""} aria-label="Show the build panel in matches"></div>
+      <div class="row"><label>Arrows to move the build a step<small>above the panel: back or forward when the villager count gets the step wrong</small></label>
+        <input type="checkbox" class="switch" id="bo-arrows" ${r.arrows ? "checked" : ""} aria-label="Arrows to move the build a step"></div>
       <div class="row"><label>Update builds when Reeve starts<small>checks aoe4guides.com for changes their author made</small></label>
         <input type="checkbox" class="switch" id="bo-auto" ${r.auto_update ? "checked" : ""} aria-label="Update builds when Reeve starts"></div>
       <div class="row"><label>Show the previous step for<small>seconds after a step is reached; 0 keeps it on screen</small></label>
@@ -358,6 +364,7 @@ async function showBuilds() {
   });
   $("#bo-show").addEventListener("change", e => api().set_setting("build_order", "show", e.target.checked));
   $("#bo-auto").addEventListener("change", e => api().set_setting("build_order", "auto_update", e.target.checked));
+  $("#bo-arrows").addEventListener("change", e => api().set_setting("build_order", "arrows", e.target.checked));
   for (const [id, key] of [["#bo-prev", "previous_s"], ["#bo-next", "next_after_s"], ["#bo-end", "end_after_s"]]) {
     $(id).addEventListener("change", e => {
       const v = Math.max(0, parseInt(e.target.value, 10) || 0);
@@ -398,7 +405,11 @@ function buildPanelHtml(p) {
   const r = p.rally;
   const rally = r ? `<div class="brally"><img src="../report_icons/rally.png" alt="Rally point"><b>›</b>${r.icon
     ? `<img src="${p.icons[r.icon]}" alt="">` : `<span>${esc(r.text)}</span>`}</div>` : "";
-  return alert + `<div class="bpanel">${rally}${p.steps.map(s => {
+  const cur = p.steps.findIndex(s => s.current);
+  const arrows = (cfg.build_order || {}).arrows !== false
+    ? `<div class="barrows"><b>‹</b>${(p.index ?? cur) + 1} / ${p.count ?? p.steps.length}<b>›</b></div>` : "";
+  const top = rally || arrows ? `<div class="btop">${rally}${arrows}</div>` : "";
+  return alert + `<div class="bpanel">${top}${p.steps.map(s => {
     const vals = [s.villagers, s.targets.food, s.targets.wood, s.targets.gold, s.targets.stone, s.targets.builder];
     const slots = BSLOTS.map((n, i) => `<span class="${vals[i] ? "" : "zero"}"><img src="../report_icons/${n}.png" alt="${n}">${vals[i] ?? "–"}</span>`).join("");
     const notes = s.notes.map(line => `<div class="note">${line.map(x => x.icon ? `<img src="${p.icons[x.icon]}" alt="">` : esc(x.text)).join("")}</div>`).join("");
@@ -730,7 +741,10 @@ async function updateNow() {
 function updatesSection(u) {
   const line = !u.latest ? "Not checked yet."
     : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
-  return `<section class="group"><header><h3>Updates</h3></header>
+  return `<section class="group"><header><h3>Hub</h3></header>
+    <div class="row"><label>Close when a match starts<small>frees its memory for the game; open it again from the tray</small></label>
+      <input type="checkbox" class="switch" data-path="hub.close_on_match" ${cfg.hub?.close_on_match !== false ? "checked" : ""} aria-label="Close the hub when a match starts"></div></section>
+    <section class="group"><header><h3>Updates</h3></header>
     <div class="row"><label>Check for updates<small>once a day, on GitHub</small></label>
       <input type="checkbox" class="switch" data-path="updates.check" ${cfg.updates?.check !== false ? "checked" : ""} aria-label="Check for updates"></div>
     <div class="row version"><label>Version ${u.current}<small id="upd-line">${line}</small></label>
