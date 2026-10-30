@@ -28,7 +28,7 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 
 - A step is reached when you have its number of villagers and its age, so the build follows your pace.
 - If the panel is ahead of or behind your game, the arrows above it move the build one step back or forward.
-- 10 seconds after a step is reached, if your villagers are not where the step puts them, a warning says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
+- When your villagers are not where the step puts them, an alert shows: it starts as info, turns into a warning after 6 seconds and critical after 12 (both can be changed in the hub). A resource that reached the step's count stays reached, so a villager who leaves it to build is not an alert. The alert says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
 - When Reeve starts, it updates the builds their author changed on aoe4guides.com.
 - In the game's menus, a card on the right of the screen picks the build for the next match, or None to show nothing.

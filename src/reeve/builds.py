@@ -295,6 +295,8 @@ class BuildTracker:
         self.clock: int | None = None        # latest game clock
         self.end_after_s = 30                # the last step stays this long, then the build is over
         self.hold: int | None = None         # count when stepped back by hand: no advancing until it is passed
+        self.met: set[str] = set()           # resources that reached the current step's count (stay reached)
+        self.off_since: int | None = None    # game clock when the villagers went off the current step
         self.villager_s = min(catalog.villager_s(build.civ, VILLAGER_DEFAULT_S), VILLAGER_DEFAULT_S)
 
     def _production(self, s: GameState) -> None:
@@ -347,10 +349,30 @@ class BuildTracker:
         steps, i = self.build.steps, self.index
         while self.hold is None and i + 1 < len(steps) and self._reached(steps[i + 1], s):
             i += 1
-        if i == self.index:
-            return False
-        self.index, self.reached_at = i, s.clock
-        return True
+        changed = i != self.index
+        if changed:
+            self.index, self.reached_at = i, s.clock
+            self._new_step()
+        self._mark_met(s)
+        return changed
+
+    def _new_step(self) -> None:
+        self.met, self.off_since = set(), None
+
+    def _mark_met(self, s: GameState) -> None:
+        """A resource that reached the step's count once stays reached: one
+        villager fewer later is most likely off building, not off the build."""
+        for r, target in self.build.steps[self.index].targets.items():
+            have = (s.villagers or {}).get(r)
+            if target and have is not None and have >= target:
+                self.met.add(r)
+
+    def placed(self, s: GameState) -> dict[str, int | None]:
+        """The villagers as the current step's check sees them: a resource
+        already reached counts as at least the step's count."""
+        targets = self.build.steps[self.index].targets
+        return {r: max(a, targets[r]) if r in self.met and a is not None and targets.get(r) is not None else a
+                for r, a in (s.villagers or {}).items()}
 
     def step_back(self) -> bool:
         """The player says the build is not there yet (the count ran ahead):
@@ -360,6 +382,7 @@ class BuildTracker:
             return False
         self.index -= 1
         self.reached_at = self.clock
+        self._new_step()
         self.hold = max(self._last or 0, self.peak)
         v = self.build.steps[self.index + 1].villagers
         if v is not None:
@@ -372,6 +395,7 @@ class BuildTracker:
             return False
         self.index += 1
         self.reached_at = self.clock
+        self._new_step()
         self.hold = None
         v = self.build.steps[self.index].villagers
         if v is not None:

@@ -431,7 +431,8 @@ const GROUPS = [
     ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
   { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
   { key: "build", title: "Build order", fields: [
-    ["grace_s", "Check after", "seconds after a step is reached before villagers are checked; 0 checks at once", "int"],
+    ["warn_after_s", "Warn after", "seconds off the step; until then it is info", "int"],
+    ["critical_after_s", "Critical after", "seconds off the step", "int"],
     ["persist_s", "Show after", "seconds", "int"] ] },
   { key: "retention", title: "Match history storage", usage: true, fields: [
     ["full_days", "Keep everything for", "days, including the audit images", "int"],
