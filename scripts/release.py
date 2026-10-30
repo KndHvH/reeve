@@ -33,7 +33,7 @@ ATTRIBUTION = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 
 def run(*cmd: str, check: bool = True, capture: bool = True) -> str:
-    r = subprocess.run(cmd, cwd=REPO, text=True, capture_output=capture)
+    r = subprocess.run(cmd, cwd=REPO, text=True, encoding="utf-8", errors="replace", capture_output=capture)
     if check and r.returncode:
         sys.exit(f"failed: {' '.join(cmd)}\n{(r.stderr or r.stdout or '').strip()}")
     return (r.stdout or "").strip()
