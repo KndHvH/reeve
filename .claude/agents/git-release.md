@@ -30,5 +30,6 @@ Builds for the maintainer to try: `uv run python scripts/build.py` writes `dist/
 - Commits use the maintainer's GitHub noreply address (already set in this repository's git config); never put a personal e-mail in files.
 - Run `uv run pytest -q` before committing code; CI (`.github/workflows/tests.yml`, Windows) must be green before a release PR is merged.
 - Release notes (`docs/releases/vX.Y.Z.md`) are written for players: New, Improved, Fixed, Install. Plain, professional, no technical justification.
+- Every release checks the README screenshots (`docs/screenshots/`) against the current UI before the release PR, and retakes those that changed (see `docs/DEVELOPMENT.md`, README screenshots); new features that show on screen get one.
 - Changes to `.github/workflows/` need the `workflow` scope on the gh token (`gh auth refresh -s workflow`).
 - When a step needs the maintainer (merging, repository settings, branch protection), stop and say exactly what to do.

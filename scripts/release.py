@@ -118,7 +118,8 @@ def cmd_prepare(args) -> None:
     git("add", str(INIT), str(PYPROJECT), str(REPO / "uv.lock"), str(notes))
     git("commit", "-q", "-m", f"Version {new}\n\n{ATTRIBUTION}")
     git("push", "-q")
-    print(f"version {new} committed on unstable; write the notes in {notes.relative_to(REPO)}, commit, then run `pr`")
+    print(f"version {new} committed on unstable; write the notes in {notes.relative_to(REPO)}, check the README "
+          "screenshots (docs/screenshots) against the current UI and retake those that changed, commit, then run `pr`")
 
 
 def cmd_pr(_args) -> None:

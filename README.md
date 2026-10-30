@@ -37,6 +37,8 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
 - Every civilization is supported. The first time you use a build of a civilization, Reeve downloads that civilization's units, buildings and technologies with their icons from AoE4World.
 
+![The build panel: a villager alert, the rally point and three steps](docs/screenshots/build-panel.png)
+
 ### Match reports
 When a match ends, Reeve writes its report:
 
@@ -57,9 +59,11 @@ Double-click the tray icon to open the hub:
 - **Your sounds**: add any audio or video file as an alert sound.
 - **Appearance**: four themes for the hub, the reports and the alert cards (Age, Dark, Dracula and Kitty), with square or rounded corners. The alert cards show in your clips, recordings and streams; this can be turned off.
 
-| Matches | Settings |
+| Matches | Builds |
 |---|---|
-| ![Match history](docs/screenshots/hub-matches.png) | ![Settings](docs/screenshots/hub-settings.png) |
+| ![Match history](docs/screenshots/hub-matches.png) | ![Build orders](docs/screenshots/hub-builds.png) |
+
+![Settings](docs/screenshots/hub-settings.png)
 
 ### Tray menu
 Turn the overlay on or off, mute the sounds, open the hub, the last report or the data folder, and quit.
