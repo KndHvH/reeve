@@ -47,6 +47,7 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
   align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--rule); cursor: pointer; }
 .match:hover, .match:focus-visible { background: var(--panel); outline: none; }
 .match .when b { display: block; font-family: var(--serif); font-size: 16px; }
+.flag { height: 14px; vertical-align: -1px; margin-right: 7px; border-radius: 2px; box-shadow: 0 0 0 1px var(--accent-dim); }
 .match .when span, .match .dur span { color: var(--mist); font-size: 12px; }
 .match .dur span { margin-left: 5px; }
 .match .dur b { font: 600 18px var(--serif); font-variant-numeric: tabular-nums; }
@@ -54,7 +55,8 @@ h3 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 .ages span { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .ages i { font: normal 600 15px var(--serif); color: var(--accent); margin-right: 4px; }
 .probs { display: grid; grid-template-columns: repeat(4, 106px); gap: 6px; justify-content: end; }
-@media (max-width: 1320px) { .probs { grid-template-columns: repeat(2, 106px); } }
+.probs.five { grid-template-columns: repeat(5, 96px); }
+@media (max-width: 1320px) { .probs { grid-template-columns: repeat(2, 106px); } .probs.five { grid-template-columns: repeat(3, 96px); } }
 /* One column per alert, always in the same order; the dot carries the worst severity. */
 .prob { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px; border-radius: var(--radius-sm);
   background: var(--panel-2); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -130,9 +132,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 </style>
 <style>
 /* Update banner */
-.banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 30px 0; padding: 10px 14px;
+.banner-wrap { position: sticky; top: 0; z-index: 5; background: var(--night); padding: 16px 30px 6px; }
+.banner-wrap[hidden] { display: none; }
+.banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px;
   background: var(--panel-2); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: var(--radius); }
-.banner[hidden] { display: none; }
 .banner b { color: var(--accent-light); font-family: var(--serif); font-size: 15px; }
 .banner span { color: var(--ink-2); }
 .banner .grow { flex: 1; }
@@ -140,7 +143,49 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   padding: 5px 12px; cursor: pointer; font: 13px var(--sans); }
 .banner button.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
 .banner button:hover, .upd button:hover { border-color: var(--accent); }
-.upd { display: flex; gap: 10px; align-items: center; }
+.upd { display: flex; gap: 10px; align-items: center; justify-self: end; }
+.row.version { grid-template-columns: 1fr auto; } .upd button { white-space: nowrap; }
+.upd button.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
+/* Builds */
+.import { display: flex; gap: 8px; margin: 4px 0 6px; }
+.import input { flex: 1; background: var(--panel-2); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius);
+  padding: 7px 10px; font: 14px var(--sans); }
+.import input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.import button, .bo button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--accent-dim); border-radius: var(--radius);
+  padding: 6px 12px; cursor: pointer; font: 13px var(--sans); white-space: nowrap; }
+.import button.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 600; }
+.import button:hover, .bo button:hover { border-color: var(--accent); }
+.import button:disabled { opacity: .5; cursor: default; }
+.bo { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--rule); }
+.bo b { font: 600 16px var(--serif); color: var(--ink); }
+.bo small { display: block; color: var(--mist); font-size: 12px; }
+.bo .acts { display: flex; gap: 6px; align-items: center; }
+.bo .using { color: var(--accent-light); font-size: 13px; padding: 0 8px; }
+.bo.active b { color: var(--accent-light); }
+/* Build panel preview: the same blocks as in game (build_panel.py) */
+.bpreview { position: relative; display: flex; justify-content: flex-end; padding: 14px 16px 26px; margin: 2px 0 10px; min-height: 60px;
+  border: 1px solid var(--rule); border-radius: var(--radius); background: linear-gradient(135deg, #4f5d3f, #6b6a45 55%, #56634a); }
+.bpreview::after { content: "Build panel preview"; position: absolute; left: 12px; bottom: 6px; font: 12px var(--sans); color: #f1ead8; opacity: .7; }
+.bpreview > .pcard { align-self: flex-start; margin-right: auto; }
+.bpreview.rounded > .pcard { border-radius: 8px; }
+.bpreview .hint { align-self: center; margin-right: auto; color: #f1ead8; font-size: 13px; }
+.bpanel { width: 300px; display: flex; flex-direction: column; gap: 5px; zoom: calc(1.33 * var(--bscale, 1)); font: 12px/1.35 var(--sans); }
+.bstep { background: var(--card, var(--panel)); color: var(--mist); padding: 6px 8px 6px 11px; border-left: 3px solid transparent; }
+.bpreview.rounded .bstep { border-radius: 8px; }
+.bstep.cur { color: var(--card-ink, var(--ink)); border-left-color: var(--accent); }
+.bstep:not(.cur) img { opacity: .5; }
+.bstep .hd { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.bstep .hd i { font: normal 600 13px var(--serif); color: var(--mist); min-width: 18px; }
+.bstep.cur .hd i { color: var(--accent); }
+.bstep .hd .t { color: var(--mist); font-size: 11px; }
+.bstep .slots { margin-left: auto; display: grid; grid-template-columns: repeat(6, 34px); }
+.bstep .slots span { display: flex; align-items: center; gap: 2px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bstep .slots span.zero { color: var(--mist); font-weight: normal; }
+.bstep .slots img { height: 11px; width: 13px; object-fit: contain; }
+.bstep .note img { height: 15px; vertical-align: -3px; margin: 0 1px; }
+.brally { align-self: flex-end; display: flex; align-items: center; gap: 4px; padding: 5px 6px; background: var(--card, var(--panel)); }
+.bpreview.rounded .brally { border-radius: 8px; }
+.brally img { height: 22px; } .brally b { color: var(--accent); font-size: 16px; } .brally span { color: var(--card-ink, var(--ink)); }
 /* Matches: select and delete */
 .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .tools { display: flex; gap: 8px; align-items: center; color: var(--mist); font-size: 13px; padding-top: 4px; }
@@ -165,16 +210,17 @@ button.danger { border-color: var(--critical) !important; color: var(--critical)
 <nav aria-label="Sections">
   <h1>Reeve</h1>
   <button id="nav-matches" aria-current="page">Matches</button>
+  <button id="nav-builds">Builds</button>
   <button id="nav-settings">Settings</button>
   <div class="foot"><span id="ver"></span><br><a id="data-folder">Open data folder</a></div>
 </nav>
-<div class="scroll"><div class="banner" id="update-banner" role="status" hidden></div><main id="main"></main></div>
+<div class="scroll"><div class="banner-wrap" id="update-wrap" hidden><div class="banner" id="update-banner" role="status"></div></div><main id="main"></main></div>
 <script>
 const api = () => window.pywebview.api;
 const $ = s => document.querySelector(s);
 const fmt = s => s == null ? "–" : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const ROMAN = { 2: "II", 3: "III", 4: "IV" };
-const PROB = { tc_idle: "TC idle", idle_villager: "Idle", housed: "Housed", floating: "Floating" };   // column order
+const PROB = { tc_idle: "TC idle", idle_villager: "Idle", housed: "Housed", floating: "Floating", build: "Build" };   // column order
 let current = "matches";
 let selecting = false;          // Matches: select mode for deleting
 const picked = new Set();
@@ -182,19 +228,24 @@ const picked = new Set();
 function navTo(page) {
   current = page;
   $("#main").className = "";
-  for (const [id, name] of [["#nav-matches", "matches"], ["#nav-settings", "settings"]]) {
+  for (const [id, name] of [["#nav-matches", "matches"], ["#nav-builds", "builds"], ["#nav-settings", "settings"]]) {
     if (name === page) $(id).setAttribute("aria-current", "page"); else $(id).removeAttribute("aria-current");
   }
   document.querySelector(".scroll").scrollTop = 0;
-  page === "matches" ? showMatches() : showSettings();
+  page === "matches" ? showMatches() : page === "builds" ? showBuilds() : showSettings();
 }
+
+// A civilization's flag (assets/flags); matches have one when they followed a build.
+const flagImg = (abbr, civ) => abbr ? `<img class="flag" src="../flags/${abbr}.png" alt="${esc(civ || "")}" title="${esc(civ || "")}">` : "";
 
 async function showMatches() {
   const list = await api().matches();
+  // The Build column only once some match followed a build order.
+  const cols = Object.keys(PROB).filter(id => id !== "build" || list.some(m => (m.problems || {}).build));
   const rows = list.map(m => {
     const ages = (m.ages || []).map(a => `<span><i>${ROMAN[a.age] || a.age}</i>${fmt(a.reached)}</span>`).join("");
-    const had = Object.keys(PROB).filter(id => (m.problems || {})[id]?.seconds > 0);
-    const probs = had.length && Object.keys(PROB).map(id => {
+    const had = cols.filter(id => (m.problems || {})[id]?.seconds > 0);
+    const probs = had.length && cols.map(id => {
       const p = (m.problems || {})[id];
       return p?.seconds > 0
         ? `<span class="prob ${p.severity || ""}" title="${PROB[id]}: ${fmt(p.seconds)} in total"><i></i>${PROB[id]}<b>${fmt(p.seconds)}</b></span>`
@@ -205,10 +256,10 @@ async function showMatches() {
     return `<button class="match${selecting ? " sel" : ""}" data-session="${m.session}" data-started="${m.started}"
       ${selecting ? `aria-pressed="${on}" title="Select"` : 'title="Open the report"'}>
       ${selecting ? `<span class="tick" aria-hidden="true"></span>` : ""}
-      <div class="when"><b>${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
+      <div class="when"><b>${flagImg(m.flag, m.civ)}${m.started}</b><span>${vil["10"] != null ? vil["10"] + " villagers at 10 min" : ""}</span></div>
       <div class="dur"><b>${fmt(m.duration)}</b><span>played</span></div>
       <div class="ages">${ages || '<span><i>I</i></span>'}</div>
-      <div class="probs">${probs || '<span class="prob clean">no alerts</span>'}</div></button>`;
+      <div class="probs${cols.length > 4 ? " five" : ""}">${probs || '<span class="prob clean">no alerts</span>'}</div></button>`;
   }).join("");
   const tools = !list.length ? "" : selecting
     ? `<div class="tools"><span>${picked.size} selected</span>
@@ -263,16 +314,114 @@ async function showReport(session, started) {
   main.querySelector(".lede").outerHTML = `<iframe src="${url}" title="Match report"></iframe>`;
 }
 
+// Build orders: imported from aoe4guides.com, followed in matches (builds.py).
+async function showBuilds() {
+  const r = await api().builds();
+  const list = r.builds.map(b => {
+    const on = b.id === r.active;
+    return `<div class="bo${on ? " active" : ""}"><div><b>${flagImg(b.flag, b.civ)}${esc(b.name)}</b><small>${esc(b.civ || "Any civilization")}${b.author ? " · by " + esc(b.author) : ""} · ${b.steps} steps</small></div>
+      <div class="acts">${on ? '<span class="using">In use</span>' : `<button type="button" data-use="${b.id}">Use this build</button>`}
+        ${b.source ? `<button type="button" data-upd="${b.id}" title="Get the latest version from aoe4guides.com">Update</button>
+          <button type="button" data-src="${esc(b.source)}">Open on aoe4guides</button>` : ""}
+        <button type="button" class="danger" data-del="${b.id}">Delete</button></div></div>`;
+  }).join("");
+  $("#main").innerHTML = `<h2>Builds</h2><p class="lede">During a match, the build in use shows its previous, current and next step on the right of the screen.
+    A step is reached when you have its villagers and its age. If your villagers are not where the step puts them, an alert says what to move.</p>
+    <section class="group"><header><h3>Import a build</h3></header>
+      <form class="import" id="bo-form"><input type="text" id="bo-url" placeholder="https://aoe4guides.com/builds/…" aria-label="Link to a build on aoe4guides.com, or its JSON" autocomplete="off">
+        <button type="submit" class="primary" id="bo-go">Import</button></form>
+      <p class="usage" id="bo-status" role="status">Paste the link of a build on aoe4guides.com, or the JSON the site exports.</p>
+      <div class="row"><label>Show the build panel in matches<small>off: no panel and no build alerts</small></label>
+        <input type="checkbox" class="switch" id="bo-show" ${r.show ? "checked" : ""} aria-label="Show the build panel in matches"></div>
+      <div class="row"><label>Update builds when Reeve starts<small>checks aoe4guides.com for changes their author made</small></label>
+        <input type="checkbox" class="switch" id="bo-auto" ${r.auto_update ? "checked" : ""} aria-label="Update builds when Reeve starts"></div>
+      <div class="row"><label>Show the previous step for<small>seconds after a step is reached; 0 keeps it on screen</small></label>
+        <input type="number" min="0" step="1" id="bo-prev" value="${r.previous_s}" aria-label="Show the previous step for, in seconds"></div>
+      <div class="row"><label>Show the next step after<small>seconds on a step; 0 shows it at once</small></label>
+        <input type="number" min="0" step="1" id="bo-next" value="${r.next_after_s}" aria-label="Show the next step after, in seconds"></div>
+      <div class="row"><label>Hide the build after the last step<small>seconds; then the panel and the build's alerts leave the screen</small></label>
+        <input type="number" min="0" step="1" id="bo-end" value="${r.end_after_s}" aria-label="Hide the build after the last step, in seconds"></div>
+      <p class="usage">In the game's menus, a card on the right of the screen picks the build for the next match.</p></section>
+    <section class="group"><header><h3>Your builds</h3></header>
+      <div class="bo${r.active ? "" : " active"}"><div><b>None</b><small>no build panel and no build alerts</small></div>
+        <div class="acts">${r.active ? '<button type="button" data-use="">Use none</button>' : '<span class="using">In use</span>'}</div></div>${list || '<p class="usage">None yet. Import one above; the first one you import is put in use.</p>'}</section>`;
+  $("#bo-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const text = $("#bo-url").value.trim();
+    if (!text) return;
+    $("#bo-go").disabled = true;
+    $("#bo-status").textContent = "Importing…";
+    const res = await api().import_build(text);
+    if (res.error) { $("#bo-go").disabled = false; $("#bo-status").textContent = `Could not import: ${res.error}.`; return; }
+    await showBuilds();
+    $("#bo-status").textContent = `Imported “${res.imported.name}” (${res.imported.steps} steps).`;
+  });
+  $("#bo-show").addEventListener("change", e => api().set_setting("build_order", "show", e.target.checked));
+  $("#bo-auto").addEventListener("change", e => api().set_setting("build_order", "auto_update", e.target.checked));
+  for (const [id, key] of [["#bo-prev", "previous_s"], ["#bo-next", "next_after_s"], ["#bo-end", "end_after_s"]]) {
+    $(id).addEventListener("change", e => {
+      const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+      e.target.value = v;
+      api().set_setting("build_order", key, v);
+    });
+  }
+  document.querySelectorAll("[data-use]").forEach(b => b.addEventListener("click", async () => { await api().use_build(b.dataset.use || null); showBuilds(); }));
+  document.querySelectorAll("[data-src]").forEach(b => b.addEventListener("click", () => api().open_url(b.dataset.src)));
+  document.querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", async () => {
+    b.disabled = true;
+    $("#bo-status").textContent = "Updating…";
+    const res = await api().update_build(b.dataset.upd);
+    if (res.error) { b.disabled = false; $("#bo-status").textContent = `Could not update: ${res.error}.`; return; }
+    await showBuilds();
+    $("#bo-status").textContent = `Updated “${res.updated.name}” (${res.updated.steps} steps). A match in progress keeps the version it started with.`;
+  }));
+  document.querySelectorAll("[data-del]").forEach(b => {
+    let armed = false;
+    b.addEventListener("click", async () => {
+      if (!armed) { armed = true; b.textContent = "Delete? Click to confirm"; setTimeout(() => { armed = false; b.textContent = "Delete"; }, 4000); return; }
+      await api().delete_build(b.dataset.del);
+      showBuilds();
+    });
+  });
+}
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const BSLOTS = ["villager", "food", "wood", "gold", "stone", "builder"];
+const ROMAN_ALL = { 1: "I", 2: "II", 3: "III", 4: "IV" };
+const clock = t => t == null ? "" : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+
+// The build panel as in game (build_panel.py): age, planned time, villagers and
+// their places, then the notes with aoe4guides' icons.
+function buildPanelHtml(p) {
+  if (!p) return `<span class="hint">Import a build in Builds to see its steps here.</span>`;
+  const alert = `<div class="pcard" style="--sev: var(--warn)"><img src="../report_icons/food.png" alt=""><span>Move 2 villagers from wood to food</span></div>`;
+  const r = p.rally;
+  const rally = r ? `<div class="brally"><img src="../report_icons/rally.png" alt="Rally point"><b>›</b>${r.icon
+    ? `<img src="${p.icons[r.icon]}" alt="">` : `<span>${esc(r.text)}</span>`}</div>` : "";
+  return alert + `<div class="bpanel">${rally}${p.steps.map(s => {
+    const vals = [s.villagers, s.targets.food, s.targets.wood, s.targets.gold, s.targets.stone, s.targets.builder];
+    const slots = BSLOTS.map((n, i) => `<span class="${vals[i] ? "" : "zero"}"><img src="../report_icons/${n}.png" alt="${n}">${vals[i] ?? "–"}</span>`).join("");
+    const notes = s.notes.map(line => `<div class="note">${line.map(x => x.icon ? `<img src="${p.icons[x.icon]}" alt="">` : esc(x.text)).join("")}</div>`).join("");
+    return `<div class="bstep${s.current ? " cur" : ""}"><div class="hd"><i>${ROMAN_ALL[s.age] || ""}</i><span class="t">${clock(s.time)}</span><span class="slots">${slots}</span></div>${notes}</div>`;
+  }).join("")}</div>`;
+}
+
+const BSCALES = [[0.75, "75%"], [0.9, "90%"], [1, "100%"], [1.15, "115%"], [1.3, "130%"], [1.5, "150%"]];
+
 // Settings form: each field maps to a path in the config.
 const GROUPS = [
   { key: "idle_villager", title: "Idle villagers", fields: [
     ["warn_at", "Warn from", "idle villagers", "int"], ["critical_at", "Critical from", "idle villagers", "int"],
     ["persist_s", "Show after", "seconds", "int"] ] },
   { key: "tc_idle", title: "Town center idle", fields: [
-    ["persist_s", "Show after", "seconds", "int"], ["critical_after_s", "Critical after", "seconds idle", "int"] ] },
+    ["persist_s", "Show after", "seconds", "int"], ["critical_after_s", "Critical after", "seconds idle", "int"],
+    ["max_villagers", "Stop at", "villagers on resources; past this, no longer making villagers is your choice", "int"] ] },
   { key: "housed", title: "Housed", fields: [
     ["warn_ratio", "Warn at", "% of the population cap", "pct"], ["critical_ratio", "Critical at", "% of the population cap", "pct"] ] },
   { key: "floating", title: "Floating resources", fields: [["persist_s", "Show after", "seconds", "int"]], bands: true },
+  { key: "build", title: "Build order", fields: [
+    ["grace_s", "Check after", "seconds after a step is reached before villagers are checked; 0 checks at once", "int"],
+    ["persist_s", "Show after", "seconds", "int"] ] },
   { key: "retention", title: "Match history storage", usage: true, fields: [
     ["full_days", "Keep everything for", "days, including the audit images", "int"],
     ["keep_days", "Keep log and report for", "days; older matches are deleted", "int"],
@@ -290,6 +439,8 @@ function input(path, value, kind) {
 // reports and the alert cards in game.
 const applyLook = css => { $("#look").textContent = `:root { ${css} }`; };
 let themeList = {};
+let buildPreview = null;
+const bscale = () => Number((cfg.build_order || {}).scale ?? 1);
 
 // Alert card animations: one effect per moment (cards.py), applied at once.
 const ANIM_DEFAULT = { enter: "slide", exit: "long_fade", move: "slide" };
@@ -376,6 +527,9 @@ function appearance() {
     <div class="row"><label>Corners<small>panels here and in reports, and the alert cards in game</small></label>
       <div class="seg" role="radiogroup" aria-label="Corners">${seg}</div></div>
     ${motion}
+    <div class="bpreview ${a.corners === "rounded" ? "rounded" : ""}" id="bpreview" style="--bscale:${bscale()}">${buildPanelHtml(buildPreview)}</div>
+    <div class="row"><label>Build panel size<small>the build order steps on the right of the screen</small></label>
+      <select id="bo-scale" aria-label="Build panel size">${BSCALES.map(([v, l]) => `<option value="${v}" ${bscale() === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     <div class="row"><label>Show alerts in recordings and streams<small>clips, screen recordings and streaming apps capture the alert cards</small></label>
       <input type="checkbox" class="switch" id="show-rec" ${rec ? "checked" : ""} aria-label="Show alerts in recordings and streams"></div></section>`;
 }
@@ -384,6 +538,12 @@ function bindAppearance() {
   const a = () => cfg.appearance || { theme: "age", corners: "square" };
   document.querySelectorAll("[data-theme]").forEach(b => b.addEventListener("click", () => setLook(b.dataset.theme, a().corners)));
   document.querySelectorAll("[data-corners]").forEach(b => b.addEventListener("click", () => setLook(a().theme, b.dataset.corners)));
+  $("#bo-scale").addEventListener("change", e => {
+    const scale = Number(e.target.value);
+    cfg.build_order = { ...(cfg.build_order || {}), scale };
+    api().set_setting("build_order", "scale", scale);
+    $("#bpreview").style.setProperty("--bscale", scale);
+  });
   $("#show-rec").addEventListener("change", e => {
     cfg.overlay = { ...(cfg.overlay || {}), show_in_recordings: e.target.checked };
     api().set_setting("overlay", "show_in_recordings", e.target.checked);
@@ -405,7 +565,8 @@ async function setLook(theme, corners) {
 }
 
 async function showSettings() {
-  const [s, storage] = await Promise.all([api().settings(), api().storage()]);
+  const [s, storage, preview] = await Promise.all([api().settings(), api().storage(), api().build_preview()]);
+  buildPreview = preview;
   cfg = s.values;
   themeList = s.themes;
   let h = `<h2>Settings</h2><p class="lede">Changes apply to the running overlay within a few seconds. Only what differs from the defaults is saved.</p>`;
@@ -453,13 +614,7 @@ async function showSettings() {
   $('[data-path="sound.volume"]').addEventListener("input", e => { $("#vol").textContent = `${Math.round(e.target.value * 100)}%`; });
   renderMine(s.user_sounds);
   bindAppearance();
-  $("#upd-check").addEventListener("click", async () => {
-    $("#upd-line").textContent = "Checking…";
-    const u = await api().update_status(true);
-    showBanner(u);
-    $("#upd-line").textContent = !u.latest ? "GitHub could not be reached. Try again later."
-      : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
-  });
+  bindUpdateActions();
   $("#add-sound").addEventListener("click", () => $("#sound-file").click());
   $("#sound-file").addEventListener("change", e => addSound(e.target.files[0]));
   $("#save").addEventListener("click", save);
@@ -551,12 +706,13 @@ let updateInfo = null;
 function showBanner(u) {
   const b = $("#update-banner");
   updateInfo = u;
-  if (!u || !u.newer) { b.hidden = true; return; }
+  renderUpdateActions(u);
+  if (!u || !u.newer) { $("#update-wrap").hidden = true; return; }
   b.innerHTML = `<b>Reeve ${u.latest} is available</b><span>You have ${u.current}.</span><span class="grow"></span>
     <button type="button" id="upd-notes">What's new</button>
     ${u.can_install ? '<button type="button" class="primary" id="upd-now">Update now</button>'
                     : '<button type="button" class="primary" id="upd-get">Download</button>'}`;
-  b.hidden = false;
+  $("#update-wrap").hidden = false;
   $("#upd-notes").addEventListener("click", () => api().open_url(u.page));
   if (u.can_install) $("#upd-now").addEventListener("click", updateNow);
   else $("#upd-get").addEventListener("click", () => api().open_url(u.page));
@@ -564,6 +720,8 @@ function showBanner(u) {
 
 async function updateNow() {
   const b = $("#update-banner");
+  $("#update-wrap").hidden = false;
+  document.querySelectorAll("#upd-now, #upd-now-2").forEach(x => { x.disabled = true; });
   b.innerHTML = `<b>Downloading Reeve ${updateInfo.latest}…</b><span>Reeve closes and reopens by itself when the update is installed.</span>`;
   const r = await api().update_now();
   if (r.error) b.innerHTML = `<b>The update did not start</b><span>${r.error}. Try again later, or download it from the release page.</span>`;
@@ -575,8 +733,37 @@ function updatesSection(u) {
   return `<section class="group"><header><h3>Updates</h3></header>
     <div class="row"><label>Check for updates<small>once a day, on GitHub</small></label>
       <input type="checkbox" class="switch" data-path="updates.check" ${cfg.updates?.check !== false ? "checked" : ""} aria-label="Check for updates"></div>
-    <div class="row"><label>Version ${u.current}<small id="upd-line">${line}</small></label>
-      <div class="upd"><button type="button" id="upd-check">Check now</button></div></div></section>`;
+    <div class="row version"><label>Version ${u.current}<small id="upd-line">${line}</small></label>
+      <div class="upd" id="upd-actions">${updateActions(u)}</div></div></section>`;
+}
+
+// Next to "Check now": the same actions as the banner when a newer version exists.
+function updateActions(u) {
+  if (!u || !u.newer) return `<button type="button" id="upd-check">Check now</button>`;
+  return `<button type="button" id="upd-check">Check now</button><button type="button" id="upd-notes-2">What's new</button>
+    ${u.can_install ? '<button type="button" class="primary" id="upd-now-2">Update now</button>'
+                    : '<button type="button" class="primary" id="upd-get-2">Download</button>'}`;
+}
+
+function renderUpdateActions(u) {
+  const box = $("#upd-actions");
+  if (!box) return;
+  box.innerHTML = updateActions(u);
+  bindUpdateActions();
+}
+
+function bindUpdateActions() {
+  $("#upd-check").addEventListener("click", async () => {
+    $("#upd-line").textContent = "Checking…";
+    const u = await api().update_status(true);
+    $("#upd-line").textContent = !u.latest ? "GitHub could not be reached. Try again later."
+      : u.newer ? `Reeve ${u.latest} is available.` : `You have the latest version (${u.current}).`;
+    showBanner(u);
+  });
+  const u = updateInfo;
+  $("#upd-notes-2")?.addEventListener("click", () => api().open_url(u.page));
+  $("#upd-now-2")?.addEventListener("click", updateNow);
+  $("#upd-get-2")?.addEventListener("click", () => api().open_url(u.page));
 }
 
 function collect() {
@@ -609,6 +796,7 @@ window.addEventListener("pywebviewready", async () => {
   api().update_status(false).then(showBanner);
   $("#ver").textContent = "version " + await api().version();
   $("#nav-matches").addEventListener("click", () => navTo("matches"));
+  $("#nav-builds").addEventListener("click", () => navTo("builds"));
   $("#nav-settings").addEventListener("click", () => navTo("settings"));
   $("#data-folder").addEventListener("click", () => api().open_data_folder());
   showMatches();

@@ -81,6 +81,9 @@ def _tc_idle(s: GameState, cfg: dict, held: float):
         return None
     if s.pop >= s.pop_cap:
         return None  # housed: the housed alert explains it
+    on_resources = sum(v or 0 for v in s.villagers.values())
+    if on_resources >= cfg.get("max_villagers", 100):
+        return None  # enough villagers: no longer making them is a choice
     severity = "critical" if held >= cfg["critical_after_s"] else "warn"
     return severity, "Town center idle: queue a villager", {"pop": s.pop, "pop_cap": s.pop_cap, "idle_s": round(held)}
 
@@ -108,11 +111,34 @@ def _floating(s: GameState, cfg: dict, held: float):
     return SEVERITIES[level], text, {"over": over, "limits": limits}
 
 
+def _build(s: GameState, cfg: dict, held: float, tracker=None):
+    """Villagers not where the build's current step puts them: move them from
+    a resource with more than the step to one with less, or put more on a
+    resource. Checked grace_s game seconds after the step is reached (moving
+    villagers takes a moment); at most two instructions, in one card."""
+    from .builds import describe, instructions
+
+    if tracker is None or s.clock is None or tracker.reached_at is None or tracker.finished:
+        return None
+    if s.clock - tracker.reached_at < cfg.get("grace_s", 6):
+        return None
+    _, step, nxt = tracker.window()
+    todo = instructions(step.targets, s.villagers)
+    if not todo:
+        return None
+    if nxt is not None and not instructions(nxt.targets, s.villagers):
+        return None     # already placed for the next step, which is just not counted yet
+    text = "; ".join(describe(i) for i in todo[:2])
+    return "warn", text, {"step": tracker.index + 1, "to": todo[0][-1],
+                          "todo": [list(i) for i in todo], "villagers": dict(s.villagers)}
+
+
 RULES = {
     "housed": _housed,
     "tc_idle": _tc_idle,
     "idle_villager": _idle_villager,
     "floating": _floating,
+    "build": _build,
 }
 
 
@@ -121,15 +147,38 @@ class RuleEngine:
     config: dict = field(default_factory=load_config)
     _since: dict[str, float] = field(default_factory=dict)
     active: dict[str, Alert] = field(default_factory=dict)
+    build: object = None              # BuildTracker of the active build order, if any
+    _build_id: str | None = None
+
+    def _sync_build(self) -> None:
+        """Follows the build chosen in the hub; a new choice starts from its first step."""
+        from .builds import BuildTracker, load
+
+        bo = self.config.get("build_order") or {}
+        want = bo.get("active") if bo.get("show", True) else None
+        if want != self._build_id:
+            self._build_id = want
+            b = load(want)
+            self.build = BuildTracker(b) if b else None
+        if self.build is not None:
+            self.build.end_after_s = bo.get("end_after_s", 30)
 
     def evaluate(self, s: GameState, wall: float) -> list[Transition]:
         """Updates active alerts; returns what turned on, changed severity or turned off."""
         transitions: list[Transition] = []
+        self._sync_build()
+        if self.build is not None:
+            self.build.update(s)
         for rid, cond in RULES.items():
             cfg = self.config.get(rid, {})
             since = self._since.get(rid)
             held = wall - since if since is not None else 0.0
-            hit = cond(s, cfg, held) if cfg.get("enabled", True) else None
+            if not cfg.get("enabled", True):
+                hit = None
+            elif rid == "build":
+                hit = cond(s, cfg, held, self.build)
+            else:
+                hit = cond(s, cfg, held)
             if hit is None:
                 self._since.pop(rid, None)
                 if rid in self.active:

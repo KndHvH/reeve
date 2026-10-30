@@ -1,0 +1,232 @@
+{
+ "_source": "AoE4World open data (data.aoe4world.com, github.com/aoe4world/data); flags from aoe4guides.com",
+ "_version": "0.0.2",
+ "_fetched": "2026-10-29",
+ "civs": [
+  {
+   "abbr": "en",
+   "id": "english",
+   "name": "English",
+   "slug": "english",
+   "guides": "ENG",
+   "guides_name": "English",
+   "villager_s": 20
+  },
+  {
+   "abbr": "fr",
+   "id": "french",
+   "name": "French",
+   "slug": "french",
+   "guides": "FRE",
+   "guides_name": "French",
+   "villager_s": 19
+  },
+  {
+   "abbr": "ru",
+   "id": "rus",
+   "name": "Rus",
+   "slug": "rus",
+   "guides": "RUS",
+   "guides_name": "Rus",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ma",
+   "id": "malians",
+   "name": "Malians",
+   "slug": "malians",
+   "guides": "MAL",
+   "guides_name": "Malians",
+   "villager_s": 20
+  },
+  {
+   "abbr": "de",
+   "id": "delhi_sultanate",
+   "name": "Delhi Sultanate",
+   "slug": "delhi",
+   "guides": "DEL",
+   "guides_name": "Delhi Sultanate",
+   "villager_s": 20
+  },
+  {
+   "abbr": "hr",
+   "id": "holy_roman_empire",
+   "name": "Holy Roman Empire",
+   "slug": "hre",
+   "guides": "HRE",
+   "guides_name": "Holy Roman Empire",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ab",
+   "id": "abbasid_dynasty",
+   "name": "Abbasid Dynasty",
+   "slug": "abbasid",
+   "guides": "ABB",
+   "guides_name": "Abbasid Dynasty",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ot",
+   "id": "ottomans",
+   "name": "Ottomans",
+   "slug": "ottomans",
+   "guides": "OTT",
+   "guides_name": "Ottomans",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ch",
+   "id": "chinese",
+   "name": "Chinese",
+   "slug": "chinese",
+   "guides": "CHI",
+   "guides_name": "Chinese",
+   "villager_s": 20
+  },
+  {
+   "abbr": "mo",
+   "id": "mongols",
+   "name": "Mongols",
+   "slug": "mongols",
+   "guides": "MON",
+   "guides_name": "Mongols",
+   "villager_s": 20
+  },
+  {
+   "abbr": "by",
+   "id": "byzantines",
+   "name": "Byzantines",
+   "slug": "byzantines",
+   "guides": "BYZ",
+   "guides_name": "Byzantines",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ja",
+   "id": "japanese",
+   "name": "Japanese",
+   "slug": "japanese",
+   "guides": "JAP",
+   "guides_name": "Japanese",
+   "villager_s": 20
+  },
+  {
+   "abbr": "ay",
+   "id": "ayyubids",
+   "name": "Ayyubids",
+   "slug": "ayyubids",
+   "guides": "AYY",
+   "guides_name": "Ayyubids",
+   "villager_s": 20
+  },
+  {
+   "abbr": "je",
+   "id": "jeanne_darc",
+   "name": "Jeanne d'Arc",
+   "slug": "jeannedarc",
+   "guides": "JDA",
+   "guides_name": "Jeanne d'Arc",
+   "villager_s": 20
+  },
+  {
+   "abbr": "zx",
+   "id": "zhu_xis_legacy",
+   "name": "Zhu Xi's Legacy",
+   "slug": "zhuxi",
+   "guides": "ZXL",
+   "guides_name": "Zhu Xi's Legacy",
+   "villager_s": 20
+  },
+  {
+   "abbr": "od",
+   "id": "order_of_the_dragon",
+   "name": "Order of the Dragon",
+   "slug": "orderofthedragon",
+   "guides": "DRA",
+   "guides_name": "Order of the Dragon",
+   "villager_s": null
+  },
+  {
+   "abbr": "hl",
+   "id": "house_of_lancaster",
+   "name": "House of Lancaster",
+   "slug": "lancaster",
+   "guides": "HOL",
+   "guides_name": "House of Lancaster",
+   "villager_s": 20
+  },
+  {
+   "abbr": "kt",
+   "id": "knights_templar",
+   "name": "Knights Templar",
+   "slug": "templar",
+   "guides": "KTE",
+   "guides_name": "Knights Templar",
+   "villager_s": 20
+  },
+  {
+   "abbr": "gol",
+   "id": "golden_horde",
+   "name": "Golden Horde",
+   "slug": "goldenhorde",
+   "guides": "GOH",
+   "guides_name": "Golden Horde",
+   "villager_s": 37
+  },
+  {
+   "abbr": "mac",
+   "id": "macedonian_dynasty",
+   "name": "Macedonian Dynasty",
+   "slug": "macedonian",
+   "guides": "MAC",
+   "guides_name": "Macedonian Dynasty",
+   "villager_s": 20
+  },
+  {
+   "abbr": "sen",
+   "id": "sengoku_daimyo",
+   "name": "Sengoku Daimyo",
+   "slug": "sengoku",
+   "guides": "SEN",
+   "guides_name": "Sengoku Daimyo",
+   "villager_s": 20
+  },
+  {
+   "abbr": "tug",
+   "id": "tughlaq_dynasty",
+   "name": "Tughlaq Dynasty",
+   "slug": "tughlaq",
+   "guides": "TUG",
+   "guides_name": "Tughlaq Dynasty",
+   "villager_s": 20
+  },
+  {
+   "abbr": "jin",
+   "id": "jin_dynasty",
+   "name": "Jin Dynasty",
+   "slug": "jindynasty",
+   "guides": "JIN",
+   "guides_name": "Jin Dynasty",
+   "villager_s": 20
+  },
+  {
+   "abbr": "vik",
+   "id": "vikings",
+   "name": "Vikings",
+   "slug": "vikings",
+   "guides": "VIK",
+   "guides_name": "Vikings",
+   "villager_s": 22
+  },
+  {
+   "abbr": "sco",
+   "id": "scots",
+   "name": "Scots",
+   "slug": "scots",
+   "guides": "SCO",
+   "guides_name": "Scots",
+   "villager_s": 20
+  }
+ ]
+}

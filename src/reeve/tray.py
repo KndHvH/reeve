@@ -181,6 +181,23 @@ class TrayApp:
                 pass
             time.sleep(60)
 
+    def _refresh_builds(self):
+        """Background, once at start: build orders their author changed on
+        aoe4guides.com are updated (the next match uses the new version), and
+        the catalog of the build in use is downloaded if it is missing."""
+        from . import builds, catalog
+        from .paths import load_config
+
+        try:
+            if (load_config().get("build_order") or {}).get("auto_update", True):
+                for b in builds.refresh():
+                    self._notify(f"Build updated: {b.name}", "Its author changed it on aoe4guides.com. Your next match uses the new version.")
+            active = builds.load((load_config().get("build_order") or {}).get("active"))
+            if active is not None:
+                catalog.ensure(active.civ)
+        except Exception:   # never let this disturb the overlay
+            pass
+
     @staticmethod
     def _clean_sessions():
         from .retention import apply
@@ -195,6 +212,7 @@ class TrayApp:
 
         threading.Thread(target=self._clean_sessions, name="retention").start()
         threading.Thread(target=self._watch_updates, name="updates", daemon=True).start()
+        threading.Thread(target=self._refresh_builds, name="builds", daemon=True).start()
         self.overlay.notify = self._notify
         listen_for(OPEN_HUB_EVENT, self._open_hub)   # Reeve started again: show the hub
         listen_for(QUIT_EVENT, self._quit)           # the hub is installing an update

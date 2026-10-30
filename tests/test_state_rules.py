@@ -204,3 +204,13 @@ def test_volume_curve_and_silence_at_zero():
     snd = AlertSounds(SOUND_CFG | {"volume": 0.0}, play=lambda path: played.append(path))
     assert snd.update([Alert("housed", "critical", "", {})], 0) is None
     assert played == []
+
+
+def test_idle_town_center_is_no_alert_past_the_villager_limit():
+    from reeve.rules import _tc_idle
+    from reeve.state import GameState
+
+    s = GameState(clock=900, pop=150, pop_cap=200, producing_villager=False,
+                  villagers={"food": 40, "wood": 30, "gold": 25, "stone": 5})
+    assert _tc_idle(s, {"critical_after_s": 10, "max_villagers": 100}, 0) is None
+    assert _tc_idle(s, {"critical_after_s": 10, "max_villagers": 120}, 0) is not None

@@ -1,0 +1,211 @@
+{
+ "description": "",
+ "civilization": "Malians",
+ "name": "Mali",
+ "author": "kndhvh",
+ "source": "https://aoe4guides.com/builds/hXttcVQcMxTniZjgS79s",
+ "build_order": [
+  {
+   "age": 1,
+   "population_count": -1,
+   "time": "0:00",
+   "villager_count": 6,
+   "resources": {
+    "food": 0,
+    "wood": 5,
+    "gold": 0,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "5 @unit_worker/villager-malians.webp@on one @resource/gaiatreeprototypetree.webp@then @resource/sheep.webp@",
+    "1 @unit_worker/villager-malians.webp@build @building_malians/pit-mine-1.webp@+ 7 @building_economy/house.webp@ then @resource/sheep.webp@"
+   ]
+  },
+  {
+   "age": 1,
+   "population_count": -1,
+   "time": "0:20",
+   "villager_count": 7,
+   "resources": {
+    "food": 0,
+    "wood": 6,
+    "gold": 0,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "next @unit_worker/villager-malians.webp@ get 25 @resource/resource_wood.webp@ from other @resource/gaiatreeprototypetree.webp@ then @resource/sheep.webp@",
+    "@resource/rally.webp@ on @resource/sheep.webp@"
+   ]
+  },
+  {
+   "age": 1,
+   "population_count": -1,
+   "time": "3:00",
+   "villager_count": 14,
+   "resources": {
+    "food": 4,
+    "wood": 5,
+    "gold": 0,
+    "stone": 0,
+    "builder": 5
+   },
+   "notes": [
+    "5 @unit_worker/villager-malians.webp@build @landmark_malians/mansa-quarry-2.webp@ then 3 on @resource/gaiatreeprototypetree.webp@ and 2 on @resource/sheep.webp@",
+    "take 5 @unit_worker/villager-malians.webp@ from @resource/resource_food.webp@ and move to @resource/gaiatreeprototypetree.webp@",
+    "@resource/rally.webp@ 1 on @resource/resource_food.webp@"
+   ]
+  },
+  {
+   "age": 1,
+   "population_count": -1,
+   "time": "3:20",
+   "villager_count": 15,
+   "resources": {
+    "food": 5,
+    "wood": 5,
+    "gold": 0,
+    "stone": 0,
+    "builder": 5
+   },
+   "notes": [
+    "@resource/rally.webp@ on @resource/resource_wood.webp@until 13"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "4:20",
+   "villager_count": 17,
+   "resources": {
+    "food": 7,
+    "wood": 10,
+    "gold": 0,
+    "stone": 0,
+    "builder": -1
+   },
+   "notes": [
+    "build @building_economy/mill.webp@ on @resource/berrybush.webp@with all @unit_worker/villager-malians.webp@ from @resource/sheep.webp@ then start producing 3 @resource/cattle.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "4:35",
+   "villager_count": 18,
+   "resources": {
+    "food": 7,
+    "wood": 10,
+    "gold": 0,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "research @technology_economy/double-broadaxe.webp@",
+    "build @building_malians/cattle-ranch-2.webp@ with space for @landmark_malians/grand-fulani-corral-2.webp@ with one @unit_worker/villager-malians.webp@from @resource/resource_wood.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "4:50",
+   "villager_count": 19,
+   "resources": {
+    "food": 7,
+    "wood": 10,
+    "gold": 0,
+    "stone": 0,
+    "builder": 2
+   },
+   "notes": [
+    "build second @building_malians/pit-mine-1.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "5:00",
+   "villager_count": 21,
+   "resources": {
+    "food": 7,
+    "wood": 13,
+    "gold": 0,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "@resource/rally.webp@ on @resource/resource_gold.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "5:20",
+   "villager_count": 22,
+   "resources": {
+    "food": 7,
+    "wood": 13,
+    "gold": 1,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "build  @building_military/barracks.webp@ for @unit_malians/donso-1.webp@ or @building_military/stable.webp@ for @unit_malians/warrior-scout-2.webp@ to protect @building_malians/pit-mine-1.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "5:40",
+   "villager_count": 23,
+   "resources": {
+    "food": 7,
+    "wood": 13,
+    "gold": 2,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "build 7 @building_economy/house.webp@ on second @building_malians/pit-mine-1.webp@"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "6:00",
+   "villager_count": 24,
+   "resources": {
+    "food": 7,
+    "wood": 13,
+    "gold": 3,
+    "stone": 0,
+    "builder": 1
+   },
+   "notes": [
+    "produce 2 more @building_malians/cattle-ranch-2.webp@ @resource/cattle.webp@ and equivalent"
+   ]
+  },
+  {
+   "age": 2,
+   "population_count": -1,
+   "time": "8:00",
+   "villager_count": 27,
+   "resources": {
+    "food": 7,
+    "wood": 8,
+    "gold": 7,
+    "stone": 0,
+    "builder": 5
+   },
+   "notes": [
+    "use 5 @unit_worker/villager-malians.webp@ from @resource/resource_gold.webp@ to build second @building_economy/town-center.webp@ on @resource/resource_food.webp@",
+    "gather recourse for age up or to build defending army"
+   ]
+  }
+ ],
+ "video": "",
+ "season": "Season 13",
+ "map": null,
+ "strategy": "Boom"
+}

@@ -80,6 +80,27 @@ def load_config() -> dict:
     return cfg
 
 
+def diff(defaults: dict, values: dict) -> dict:
+    """Only what differs from the defaults (nested dicts compared key by key)."""
+    out = {}
+    for k, v in values.items():
+        d = defaults.get(k)
+        if isinstance(v, dict) and isinstance(d, dict):
+            sub = diff(d, v)
+            if sub:
+                out[k] = sub
+        elif v != d:
+            out[k] = v
+    return out
+
+
+def set_setting(section: str, key: str, value) -> None:
+    """Saves one setting at once (the hub's switches, the overlay's build picker)."""
+    values = load_config()
+    values[section] = dict(values.get(section) or {}, **{key: value})
+    save_overrides(diff(json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")), values))
+
+
 def save_overrides(overrides: dict) -> None:
     """Writes the user's overrides (only what differs from the defaults)."""
     path = user_config_path()

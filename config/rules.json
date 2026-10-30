@@ -9,7 +9,9 @@
   "tc_idle": {
     "enabled": true,
     "persist_s": 0,
-    "critical_after_s": 10
+    "critical_after_s": 10,
+    "max_villagers": 100,
+    "_doc": "max_villagers: from this many villagers on resources, an idle town center is no longer an alert."
   },
   "housed": {
     "enabled": true,
@@ -27,6 +29,12 @@
       1500,
       null
     ]
+  },
+  "build": {
+    "enabled": true,
+    "persist_s": 0,
+    "grace_s": 6,
+    "_doc": "Villagers not where the active build order's current step puts them (move them, or put more on a resource). grace_s: game seconds after a step is reached before it is checked (0: at once)."
   },
   "sound": {
     "_doc": "Sound of each severity, by name from the sound library (empty = silent); `reeve sounds` lists and previews them. Severities in `repeat` play again every repeat_s while unresolved. volume 0-1: the default 0.5 leaves room to turn the sounds up.",
@@ -54,7 +62,7 @@
     "corners": "square"
   },
   "updates": {
-    "_doc": "check: look for a new Reeve on GitHub once a day (the only network request Reeve makes; it sends nothing about you).",
+    "_doc": "check: look for a new Reeve on GitHub once a day (the only request Reeve makes on its own; it sends nothing about you).",
     "check": true
   },
   "overlay": {
@@ -65,5 +73,15 @@
       "exit": "long_fade",
       "move": "slide"
     }
+  },
+  "build_order": {
+    "_doc": "active: the id of the build order followed in matches (imported in the hub, stored in the data folder's builds/). show: the build panel on the right of the screen with the previous, current and next step. scale: size of that panel (1 = the alert cards' size). auto_update: when Reeve starts, builds imported from aoe4guides.com are updated if their author changed them. previous_s: game seconds the previous step stays after a step is reached; next_after_s: game seconds on a step before the next one shows (0: always shown). end_after_s: game seconds the last step stays before the panel and the build's alerts end.",
+    "active": null,
+    "show": true,
+    "scale": 1.0,
+    "auto_update": true,
+    "previous_s": 10,
+    "next_after_s": 10,
+    "end_after_s": 30
   }
 }

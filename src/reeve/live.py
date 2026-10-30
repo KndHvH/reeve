@@ -29,7 +29,9 @@ from .state import GameState, StateTracker
 from .window import GameWindow, find_game_window
 
 MAX_FAIL_SHOTS = 30  # failure images saved per match
-HIDDEN_END_S = 30    # panel hidden for longer than this = end of match
+# Panel hidden for longer than this = end of match. Long, since a pause or a
+# menu must not split a match; a new match is told by the clock going back.
+HIDDEN_END_S = 600
 REPORT_AFTER_S = 10  # a match not being read for this long gets its report written (end screen, menu, alt-tab)
 MIN_CONTRAST = 0.7   # anchor contrast ÷ template contrast: game ~0.88; menu/veil 0.03–0.38
 DOUBT_BAND = (0.55, 0.72)  # queue score in this band: save the image for analysis
@@ -37,6 +39,7 @@ MAX_DOUBT_SHOTS = 20
 LOW_CONF = 0.75      # a field read below this is kept as a doubt_read_ image (and turns the dot yellow)
 MAX_LOW_SHOTS = 30
 FRAME_EVERY_S = 10   # game seconds between audit frames (panel crop) kept for the report
+NEW_MATCH_BACK_S = 30  # the clock going back more than this = a new match (restarted or a new game started quickly)
 SHAPE_RATIO = 0.85   # anchor shape below 85% of calibration = panel covered/fading
 RECAL_EVERY = 3      # with the panel gone, search again every 3 cycles (did the UI scale change?)
 
@@ -56,6 +59,7 @@ class Step:
     state: GameState | None = None
     income: Income | None = None
     alerts: list[Alert] = field(default_factory=list)  # active alerts, most severe first
+    build: object = None              # BuildTracker of the build order being followed, if any
 
 
 class LiveReader:
@@ -78,6 +82,8 @@ class LiveReader:
         self.rules = RuleEngine()
         self.income = IncomeTracker()
         self._last_frame_clock: int | None = None
+        self._build_step: tuple | None = None   # (build id, step index) last logged
+        self._match_clock: int | None = None    # latest game clock of the open match
         self.readings = 0
         self._idle_since: float | None = None   # when the open match stopped being read
         self._report_fresh = False              # report written since the last reading
@@ -85,8 +91,12 @@ class LiveReader:
     # --- session ----------------------------------------------------------
     def _open_session(self, events: list[str]) -> None:
         if self.log is None:
-            self.session = self.sessions_dir / f"{datetime.now():%Y%m%d-%H%M%S}"
-            self.session.mkdir(parents=True, exist_ok=True)
+            name = f"{datetime.now():%Y%m%d-%H%M%S}"
+            self.session = self.sessions_dir / name
+            n = 2
+            while self.session.exists():          # a match opened in the same second as the last one
+                self.session, n = self.sessions_dir / f"{name}-{n}", n + 1
+            self.session.mkdir(parents=True)
             self.log = open(self.session / "log.jsonl", "a", encoding="utf-8")
             self.saved_fails = self.saved_doubts = 0
             self._low_seen: set[tuple[str, str]] = set()
@@ -94,6 +104,8 @@ class LiveReader:
             self.rules = RuleEngine()
             self.income = IncomeTracker()
             self._last_frame_clock = None
+            self._build_step = None
+            self._match_clock = None
             self.readings = 0
             events.append(f"recording to {self.session}")
 
@@ -208,6 +220,16 @@ class LiveReader:
 
         wall = time.monotonic()
         state = self.tracker.update(f.values, wall)
+        if (self._match_clock is not None and state.clock is not None
+                and state.clock < self._match_clock - NEW_MATCH_BACK_S):
+            # Restarted, or a new match began before the old one was closed:
+            # its own session, with the age, alerts and build order from zero.
+            self._write({"event": "clock_reset", "from": self._match_clock, "to": state.clock})
+            self.close(events)
+            self._open_session(events)
+            state = self.tracker.update(f.values, wall)
+        if state.clock is not None:
+            self._match_clock = state.clock
         transitions = self.rules.evaluate(state, wall)
         income = self.income.update(state)
         self.readings += 1
@@ -225,6 +247,11 @@ class LiveReader:
             "income": income.to_dict(),
         })
         self._save_frame(buf, state)
+        b = self.rules.build
+        if b is not None and (b.build.id, b.index) != self._build_step:
+            self._build_step = (b.build.id, b.index)
+            self._write({"event": "build_step", "build": b.build.id, "name": b.build.name, "civ": b.build.civ,
+                         "step": b.index + 1, "of": len(b.build.steps), "clock": state.clock})
         for tr in transitions:
             a = tr.alert
             self._write({"event": f"alert_{tr.kind}", "id": a.id, "severity": a.severity, "text": a.text, "reason": a.reason})
@@ -249,7 +276,7 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"doubt_read_{datetime.now():%H%M%S}_{tag}.png")
         return Step("reading", win, match, f, bad, grab_ms, read_ms, shape, contrast, events,
-                    state=state, income=income, alerts=self.rules.alerts())
+                    state=state, income=income, alerts=self.rules.alerts(), build=self.rules.build)
 
     def _save_frame(self, buf: np.ndarray, state: GameState) -> None:
         """Small JPEG of the bottom-left capture every FRAME_EVERY_S game

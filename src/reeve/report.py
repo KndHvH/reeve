@@ -38,6 +38,7 @@ SERIES_ORDER = ["food", "wood", "stone", "gold", "idle"]
 ICONS = ROOT / "assets" / "report_icons"
 PROBLEMS = [("tc_idle", "Town center idle"), ("housed", "Housed"),
             ("idle_villager", "Idle villagers"), ("floating", "Floating resources")]
+BUILD_PROBLEM = ("build", "Off the build")   # only for matches that followed a build order
 
 
 def _icons() -> dict[str, str]:
@@ -74,9 +75,19 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     within a few seconds of each frame."""
     import bisect
 
-    tracker, engine, income = StateTracker(), RuleEngine(config=config or load_config()), IncomeTracker()
-    rows, intervals, open_alerts = [], [], {}
     lines = [json.loads(raw) for raw in log_path.read_text(encoding="utf-8").splitlines()]
+    # The build order the match followed (logged as it advanced), not the one in use now.
+    step = next((r for r in lines if r.get("event") == "build_step"), None)
+    build = {"id": step["build"], "name": step.get("name", ""), "civ": step.get("civ")} if step else None
+    if build and build["civ"] is None:   # logged before the civilization was: the stored build's
+        from .builds import load
+
+        stored = load(build["id"])
+        build["civ"] = stored.civ if stored else ""
+    config = dict(config or load_config())
+    config["build_order"] = dict(config.get("build_order") or {}, active=build and build["id"], show=True)
+    tracker, engine, income = StateTracker(), RuleEngine(config=config), IncomeTracker()
+    rows, intervals, open_alerts = [], [], {}
     readings = [r for r in lines if "values" in r]
     backfill, keys = {}, []
     if readings and not any("age" in r["values"] for r in readings):
@@ -118,7 +129,7 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
     end = rows[-1]["t"] if rows else 0
     intervals += [a | {"end": end} for a in open_alerts.values()]
     frames = sorted(int(p.stem) for p in (log_path.parent / "frames").glob("[0-9]*.jpg"))
-    return {"rows": rows, "alerts": intervals, "frames": frames, "ages": age_events(rows)}
+    return {"rows": rows, "alerts": intervals, "frames": frames, "ages": age_events(rows), "build": build}
 
 
 def age_events(rows: list[dict]) -> list[dict]:
@@ -156,7 +167,7 @@ def summarize(tl: dict) -> dict:
         return sum(v for v in r["vil"].values() if v is not None) + (r["idle"] or 0)
 
     problems = []
-    for aid, label in PROBLEMS:
+    for aid, label in PROBLEMS + ([BUILD_PROBLEM] if tl.get("build") else []):
         spans = [a for a in alerts if a["id"] == aid]
         worst = max((a["severity"] for a in spans), key=SEVERITIES.index, default=None)
         problems.append({"id": aid, "label": label, "seconds": sum(a["end"] - a["start"] for a in spans),
@@ -253,6 +264,8 @@ def write_summary(session: Path, tl: dict | None = None) -> dict:
         "villagers_at": s.get("villagers_at", {}),
         "final_pop": list(s.get("final_pop", (None, None))),
         "ages": s.get("ages", []),
+        "civ": (tl.get("build") or {}).get("civ") or None,   # the followed build's; None without one
+        "build": (tl.get("build") or {}).get("name") or None,
         "problems": {p["id"]: {"seconds": p["seconds"], "severity": p["severity"]} for p in s.get("problems", [])},
         "income": s.get("income", {}),
     }
@@ -275,6 +288,19 @@ def look(config: dict | None = None) -> str:
     return f"{themes.current(config)[0]}/{themes.corners(config)}"
 
 
+def _civ_html(build: dict | None) -> str:
+    """The civilization played (the followed build's) with its flag; empty without a build."""
+    from .catalog import find, flag_file
+
+    civ = find((build or {}).get("civ"))
+    if civ is None:
+        return ""
+    f = flag_file(civ["abbr"])
+    flag = f"<img src='data:image/png;base64,{base64.b64encode(f.read_bytes()).decode()}' alt=''>" if f else ""
+    return (f"<p class='civ'>{flag}<b>{html.escape(civ['name'])}</b>"
+            f"<span>following {html.escape(build.get('name') or 'a build order')}</span></p>")
+
+
 def render(tl: dict, title: str) -> str:
     icons = _icons()
     name, theme = themes.current()
@@ -283,6 +309,7 @@ def render(tl: dict, title: str) -> str:
             .replace("__LOOK__", f"{name}/{corner}")
             .replace("__THEME__", themes.css(theme, corner))
             .replace("__TITLE__", html.escape(_session_label(title)))
+            .replace("__CIV__", _civ_html(tl.get("build")))
             .replace("__LEDGER__", _ledger(summarize(tl), icons))
             .replace("__SERIES__", json.dumps(SERIES_ORDER))
             .replace("__ICONS__", json.dumps(icons))
@@ -315,6 +342,11 @@ header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content:
   border-bottom: 1px solid var(--accent-dim); padding-bottom: 10px; margin-bottom: 20px; }
 h1 { font: 600 30px/1.1 var(--serif); color: var(--accent-light); margin: 0; letter-spacing: .3px; }
 header p { margin: 0; color: var(--mist); }
+header .title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.civ { display: flex; align-items: center; gap: 8px; }
+.civ img { height: 20px; border-radius: var(--radius-sm); box-shadow: 0 0 0 1px var(--accent-dim); }
+.civ b { color: var(--ink); font: 600 16px var(--serif); }
+.civ span { font-size: 13px; }
 h2 { font: 600 17px/1.2 var(--serif); color: var(--accent); margin: 0 0 12px; }
 
 /* Summary ledger: the one framed element, like the game's gold panels. */
@@ -394,7 +426,7 @@ svg text { fill: var(--mist); font: 11px var(--sans); }
 <body>
 <div class="page">
 <header>
-  <h1>Match report</h1>
+  <div class="title"><h1>Match report</h1>__CIV__</div>
   <p>__TITLE__, game time shown throughout</p>
 </header>
 <div class="ledger">__LEDGER__</div>
@@ -587,6 +619,7 @@ function drawPopulation(c) {
 }
 
 const LANES = { housed: "Housed", tc_idle: "TC idle", idle_villager: "Idle villagers", floating: "Floating" };
+if (D.build) LANES.build = "Off the build";
 function drawLanes(c) {
   const lane = 18;
   Object.keys(LANES).forEach((id, i) => {

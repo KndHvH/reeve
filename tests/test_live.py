@@ -92,3 +92,36 @@ def test_session_without_readings_is_discarded(tmp_path):
     reader._write({"event": "panel_hidden"})
     reader.close()
     assert list(tmp_path.iterdir()) == []
+
+
+def test_clock_going_back_starts_a_new_match(monkeypatch, tmp_path):
+    """Restarting a match keeps the panel on screen: the clock going back
+    (4:47 -> 0:03 in a live session) closes the match and opens a new one,
+    so the age, alerts and build order start over."""
+    a = np.asarray(Image.open(FIXTURES / "720p_0217.png").convert("RGB"))
+    clocks = iter([287, 289, 291, 3, 5, 7, 9])
+    real = live.read_frame
+
+    def read(buf, match):
+        f = real(buf, match)
+        f.values["clock"] = next(clocks)
+        return f
+
+    monkeypatch.setattr(live, "find_game_window", lambda: _FakeWin(1, "AoE4", 0, 0, 1280, 720))
+    monkeypatch.setattr(capm.Capture, "full", lambda self, _w: a)
+    monkeypatch.setattr(capm.Capture, "grab", lambda self, _w: a)
+    monkeypatch.setattr(live, "read_frame", read)
+    t = {"now": 0.0}
+    monkeypatch.setattr(live.time, "monotonic", lambda: t["now"])
+
+    reader = live.LiveReader(2.0, sessions_dir=tmp_path)
+    states = []
+    for _ in range(7):
+        states.append(reader.step().state.clock)
+        t["now"] += 2
+    reader.close()
+    assert states[-1] == 9
+    sessions = sorted(tmp_path.iterdir())
+    assert len(sessions) == 2
+    first = (sessions[0] / "log.jsonl").read_text(encoding="utf-8")
+    assert '"clock_reset"' in first
