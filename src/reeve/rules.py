@@ -173,11 +173,13 @@ class RuleEngine:
         self._sync_build()
         if self.build is not None:
             self.build.update(s)
+        # No alert in the first seconds of a match.
+        quiet = s.clock is not None and s.clock < (self.config.get("alerts") or {}).get("quiet_start_s", 10)
         for rid, cond in RULES.items():
             cfg = self.config.get(rid, {})
             since = self._since.get(rid)
             held = wall - since if since is not None else 0.0
-            if not cfg.get("enabled", True):
+            if quiet or not cfg.get("enabled", True):
                 hit = None
             elif rid == "build":
                 hit = cond(s, cfg, held, self.build)

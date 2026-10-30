@@ -60,7 +60,11 @@
   "appearance": {
     "_doc": "theme: age, dark, dracula or kitty (assets/themes.json); corners: square or rounded. Applies to the hub, match reports and the alert cards.",
     "theme": "age",
-    "corners": "square"
+    "corners": "rounded"
+  },
+  "alerts": {
+    "_doc": "quiet_start_s: no alert during the first game seconds of a match.",
+    "quiet_start_s": 10
   },
   "updates": {
     "_doc": "check: look for a new Reeve on GitHub once a day (the only request Reeve makes on its own; it sends nothing about you).",

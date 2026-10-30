@@ -313,3 +313,12 @@ def test_no_build_alert_when_already_placed_for_the_next_step(stored_mali):
     # Placed for step 3 (food 4, wood 5) before the 14th villager is counted.
     _eval(e, _state(food=4, wood=5, clock=140), 40)
     assert e.build.index == 1 and "build" not in e.active
+
+
+def test_no_alert_in_the_first_seconds_of_a_match(stored_mali):
+    e = _engine(stored_mali)
+    e.config["alerts"] = {"quiet_start_s": 10}
+    _eval(e, _state(food=0, wood=0, idle=3, clock=4), 0)       # off the step from the start
+    assert not e.active
+    _eval(e, _state(food=0, wood=0, idle=3, clock=10), 6)
+    assert "build" in e.active

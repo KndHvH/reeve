@@ -513,7 +513,7 @@ async function playPreview(moment) {
 }
 
 function appearance() {
-  const a = cfg.appearance || { theme: "age", corners: "square" };
+  const a = cfg.appearance || { theme: "age", corners: "rounded" };
   const cards = Object.entries(themeList).map(([id, th]) => {
     const c = th.colors, on = id === a.theme;
     const sw = ["night", "panel-2", "accent", "accent-light", "warn", "critical"].map(k => `<i style="background:${c[k]}"></i>`).join("");
@@ -544,7 +544,7 @@ function appearance() {
 }
 
 function bindAppearance() {
-  const a = () => cfg.appearance || { theme: "age", corners: "square" };
+  const a = () => cfg.appearance || { theme: "age", corners: "rounded" };
   document.querySelectorAll("[data-theme]").forEach(b => b.addEventListener("click", () => setLook(b.dataset.theme, a().corners)));
   document.querySelectorAll("[data-corners]").forEach(b => b.addEventListener("click", () => setLook(a().theme, b.dataset.corners)));
   $("#bo-scale").addEventListener("change", e => {
