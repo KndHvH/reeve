@@ -25,18 +25,15 @@ class Capture:
         shot = self.sct.grab(win.rect)
         return np.asarray(shot)[..., 2::-1]  # BGRA → RGB
 
-    def calibrate(self, win: GameWindow) -> AnchorMatch:
-        match = self.probe(win)
-        self.adopt(match, win)
-        return match
-
     def probe(self, win: GameWindow) -> AnchorMatch:
         """Searches for the anchor on the full screen without changing what is captured."""
         return detect(to_gray(self.full(win)))
 
     def adopt(self, match: AnchorMatch, win: GameWindow) -> None:
-        """Switches to capturing the regions of `match`."""
-        self.buf = np.zeros((win.height, win.width, 3), np.uint8)
+        """Switches to capturing the regions of `match`; the buffer is kept
+        while the window keeps its size."""
+        if self.buf is None or self.buf.shape != (win.height, win.width, 3):
+            self.buf = np.zeros((win.height, win.width, 3), np.uint8)
         self.rects = _union_rects(match, win, self.buf.shape)
 
     def grab(self, win: GameWindow) -> np.ndarray:

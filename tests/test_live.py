@@ -125,3 +125,46 @@ def test_clock_going_back_starts_a_new_match(monkeypatch, tmp_path):
     assert len(sessions) == 2
     first = (sessions[0] / "log.jsonl").read_text(encoding="utf-8")
     assert '"clock_reset"' in first
+
+
+def _menu_then_match(monkeypatch, tmp_path, frames):
+    """Steps the reader over `frames` (None: a menu with no panel), counting full searches."""
+    a = np.asarray(Image.open(FIXTURES / "720p_0217.png").convert("RGB"))
+    menu = np.zeros_like(a)
+    cur = {"f": a}
+    probes = []
+
+    def grab(self, w):
+        buf = np.zeros_like(cur["f"])
+        for x, y, rw, rh in self.rects:
+            buf[y:y + rh, x:x + rw] = cur["f"][y:y + rh, x:x + rw]
+        return buf
+
+    real_probe = capm.Capture.probe
+    monkeypatch.setattr(live, "find_game_window", lambda: _FakeWin(1, "AoE4", 0, 0, 1280, 720))
+    monkeypatch.setattr(capm.Capture, "full", lambda self, w: cur["f"])
+    monkeypatch.setattr(capm.Capture, "grab", grab)
+    monkeypatch.setattr(capm.Capture, "probe", lambda self, w: probes.append(1) or real_probe(self, w))
+    reader = live.LiveReader(2.0, sessions_dir=tmp_path)
+    steps, counts = [], []
+    for f in frames:
+        cur["f"] = a if f else menu
+        steps.append(reader.step().status)
+        counts.append(len(probes))
+    reader.close()
+    return steps, counts
+
+
+def test_menus_search_the_whole_window_only_every_few_cycles(monkeypatch, tmp_path):
+    steps, probes = _menu_then_match(monkeypatch, tmp_path, [None] * 9)
+    assert steps == ["waiting"] * 9
+    assert probes[-1] == 3
+
+
+def test_a_match_at_the_same_ui_scale_is_found_at_once(monkeypatch, tmp_path):
+    # Read once, back to the menus (the match ends), then a new match: found on
+    # the first cycle from where the panel was, without a full search.
+    frames = [1] + [None] * (live.HIDDEN_END_S // 2 + 1) + [None, None, 1]
+    steps, probes = _menu_then_match(monkeypatch, tmp_path, frames)
+    assert steps[0] == "reading" and steps[-2] == "waiting" and steps[-1] == "reading"
+    assert probes[-1] == probes[-2]
