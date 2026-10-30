@@ -1,6 +1,6 @@
 [project]
 name = "reeve"
-version = "0.3.0"
+version = "0.3.1"
 description = "A lightweight macro assistant for Age of Empires IV: live alerts and match reports from the game UI."
 authors = [
     { name = "Matias Herklotz" }
