@@ -524,14 +524,16 @@ function appearance() {
       <input type="checkbox" class="switch" id="show-rec" ${rec ? "checked" : ""} aria-label="Show alerts in recordings and streams"></div></section>`;
 }
 
-// Builds: the panel in game and its alerts, next to their preview. Greyed
-// while build orders are off (the switch on the Builds page).
+// Builds: the panel in game and its alerts, next to their preview. Its
+// switch turns build orders on or off, as the one on the Builds page.
 function buildsSection() {
   const bo = cfg.build_order || {}, b = cfg.build || {};
   const sw = (path, on, label, hint, id = "") => `<div class="row"><label>${label}<small>${hint}</small></label>
       <input type="checkbox" class="switch" data-path="${path}" ${id ? `id="${id}"` : ""} ${on ? "checked" : ""} aria-label="${label}"></div>`;
   const num = (path, value, label, hint) => `<div class="row"><label>${label}<small>${hint}</small></label>${input(path, value, "int")}</div>`;
-  return `<section class="group${bo.show === false ? " off" : ""}" id="builds-set"><header><h3>Builds</h3></header>
+  return `<section class="group" id="builds-set"><header><h3>Builds</h3>
+      <input type="checkbox" class="switch" id="bo-show-set" ${bo.show !== false ? "checked" : ""} title="Build orders on or off" aria-label="Build orders on or off"></header>
+    <div id="builds-body"${bo.show === false ? ' class="off"' : ""}>
     <div class="bpreview ${(cfg.appearance || {}).corners === "rounded" ? "rounded" : ""}" id="bpreview" style="--bscale:${bscale()}">${buildPanelHtml(buildPreview)}</div>
     <div class="row"><label>Build panel size<small>the build order steps on the right of the screen</small></label>
       <select id="bo-scale" aria-label="Build panel size">${BSCALES.map(([v, l]) => `<option value="${v}" ${bscale() === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
@@ -543,10 +545,16 @@ function buildsSection() {
     ${sw("build.enabled", b.enabled !== false, "Off-build alerts", "when your villagers are not where the step puts them")}
     ${num("build.warn_after_s", b.warn_after_s ?? 6, "Warn after", "seconds off the step; until then it is info")}
     ${num("build.critical_after_s", b.critical_after_s ?? 12, "Critical after", "seconds off the step")}
-    ${num("build.persist_s", b.persist_s ?? 0, "Show after", "seconds")}</section>`;
+    ${num("build.persist_s", b.persist_s ?? 0, "Show after", "seconds")}</div></section>`;
 }
 
 function bindBuildsSection() {
+  // Saved at once, as the same switch on the Builds page.
+  $("#bo-show-set").addEventListener("change", e => {
+    cfg.build_order = { ...(cfg.build_order || {}), show: e.target.checked };
+    api().set_setting("build_order", "show", e.target.checked);
+    $("#builds-body").classList.toggle("off", !e.target.checked);
+  });
   $("#bo-scale").addEventListener("change", e => {
     const scale = Number(e.target.value);
     cfg.build_order = { ...(cfg.build_order || {}), scale };
