@@ -88,6 +88,34 @@ def test_tips_never_stop_the_build_and_a_closing_age_is_reached():
     assert t.index == 4
 
 
+def test_imported_tips_come_from_the_sites_own_format():
+    """aoe4guides' overlay format leaves the author's advice ("gameplan") steps
+    without notes; the site's format has them as HTML."""
+    overlay = {"name": "x", "build_order": [_step(1, 5, "0:00", ["All to sheep"], food=5), _step(1, notes=[""]),
+                                            _step(1, 8, "1:09", ["Rally to sheep"], food=5)]}
+    full = {"steps": [{"type": "age", "steps": [{"description": "All to sheep"}]},
+                      {"type": "ageUp", "steps": [{"description": "", "gameplan":
+                          'We go for <img src="/assets/pictures/landmark_hre/aachen-chapel.webp" class="icon-landmark">'
+                          ' &amp; more,<br>Then <img src="https://aoe4guides.com/assets/pictures/resource/sheep.webp">'}]},
+                      {"type": "age", "steps": [{"description": "Rally to sheep"}]}]}
+
+    def get(url):
+        return json.dumps(overlay if "overlay=true" in url else full).encode()
+
+    data = builds.fetch("ARrUu1WyUPpYkpgSViXT", get)
+    assert data["build_order"][1]["notes"] == ["We go for @landmark_hre/aachen-chapel.webp@ & more,",
+                                               "Then @resource/sheep.webp@"]
+    assert parse(data).steps[0].tips == ("We go for @landmark_hre/aachen-chapel.webp@ & more,", "Then @resource/sheep.webp@")
+    full["steps"].pop()                                       # the formats disagree: left as it was
+    overlay["build_order"][1]["notes"] = [""]
+    assert builds.fetch("ARrUu1WyUPpYkpgSViXT", get)["build_order"][1]["notes"] == [""]
+
+
+def test_line_breaks_left_in_a_note_split_it():
+    b = parse({"name": "x", "build_order": [_step(1, 5, "0:00", ["Aachen,<br>Then Meinwerk<br />"], food=5)]})
+    assert b.steps[0].notes == ("Aachen,", "Then Meinwerk")
+
+
 def test_parse_rejects_what_is_not_a_build():
     with pytest.raises(ValueError):
         parse({"name": "x"})

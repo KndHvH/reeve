@@ -15,6 +15,7 @@ they only appear in the notes.
 
 from __future__ import annotations
 
+import html
 import io
 import json
 import re
@@ -29,9 +30,12 @@ from .state import RESOURCES, GameState
 
 SITE = "https://aoe4guides.com"
 API = SITE + "/api/builds/{id}?overlay=true"
+FULL_API = SITE + "/api/builds/{id}"   # the site's own format: has the tips the overlay format leaves empty
 PICTURES = SITE + "/assets/pictures/{path}"
 TOKEN = re.compile(r"@([\w\-./]+?\.(?:webp|png))@")
 BUILD_ID = re.compile(r"^[A-Za-z0-9]{12,40}$")
+BREAK = re.compile(r"<br\s*/?>", re.I)   # some exports keep the site's line breaks in a note
+PICTURE = re.compile(r'<img[^>]*?src="(?:https://aoe4guides\.com)?/assets/pictures/([^"]+)"[^>]*>', re.I)
 SLOTS = RESOURCES + ("builder",)   # villager places in a step, in aoe4guides' order of resources
 # Villager training time at the town center comes from the catalog (20 s for
 # most civilizations, 19 s for the French); slower ones keep 20 s, since it
@@ -116,7 +120,8 @@ def parse(data: dict, build_id: str | None = None) -> Build:
             villagers=_count(s.get("villager_count")),
             time=_clock(s.get("time")),
             targets={k: _count(res.get(k)) for k in SLOTS},
-            notes=tuple(n.strip() for n in s.get("notes") or [] if isinstance(n, str) and n.strip()),
+            notes=tuple(line.strip() for n in s.get("notes") or [] if isinstance(n, str)
+                        for line in BREAK.split(n) if line.strip()),
         )
         if step.villagers is None and step.time is None and not any(step.targets.values()) and not step.notes:
             continue   # empty (a closing "Age III" with nothing in it): nothing to show or to reach
@@ -180,8 +185,36 @@ def _get(url: str) -> bytes:
         return r.read()
 
 
-def fetch(build_id: str) -> dict:
-    return json.loads(_get(API.format(id=build_id)))
+def fetch(build_id: str, get=_get) -> dict:
+    """The build in the overlay format, with the tips filled in (see _with_tips)."""
+    data = json.loads(get(API.format(id=build_id)))
+    try:
+        return _with_tips(data, json.loads(get(FULL_API.format(id=build_id))))
+    except Exception:   # the tips are a bonus: the build works without them
+        return data
+
+
+def _html_notes(text: str) -> list[str]:
+    """The site's HTML ("Use <img src=.../wood.webp> to build<br>...") as notes
+    with picture tokens ("Use @resource/resource_wood.webp@ to build")."""
+    text = PICTURE.sub(lambda m: f"@{m.group(1)}@", text)
+    lines = (html.unescape(re.sub(r"<[^>]+>", "", line)).strip() for line in BREAK.split(text))
+    return [line for line in lines if line]
+
+
+def _with_tips(overlay: dict, full: dict) -> dict:
+    """aoe4guides' overlay format leaves a "gameplan" step (the author's advice
+    between steps) without notes; the site's own format has its text. The two
+    list the same steps in the same order: the tips are copied over when the
+    counts agree."""
+    steps = [s for section in full.get("steps") or [] for s in section.get("steps") or []]
+    order = overlay.get("build_order") or []
+    if len(steps) != len(order):
+        return overlay
+    for o, f in zip(order, steps):
+        if not any(str(n).strip() for n in o.get("notes") or []) and str(f.get("gameplan") or "").strip():
+            o["notes"] = _html_notes(f["gameplan"])
+    return overlay
 
 
 def download_icons(build: Build, get=_get) -> list[str]:
@@ -219,7 +252,7 @@ def import_build(text: str, get=_get) -> Build:
         if not build_id:
             raise ValueError(t("paste a link to a build on aoe4guides.com, or the build's JSON"))
         try:
-            data = json.loads(get(API.format(id=build_id)))
+            data = fetch(build_id, get)
         except Exception as e:
             raise ValueError(t("aoe4guides.com did not return the build ({error})", error=e)) from None
         build = parse(data, build_id)
@@ -238,8 +271,7 @@ def refresh(get=_get) -> list[Build]:
         if not build_id:
             continue
         try:
-            data = json.loads(get(API.format(id=build_id)))
-            new = parse(data, b.id)
+            new = parse(fetch(build_id, get), b.id)
         except Exception:
             continue
         if new.raw != b.raw:
