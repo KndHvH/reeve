@@ -269,7 +269,7 @@ class LiveReader:
             state = self.tracker.update(f.values, wall)
         if state.clock is not None:
             self._match_clock = state.clock
-        transitions = self.rules.evaluate(state, wall)
+        transitions = self.rules.evaluate(state, wall, self.tracker.latest())
         income = self.income.update(state)
         self.readings += 1
 

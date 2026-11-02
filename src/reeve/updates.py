@@ -26,6 +26,7 @@ from pathlib import Path
 
 from . import __version__
 from .checks import load_state, save_state
+from .i18n import t
 from .paths import FROZEN
 
 REPO = "KndHvH/reeve"
@@ -106,7 +107,7 @@ def download(release: Release, progress=None) -> Path:
     """The installer in the temp folder, verified; raises ValueError when it
     does not match what GitHub announced."""
     if not release.installer:
-        raise ValueError("this release has no installer")
+        raise ValueError(t("this release has no installer"))
     dst = Path(tempfile.gettempdir()) / f"Reeve-{release.version}-setup.exe"
     req = urllib.request.Request(release.installer, headers={"User-Agent": f"Reeve/{__version__}"})
     h = hashlib.sha256()
@@ -120,10 +121,10 @@ def download(release: Release, progress=None) -> Path:
                 progress(done, release.size)
     if release.size and done != release.size:
         dst.unlink(missing_ok=True)
-        raise ValueError("download incomplete")
+        raise ValueError(t("download incomplete"))
     if release.sha256 and h.hexdigest() != release.sha256:
         dst.unlink(missing_ok=True)
-        raise ValueError("download does not match the published checksum")
+        raise ValueError(t("download does not match the published checksum"))
     return dst
 
 

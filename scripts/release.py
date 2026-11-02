@@ -3,13 +3,14 @@
     uv run python scripts/release.py status            # branches, version, CI, open release PR
     uv run python scripts/release.py prepare 0.2.3     # on unstable: bump version, notes file
     uv run python scripts/release.py pr                # PR unstable -> main, waits for CI
-    uv run python scripts/release.py publish           # after the PR is merged: release from main
+    uv run python scripts/release.py publish           # after the merge: wait for the CI release, realign
     uv run python scripts/release.py test-installer 0.2.2.99   # build numbered below, to try updates
 
 Branch model: day-to-day work goes to `unstable`; `main` only receives it
 through a pull request, merged by the maintainer with squash (one commit per
-version). After that merge, `publish` builds the release from `main`, tags it,
-and realigns `unstable` on `main`: the squash leaves the released commits
+version). That merge makes CI (.github/workflows/release.yml) build the
+installer from `main`, tag it and publish the GitHub release; `publish` waits
+for that run and realigns `unstable` on `main`: the squash leaves the released commits
 outside main's history, so `unstable` is moved onto `main` with any commit
 made after the release PR replayed on top, and pushed with
 --force-with-lease (the maintainer's choice, so GitHub shows `unstable` with
@@ -23,6 +24,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -138,22 +140,44 @@ def cmd_pr(_args) -> None:
         url = pr["url"]
     print(f"release PR: {url}\nwaiting for CI...")
     run("gh", "pr", "checks", url, "--watch", "--interval", "20", check=False, capture=False)
-    print(f"\nWhen CI is green, the maintainer merges it (squash): {url}\nThen run `publish`.")
+    print(f"\nWhen CI is green, the maintainer merges it (squash): {url}\n"
+          "The merge builds and publishes the release in CI; then run `publish` to wait for it and realign unstable.")
+
+
+def release_run(sha: str) -> dict | None:
+    """The release workflow run for a commit of main, waiting a little for it to appear."""
+    for _ in range(12):
+        out = run("gh", "run", "list", "--workflow", "release.yml", "--commit", sha,
+                  "--json", "databaseId,url,status,conclusion")
+        runs = json.loads(out or "[]")
+        if runs:
+            return runs[0]
+        time.sleep(5)
+    return None
 
 
 def cmd_publish(_args) -> None:
-    git("fetch", "-q")
+    """The merge into main makes CI (release.yml) build and publish the release;
+    this waits for that run, then realigns unstable."""
+    git("fetch", "-q", "--tags")
     if git("status", "--porcelain"):
         sys.exit("the working tree has uncommitted changes: commit or stash them first")
     git("checkout", "-q", "main")
     git("pull", "-q", "--ff-only")
     v = version()
-    if git("tag", "--list", f"v{v}"):
-        sys.exit(f"v{v} is already released")
     if git("diff", "main", "origin/unstable"):
         print("note: unstable has changes that are not in main; only main is released")
-    print(f"building and publishing v{v} from main ({git('rev-parse', '--short', 'HEAD')})...")
-    run(sys.executable, "scripts/build.py", "--release", capture=False)
+    sha = git("rev-parse", "HEAD")
+    if not git("tag", "--list", f"v{v}"):
+        found = release_run(sha)
+        if found is None:
+            sys.exit(f"no release run found for main ({sha[:7]}): check the Actions tab")
+        print(f"waiting for the release build of v{v}: {found['url']}")
+        run("gh", "run", "watch", str(found["databaseId"]), "--exit-status", "--interval", "20",
+            check=False, capture=False)
+        git("fetch", "-q", "--tags")
+        if not git("tag", "--list", f"v{v}"):
+            sys.exit(f"v{v} was not released; see {found['url']}")
     realign_unstable(v)
 
 
@@ -196,7 +220,7 @@ def main() -> None:
     p = sub.add_parser("prepare", help="on unstable: set the next version and create its notes")
     p.add_argument("version")
     sub.add_parser("pr", help="open (or find) the release PR unstable -> main and wait for CI")
-    sub.add_parser("publish", help="after the merge: build and publish the release, realign unstable")
+    sub.add_parser("publish", help="after the merge: wait for the CI release build, realign unstable")
     t = sub.add_parser("test-installer", help="installer numbered below the latest release, to test updating")
     t.add_argument("version")
     args = ap.parse_args()

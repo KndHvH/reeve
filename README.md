@@ -5,7 +5,7 @@ A macro assistant for **Age of Empires IV**. Reeve watches your economy while yo
 
 It reads only what the game shows on screen: no game files, no memory reading, nothing that touches the game itself.
 
-![Reeve's alert cards over a match](docs/screenshots/demo.webp)
+![Reeve over a Mali match: the build order panel and an alert card](docs/screenshots/demo.webp)
 
 ![A match report in the Reeve hub](docs/screenshots/hub-report.png)
 
@@ -17,7 +17,7 @@ Alert cards appear over the game, each with its own sound, in three levels: **in
 | Alert | Warning | Critical |
 |---|---|---|
 | Idle villagers | 1 or 2 idle | 3 or more |
-| Town center not producing villagers (until 100 villagers on resources) | right away | after 10 s |
+| Town center not producing villagers (until Age IV, 170 population or 100 villagers on resources) | right away | after 10 s |
 | Housed | 90% of the population cap | at the cap |
 | Floating resources | above the next age's limit | two ages ahead |
 
@@ -59,6 +59,7 @@ Double-click the tray icon to open the hub. It closes by itself when a match sta
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
 - **Appearance**: four themes for the hub, the reports and the alert cards (Age, Dark, Dracula and Kitty), with square or rounded corners. The alert cards show in your clips, recordings and streams; this can be turned off.
+- **Language**: English or Portuguese (Brazil), for the hub, reports, alerts, the build panel, the tray and notifications. By default Reeve follows the Windows display language.
 
 | Matches | Builds |
 |---|---|

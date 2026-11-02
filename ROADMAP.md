@@ -73,5 +73,5 @@ Economy simulator: given the number of villagers per resource and the gather rat
 ## Later
 - Income-based alerts (e.g. low income per villager on wood: drop-off too far).
 - Sound themes and per-alert sound packs shared between users.
-- Code signing (avoids SmartScreen warnings; auto-update is A11).
-- Localization (affects text only; digits and icons are language-independent).
+- Code signing (avoids SmartScreen warnings; auto-update is A11): SignPath Foundation, free for open source projects, once the project has more visibility. It only signs builds made in CI, which the release workflow already does.
+- Localization: more languages (English and Portuguese (Brazil) ship; a new one is a file in `assets/i18n/`).

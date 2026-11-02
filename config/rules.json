@@ -1,5 +1,9 @@
 {
   "_doc": "Alert rules. Severities: info (blue), warn (yellow), critical (red). persist_s = how long (wall seconds) a condition must hold before the alert shows; state confirmation already adds one read (~2 s). Edit and restart the overlay to apply; use `reeve replay` to test against a recorded session.",
+  "general": {
+    "_doc": "language: auto (the Windows display language when Reeve has it, else English), en or pt-BR. Applies to the hub, reports, alerts, the build panel, the tray and notifications.",
+    "language": "auto"
+  },
   "idle_villager": {
     "enabled": true,
     "persist_s": 0,
@@ -11,7 +15,9 @@
     "persist_s": 0,
     "critical_after_s": 10,
     "max_villagers": 100,
-    "_doc": "max_villagers: from this many villagers on resources, an idle town center is no longer an alert."
+    "stop_age": 4,
+    "max_pop": 170,
+    "_doc": "An idle town center is no longer an alert from max_villagers villagers on resources, from age stop_age (1-4; 0 = never) or from max_pop population (0 = never)."
   },
   "housed": {
     "enabled": true,

@@ -31,9 +31,9 @@ def test_appearance_is_saved_at_once_and_reports_follow_it():
     assert "--accent: #bd93f9" in css and "--radius: 3px" in css
     saved = json.loads(paths.user_config_path().read_text(encoding="utf-8"))
     assert saved["appearance"] == {"theme": "dracula", "corners": "square"}
-    assert report.look() == "dracula/square"
+    assert report.look() == "dracula/square/en"
     html = report.render({"rows": [], "alerts": [], "frames": [], "ages": []}, "20260101-100000")
-    assert 'content="dracula/square"' in html and "--accent: #bd93f9" in html
+    assert 'content="dracula/square/en"' in html and "--accent: #bd93f9" in html
 
 
 def test_hub_rewrites_a_report_drawn_with_another_look():
@@ -46,10 +46,10 @@ def test_hub_rewrites_a_report_drawn_with_another_look():
     (folder / "log.jsonl").write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
     api = HubApi()
     api.report_url(folder.name)
-    assert 'content="age/rounded"' in (folder / "report.html").read_text(encoding="utf-8")
+    assert 'content="age/rounded/en"' in (folder / "report.html").read_text(encoding="utf-8")
     api.set_appearance("kitty", "square")
     api.report_url(folder.name)
-    assert 'content="kitty/square"' in (folder / "report.html").read_text(encoding="utf-8")
+    assert 'content="kitty/square/en"' in (folder / "report.html").read_text(encoding="utf-8")
 
 
 def test_every_css_variable_used_by_the_report_and_the_hub_is_defined():

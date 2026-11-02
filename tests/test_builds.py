@@ -23,7 +23,7 @@ def _state(food=0, wood=0, gold=0, stone=0, idle=0, age=1, clock=60, landmark=No
 
 
 def _read(t, s):
-    """Two readings of the same state: a villager count must be read twice to count."""
+    """Two readings of the same state, as the StateTracker confirms a field."""
     t.update(s)
     return t.update(s)
 
@@ -253,6 +253,30 @@ def test_one_misread_never_moves_the_build():
     assert t.peak == 15
     _read(t, _pop_state(17, 255, wood=8, food=5, age=2))     # Feudal, 16 villagers and the scout
     assert t.index == 3                                        # step 4 until the 17th villager, not step 12
+
+
+def test_a_count_reached_once_moves_the_build():
+    """Step 2 of the Mali build is at 7 villagers: one reading with 7 moves it."""
+    t = BuildTracker(_mali())
+    t.update(_state(wood=6, clock=20))
+    assert t.update(_state(wood=7, clock=22))
+    assert t.index == 1
+
+
+def test_the_build_follows_the_first_read_of_a_villager_count():
+    """Alerts wait for two equal reads; the build order takes the first one."""
+    from reeve.state import StateTracker
+
+    st, e = StateTracker(), RuleEngine()
+    e.config = e.config | {"build_order": {"active": None}}
+    e.build = BuildTracker(_mali())
+    vals = {"clock": 20, "pop": (7, 10), "idle": 0, "vil_food": 0, "vil_wood": 6, "vil_gold": 0, "vil_stone": 0, "age": 1}
+    for wall in (0, 2):
+        e.evaluate(st.update(vals | {"clock": 20 + wall}, wall), wall, st.latest())
+    s = st.update(vals | {"clock": 24, "pop": (8, 10), "vil_wood": 7}, 4)
+    assert s.villagers["wood"] == 6                     # not confirmed yet
+    e.evaluate(s, 4, st.latest())
+    assert e.build.index == 1
 
 
 def test_refresh_updates_only_builds_their_author_changed():
