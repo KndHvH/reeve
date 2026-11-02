@@ -19,9 +19,11 @@ from __future__ import annotations
 import base64
 import html
 import json
+import re
 from pathlib import Path
 
 from . import themes
+from .i18n import N_, current, strings, t, tn
 from .income import IncomeTracker
 from .paths import ROOT
 from .replay import _wall_seconds
@@ -36,9 +38,12 @@ from .state import RESOURCES, StateTracker
 # separated by gaps.
 SERIES_ORDER = ["food", "wood", "stone", "gold", "idle"]
 ICONS = ROOT / "assets" / "report_icons"
-PROBLEMS = [("tc_idle", "Town center idle"), ("housed", "Housed"),
-            ("idle_villager", "Idle villagers"), ("floating", "Floating resources")]
-BUILD_PROBLEM = ("build", "Off the build")   # only for matches that followed a build order
+PROBLEMS = [("tc_idle", N_("Town center idle")), ("housed", N_("Housed")),
+            ("idle_villager", N_("Idle villagers")), ("floating", N_("Floating resources"))]
+BUILD_PROBLEM = ("build", N_("Off the build"))   # only for matches that followed a build order
+MONTHS = (N_("Jan"), N_("Feb"), N_("Mar"), N_("Apr"), N_("May"), N_("Jun"),
+          N_("Jul"), N_("Aug"), N_("Sep"), N_("Oct"), N_("Nov"), N_("Dec"))
+I18N_MARK = re.compile(r"\{\{t:(.+?)\}\}")   # a text of the page template, translated when written
 
 
 def _icons() -> dict[str, str]:
@@ -117,7 +122,7 @@ def build_timeline(log_path: Path, config: dict | None = None) -> dict:
         for d in moves.get(id(row), ()):
             if engine.build is not None:
                 engine.build.step_back() if d == "back" else engine.build.step_forward()
-        for tr in engine.evaluate(s, wall):
+        for tr in engine.evaluate(s, wall, tracker.latest()):
             a = tr.alert
             if tr.kind in ("on", "change"):
                 if a.id in open_alerts:
@@ -202,38 +207,38 @@ def summarize(tl: dict) -> dict:
 
 def _ledger(s: dict, icons: dict[str, str]) -> str:
     if not s:
-        return "<p class='empty'>No readings were recorded in this session.</p>"
+        return f"<p class='empty'>{t('No readings were recorded in this session.')}</p>"
     e = html.escape
     vil = "".join(
-        f"<div class='mini'><b>{'–' if n is None else n}</b><span>{m} min</span></div>"
+        f"<div class='mini'><b>{'–' if n is None else n}</b><span>{t('{m} min', m=m)}</span></div>"
         for m, n in s["villagers_at"].items())
     pop, cap = s["final_pop"]
     overview = f"""
       <section class='col'>
-        <h2>Overview</h2>
-        <div class='hero'><b>{_fmt_clock(s['duration'])}</b><span>played, from {_fmt_clock(s['span'][0])} to {_fmt_clock(s['span'][1])}</span></div>
-        <div class='minis'><img src='{icons.get("villager", "")}' alt='villagers' title='Villagers at 5, 10 and 15 minutes'>{vil}</div>
-        <div class='pair'><span>Peak idle villagers</span><b>{s['peak_idle']}</b></div>
-        <div class='pair'><span>Final population</span><b>{'–' if pop is None else f'{pop}/{cap}'}</b></div>
+        <h2>{t('Overview')}</h2>
+        <div class='hero'><b>{_fmt_clock(s['duration'])}</b><span>{t('played, from {start} to {end}', start=_fmt_clock(s['span'][0]), end=_fmt_clock(s['span'][1]))}</span></div>
+        <div class='minis'><img src='{icons.get("villager", "")}' alt='{t('villagers')}' title='{t('Villagers at 5, 10 and 15 minutes')}'>{vil}</div>
+        <div class='pair'><span>{t('Peak idle villagers')}</span><b>{s['peak_idle']}</b></div>
+        <div class='pair'><span>{t('Final population')}</span><b>{'–' if pop is None else f'{pop}/{cap}'}</b></div>
         {_ages_html(s['ages'])}
       </section>"""
     rows = "".join(
-        f"<div class='problem {p['severity'] or 'none'}'><i></i><span>{e(p['label'])}</span>"
-        f"<b>{_fmt_clock(p['seconds']) if p['seconds'] else 'none'}</b></div>"
+        f"<div class='problem {p['severity'] or 'none'}'><i></i><span>{e(t(p['label']))}</span>"
+        f"<b>{_fmt_clock(p['seconds']) if p['seconds'] else t('none')}</b></div>"
         for p in s["problems"])
     problems = f"""
       <section class='col'>
-        <h2>Total time with alerts</h2>
+        <h2>{t('Total time with alerts')}</h2>
         {rows}
-        <p class='note'>Bar color is the worst level the alert reached.</p>
+        <p class='note'>{t('Bar color is the worst level the alert reached.')}</p>
       </section>"""
     inc = "".join(
-        f"<div class='income'><img src='{icons.get(r, '')}' alt='{r}' title='{r}'>"
+        f"<div class='income'><img src='{icons.get(r, '')}' alt='{t(r)}' title='{t(r)}'>"
         f"<b>{'–' if v is None else v}</b><span>/min</span></div>"
         for r, v in s["income"].items())
     income = f"""
       <section class='col'>
-        <h2>Average income</h2>
+        <h2>{t('Average income')}</h2>
         {inc}
       </section>"""
     return overview + problems + income
@@ -247,12 +252,12 @@ def _ages_html(ages: list[dict]) -> str:
         return ""
     items = ""
     for e in ages:
-        detail = [f"started {_fmt_clock(e['started'])}"] if e["started"] is not None else []
+        detail = [t("started {time}", time=_fmt_clock(e["started"]))] if e["started"] is not None else []
         if e["builders"]:
-            detail.append(f"{e['builders']} builders")
+            detail.append(tn("{n} builder", "{n} builders", e["builders"]))
         items += (f"<div class='age'><span class='roman'>{ROMAN[e['age']]}</span><b>{_fmt_clock(e['reached'])}</b>"
                   f"<span>{', '.join(detail)}</span></div>")
-    return f"<div class='ages' title='Age reached, when its landmark started and how many villagers built it'>{items}</div>"
+    return f"<div class='ages' title='{t('Age reached, when its landmark started and how many villagers built it')}'>{items}</div>"
 
 
 def write_report(session: Path) -> Path:
@@ -285,18 +290,20 @@ def write_summary(session: Path, tl: dict | None = None) -> dict:
 
 
 def _session_label(name: str) -> str:
-    """'20261028-180649' -> '28 Oct 2026, 18:06'."""
-    try:
-        from datetime import datetime
+    """'20261028-180649' -> '28 Oct 2026, 18:06', in the current language."""
+    from datetime import datetime
 
-        return datetime.strptime(name, "%Y%m%d-%H%M%S").strftime("%d %b %Y, %H:%M")
+    try:
+        d = datetime.strptime(name, "%Y%m%d-%H%M%S")
     except ValueError:
         return name
+    return t("{day} {month} {year}, {time}", day=f"{d.day:02d}", month=t(MONTHS[d.month - 1]), year=d.year,
+             time=f"{d:%H:%M}")
 
 
 def look(config: dict | None = None) -> str:
-    """Theme and corner style the report is drawn with, e.g. "age/square"."""
-    return f"{themes.current(config)[0]}/{themes.corners(config)}"
+    """Theme, corner style and language the report is drawn with, e.g. "age/square/en"."""
+    return f"{themes.current(config)[0]}/{themes.corners(config)}/{current()}"
 
 
 def _civ_html(build: dict | None) -> str:
@@ -309,17 +316,20 @@ def _civ_html(build: dict | None) -> str:
     f = flag_file(civ["abbr"])
     flag = f"<img src='data:image/png;base64,{base64.b64encode(f.read_bytes()).decode()}' alt=''>" if f else ""
     return (f"<p class='civ'>{flag}<b>{html.escape(civ['name'])}</b>"
-            f"<span>following {html.escape(build.get('name') or 'a build order')}</span></p>")
+            f"<span>{t('following {build}', build=html.escape(build.get('name') or t('a build order')))}</span></p>")
 
 
 def render(tl: dict, title: str) -> str:
     icons = _icons()
     name, theme = themes.current()
     corner = themes.corners()
-    return (TEMPLATE
-            .replace("__LOOK__", f"{name}/{corner}")
+    page = I18N_MARK.sub(lambda m: html.escape(t(m.group(1))), TEMPLATE)
+    return (page
+            .replace("__LANG__", current())
+            .replace("__STRINGS__", json.dumps(strings(), ensure_ascii=False))
+            .replace("__LOOK__", f"{name}/{corner}/{current()}")
             .replace("__THEME__", themes.css(theme, corner))
-            .replace("__TITLE__", html.escape(_session_label(title)))
+            .replace("__SUBTITLE__", html.escape(t("{date}, game time shown throughout", date=_session_label(title))))
             .replace("__CIV__", _civ_html(tl.get("build")))
             .replace("__LEDGER__", _ledger(summarize(tl), icons))
             .replace("__SERIES__", json.dumps(SERIES_ORDER))
@@ -328,11 +338,11 @@ def render(tl: dict, title: str) -> str:
 
 
 TEMPLATE = r"""<!doctype html>
-<html lang="en">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Match report</title>
+<title>{{t:Match report}}</title>
 <meta name="reeve-look" content="__LOOK__">
 <style>
 :root {
@@ -437,28 +447,31 @@ svg text { fill: var(--mist); font: 11px var(--sans); }
 <body>
 <div class="page">
 <header>
-  <div class="title"><h1>Match report</h1>__CIV__</div>
-  <p>__TITLE__, game time shown throughout</p>
+  <div class="title"><h1>{{t:Match report}}</h1>__CIV__</div>
+  <p>__SUBTITLE__</p>
 </header>
 <div class="ledger">__LEDGER__</div>
 <div class="layout">
   <div id="charts"></div>
   <aside class="side">
     <div id="moment"></div>
-    <img id="sel-frame" class="frame" alt="Panel as read at this moment" hidden>
+    <img id="sel-frame" class="frame" alt="{{t:Panel as read at this moment}}" hidden>
     <div class="hint" id="sel-frame-note"></div>
-    <div class="hint" id="sel-hint">Hover a chart to inspect a moment; click to pin it.</div>
+    <div class="hint" id="sel-hint">{{t:Hover a chart to inspect a moment; click to pin it.}}</div>
   </aside>
 </div>
 </div>
 <script>
+const T = __STRINGS__;
+// The page's texts in the report's language (i18n.py), placeholders filled from `v`.
+const tr = (s, v = {}) => (T[s] ?? s).replace(/\{(\w+)\}/g, (m, k) => k in v ? v[k] : m);
 const D = __DATA__;
 const ORDER = __SERIES__;
 const ICON = __ICONS__;
 const RES = ["food", "wood", "stone", "gold"];
 const color = k => `var(--series-${k})`;
 const iconOf = k => k === "idle" ? "villager" : k;
-const img = name => ICON[name] ? `<img src="${ICON[name]}" alt="${name}">` : "";
+const img = name => ICON[name] ? `<img src="${ICON[name]}" alt="${tr(name)}">` : "";
 const fmt = s => s == null ? "–" : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const rows = D.rows;
 const t0 = rows.length ? rows[0].t : 0, t1 = rows.length ? rows[rows.length - 1].t : 1;
@@ -491,8 +504,8 @@ function chart(title, keys, H, draw, ages = true) {
     const legend = document.createElement("div"); legend.className = "legend";
     keys.forEach(k => {
       const b = document.createElement("button");
-      const name = k === "idle" ? "idle villagers" : k;
-      b.type = "button"; b.title = `Show or hide ${name}`; b.setAttribute("aria-label", name); b.setAttribute("aria-pressed", "true");
+      const name = k === "idle" ? tr("idle villagers") : tr(k);
+      b.type = "button"; b.title = tr("Show or hide {name}", { name }); b.setAttribute("aria-label", name); b.setAttribute("aria-pressed", "true");
       b.innerHTML = `<i style="background:${color(k)}"></i>${img(iconOf(k))}`;
       b.addEventListener("click", () => {
         c.hidden.has(k) ? c.hidden.delete(k) : c.hidden.add(k);
@@ -625,12 +638,12 @@ function drawPopulation(c) {
   el("path", { d: path("cap"), fill: "none", stroke: "var(--accent-dim)", "stroke-width": 2, "stroke-dasharray": "5 4" }, c.svg);
   el("path", { d: path("pop"), fill: "none", stroke: "var(--ink)", "stroke-width": 2 }, c.svg);
   const last = [...rows].reverse().find(r => r.pop != null);
-  if (last) { el("text", { x: W - PAD.r + 6, y: y(last.pop) + 12, style: "fill:var(--ink-2)" }, c.svg).textContent = "pop";
-              el("text", { x: W - PAD.r + 6, y: y(last.cap) - 4, style: "fill:var(--accent)" }, c.svg).textContent = "cap"; }
+  if (last) { el("text", { x: W - PAD.r + 6, y: y(last.pop) + 12, style: "fill:var(--ink-2)" }, c.svg).textContent = tr("pop");
+              el("text", { x: W - PAD.r + 6, y: y(last.cap) - 4, style: "fill:var(--accent)" }, c.svg).textContent = tr("cap"); }
 }
 
-const LANES = { housed: "Housed", tc_idle: "TC idle", idle_villager: "Idle villagers", floating: "Floating" };
-if (D.build) LANES.build = "Off the build";
+const LANES = { housed: tr("Housed"), tc_idle: tr("TC idle"), idle_villager: tr("Idle villagers"), floating: tr("Floating") };
+if (D.build) LANES.build = tr("Off the build");
 function drawLanes(c) {
   const lane = 18;
   Object.keys(LANES).forEach((id, i) => {
@@ -654,42 +667,42 @@ function select(t) {
   const r = rows.reduce((b, q) => Math.abs(q.t - t) < Math.abs(b.t - t) ? q : b);
   lastT = r.t;
   placeCursors(r.t);
-  document.getElementById("sel-hint").textContent = pinned != null ? "Click a chart again to unpin." : "Click to pin this moment.";
+  document.getElementById("sel-hint").textContent = pinned != null ? tr("Click a chart again to unpin.") : tr("Click to pin this moment.");
   const v = n => n == null ? "–" : n;
   // An alert still open when the log ends has end == t1: include that last moment.
   const active = D.alerts.filter(a => a.start <= r.t && (r.t < a.end || (a.end === t1 && r.t === t1)));
   const sev = id => (active.find(a => a.id === id) || {}).severity || "";
   const tc = r.producing == null ? "" : r.producing
-    ? `<span class="chip quiet">TC producing</span>` : `<span class="chip ${sev("tc_idle")}">TC idle</span>`;
+    ? `<span class="chip quiet">${tr("TC producing")}</span>` : `<span class="chip ${sev("tc_idle")}">${tr("TC idle")}</span>`;
   const up = (D.ages || []).find(e => e.started != null && e.started <= r.t && r.t < e.reached);
   const age = up ? `${ROMAN[up.age - 1]} → ${ROMAN[up.age]}` : (r.age ? ROMAN[r.age] : "");
-  let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}${age ? `<span class="m-age" title="${up ? "aging up" : "age"}">${age}</span>` : ""}</span>${pinned != null ? `<span class="m-pin">pinned</span>` : ""}</div>
+  let h = `<div class="m-head"><span class="m-clock">${fmt(r.t)}${age ? `<span class="m-age" title="${up ? tr("aging up") : tr("age")}">${age}</span>` : ""}</span>${pinned != null ? `<span class="m-pin">${tr("pinned")}</span>` : ""}</div>
     <div class="m-chips">
-      <span class="chip ${sev("housed")}" title="population">${img("pop")}${r.pop == null ? "–" : `${r.pop}/${r.cap}`}</span>
-      <span class="chip ${sev("idle_villager")}" title="idle villagers">${img("villager")}<sup>zz</sup>${v(r.idle)}</span>${tc}
+      <span class="chip ${sev("housed")}" title="${tr("population")}">${img("pop")}${r.pop == null ? "–" : `${r.pop}/${r.cap}`}</span>
+      <span class="chip ${sev("idle_villager")}" title="${tr("idle villagers")}">${img("villager")}<sup>zz</sup>${v(r.idle)}</span>${tc}
     </div>`;
   RES.forEach(k => {
-    h += `<div class="res"><span title="${k}">${img(k)}</span><b>${v(r.res[k])}</b>
-      <span class="vil" title="villagers on ${k}">${img("villager")}${v(r.vil[k])}</span>
-      <span class="inc" title="income per minute">${r.inc[k] == null ? "–" : r.inc[k] + "/min"}</span></div>`;
+    h += `<div class="res"><span title="${tr(k)}">${img(k)}</span><b>${v(r.res[k])}</b>
+      <span class="vil" title="${tr("villagers on {resource}", { resource: tr(k) })}">${img("villager")}${v(r.vil[k])}</span>
+      <span class="inc" title="${tr("income per minute")}">${r.inc[k] == null ? "–" : r.inc[k] + "/min"}</span></div>`;
   });
   h += `<div class="m-alerts">${active.length ? active.map(a => `<span class="pill ${a.severity}">${a.text}</span>`).join("")
-                                               : `<span class="calm">No alerts at this moment</span>`}</div>`;
+                                               : `<span class="calm">${tr("No alerts at this moment")}</span>`}</div>`;
   document.getElementById("moment").innerHTML = h;
   const frameImg = document.getElementById("sel-frame"), note = document.getElementById("sel-frame-note");
   const f = D.frames.length ? D.frames.reduce((b, q) => Math.abs(q - r.t) < Math.abs(b - r.t) ? q : b) : null;
   if (f != null && Math.abs(f - r.t) <= 15) {
     frameImg.src = `frames/${String(f).padStart(5, "0")}.jpg`; frameImg.hidden = false;
-    note.textContent = `Panel as captured at ${fmt(f)}`;
+    note.textContent = tr("Panel as captured at {time}", { time: fmt(f) });
   } else { frameImg.hidden = true; note.textContent = ""; }
 }
 
 if (rows.length) {
-  chart("Villagers per resource", ORDER, 228, drawStacked);
-  chart("Income per minute", RES, 204, drawLines((r, k) => r.inc[k], "/min"));
-  chart("Stockpile", RES, 204, drawLines((r, k) => r.res[k], ""));
-  chart("Population and cap", [], 180, drawPopulation);
-  chart("Alerts", [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes, false);
+  chart(tr("Villagers per resource"), ORDER, 228, drawStacked);
+  chart(tr("Income per minute"), RES, 204, drawLines((r, k) => r.inc[k], "/min"));
+  chart(tr("Stockpile"), RES, 204, drawLines((r, k) => r.res[k], ""));
+  chart(tr("Population and cap"), [], 180, drawPopulation);
+  chart(tr("Alerts"), [], PAD.t + Object.keys(LANES).length * 24 + PAD.b, drawLanes, false);
   select(t1);
 }
 </script>

@@ -13,8 +13,10 @@ from __future__ import annotations
 import tkinter as tk
 import tkinter.font as tkfont
 
+from .i18n import current, t
+
 WIDTH = 230       # at k = 1
-NONE_LABEL = "None"
+NONE_LABEL = "None"   # translated when drawn
 
 
 def elide(text: str, width: int, measure) -> str:
@@ -82,7 +84,7 @@ class BuildPicker:
 
     def _draw(self) -> None:
         builds, active, right, top, k, look = self._args
-        sig = (tuple(builds), active, right, top, round(k, 3), tuple(sorted(look.items())), self.open, self.hover)
+        sig = (tuple(builds), active, right, top, round(k, 3), tuple(sorted(look.items())), self.open, self.hover, current())
         if sig == self._sig:
             return
         self._sig = sig
@@ -96,11 +98,11 @@ class BuildPicker:
 
         # The card: what is in use, and the arrow that opens the list.
         y = pad
-        c.create_text(pad + round(3 * k), y, text="Build order", fill=look["muted"], anchor="nw", font=small)
+        c.create_text(pad + round(3 * k), y, text=t("Build order"), fill=look["muted"], anchor="nw", font=small)
         y += small.metrics("linespace")
-        current = names.get(active, NONE_LABEL)
-        current = elide(current, width - 2 * pad - round(3 * k) - bold.measure("▾") - pad, bold.measure)
-        c.create_text(pad + round(3 * k), y, text=current, fill=look["ink"] if active in names else look["muted"],
+        shown = names.get(active, t(NONE_LABEL))
+        shown = elide(shown, width - 2 * pad - round(3 * k) - bold.measure("▾") - pad, bold.measure)
+        c.create_text(pad + round(3 * k), y, text=shown, fill=look["ink"] if active in names else look["muted"],
                       anchor="nw", font=bold)
         c.create_text(width - pad, y + bold.metrics("linespace") // 2, text="▴" if self.open else "▾",
                       fill=look["accent"], anchor="e", font=bold)
@@ -111,7 +113,7 @@ class BuildPicker:
         if self.open:
             c.create_line(pad, y, width - pad, y, fill=look["rule"])
             lh = round(plain.metrics("linespace") * 1.5)
-            for i, (bid, label, sub) in enumerate([(None, NONE_LABEL, "show nothing")] +
+            for i, (bid, label, sub) in enumerate([(None, t(NONE_LABEL), t("show nothing"))] +
                                                   [(b[0], b[1], b[2]) for b in builds]):
                 y0 = y + i * lh
                 if self.hover == i + 1:
@@ -120,10 +122,10 @@ class BuildPicker:
                     c.create_rectangle(round(3 * k), y0 + round(4 * k), round(6 * k), y0 + lh - round(4 * k),
                                        fill=look["accent"], outline="")
                 room = width - 2 * pad - round(3 * k) - (small.measure(sub) + round(6 * k) if sub else 0)
-                t = c.create_text(pad + round(3 * k), y0 + lh // 2, text=elide(label, room, plain.measure),
-                                  fill=look["ink"], anchor="w", font=plain)
+                item = c.create_text(pad + round(3 * k), y0 + lh // 2, text=elide(label, room, plain.measure),
+                                     fill=look["ink"], anchor="w", font=plain)
                 if sub:
-                    x1 = c.bbox(t)[2]
+                    x1 = c.bbox(item)[2]
                     c.create_text(x1 + round(6 * k), y0 + lh // 2, text=sub, fill=look["muted"], anchor="w", font=small)
                 self._rows.append((y0, y0 + lh, bid))
             y += lh * (len(builds) + 1) + round(4 * k)

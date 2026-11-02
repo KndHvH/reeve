@@ -51,8 +51,13 @@ def _stack(root, **effects):
     return s
 
 
+# The cards are real windows: they sit far off every monitor, so running the
+# tests never flashes them over the screen (or over a game being played).
+OFFSCREEN = (-32000, -32000)
+
+
 def _show(s, *ids):
-    s.update([_alert(i) for i in ids], (0, 0), 10, 100, 5, None, "look")
+    s.update([_alert(i) for i in ids], OFFSCREEN, 10, 100, 5, None, "look")
 
 
 def _finish(s, root):
@@ -68,6 +73,8 @@ def test_cards_enter_move_and_exit_without_animation(root):
     assert list(s.cards) == ["a", "b"] and s.cards["b"].y == 136 and not s.tweens
     _show(s, "b")                                   # a clears, b takes its place
     assert list(s.cards) == ["b"] and s.cards["b"].y == 100 and not s.leaving
+    root.update()
+    assert s.cards["b"].win.winfo_rootx() < -30000            # off screen, never over the desktop
 
 
 def test_animated_moments_finish_in_place(root):

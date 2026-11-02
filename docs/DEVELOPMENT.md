@@ -40,16 +40,19 @@ uv run python scripts/build.py              # dist/<version>/Reeve/Reeve.exe and
 uv run python scripts/release.py status     # where the next release stands
 uv run python scripts/release.py prepare 0.2.3
 uv run python scripts/release.py pr         # release PR unstable -> main, waits for CI
-uv run python scripts/release.py publish    # after the squash merge: release from main, unstable realigned
+uv run python scripts/release.py publish    # after the squash merge: waits for the CI release, realigns unstable
 uv run python scripts/release.py test-installer 0.2.2.99   # numbered below the latest release, to try updates
 ```
 
-Work goes to `unstable`; `main` only receives it through a release pull request merged with squash (one commit per version), and each release is a tag `vX.Y.Z` on `main`. Local builds show where they come from (e.g. `0.2.2-dev.9+3fc03e0`); only a release build shows the plain number. `Reeve.exe` runs the tray app, `Reeve.exe hub` the hub; a second start while Reeve runs opens the hub. The packaged app has no console: output and errors go to `reeve.log` in the data folder. The `git-release` agent (`.claude/agents/`) follows this process.
+Work goes to `unstable`; `main` only receives it through a release pull request merged with squash (one commit per version), and each release is a tag `vX.Y.Z` on `main`. The merge triggers `.github/workflows/release.yml`: it runs the tests, builds the installer with `build.py --release` and publishes the GitHub release; a push to `main` whose version is already tagged publishes nothing. Running the workflow by hand with `dry_run` builds a test installer (`0.0.0.1-test`) as a run artifact without publishing. Local builds show where they come from (e.g. `0.2.2-dev.9+3fc03e0`); only a release build shows the plain number. `Reeve.exe` runs the tray app, `Reeve.exe hub` the hub; a second start while Reeve runs opens the hub. The packaged app has no console: output and errors go to `reeve.log` in the data folder. The `git-release` agent (`.claude/agents/`) follows this process.
 
 ## Configuration and data
 - `config/rules.json` holds the shipped defaults of every setting. The user's `%APPDATA%\reeve\config\rules.json` holds only what they changed and is merged on top. `REEVE_HOME` points the whole data folder elsewhere (the tests always do).
 - `%APPDATA%\reeve\sessions\<start>\` holds each match: `log.jsonl` (one line per reading), `summary.json`, `report.html`, audit frames every 10 s of game time and the crops of doubtful readings.
 - `assets/layout.json` holds the regions of interest in reference coordinates (720p, UI 100%) relative to the anchor; nothing is tied to a resolution.
+
+## Translations
+Player-facing text is written in English in the code and wrapped in `t("...")` (`tn(one, many, n)` for counts, `N_("...")` for a label translated where it is shown); the hub and the report's JavaScript use `tr()` / `trn()`, and the report's static HTML `{{t:...}}`. `assets/i18n/<code>.json` maps each English text to its translation; placeholders are `{name}` on both sides. `tests/test_i18n.py` fails on a text missing from a translation, a changed placeholder or a stale entry. A new language is a JSON file plus an entry in `i18n.LANGUAGES` (and `i18n.WINDOWS` for the automatic choice). The CLI, the debug view and the logs stay in English.
 
 ## Alerts and sounds
 Slow-changing values are confirmed over two consecutive readings, so a single misread never triggers an alert. `reeve replay` shows which alerts a recorded session produces after the thresholds change.

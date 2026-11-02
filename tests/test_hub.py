@@ -50,6 +50,24 @@ def test_match_list_builds_and_reuses_summaries():
     assert (paths.sessions_dir() / "20260102-100000" / "summary.json").stat().st_mtime == stamp  # reused
 
 
+def test_match_list_goes_back_a_number_of_days():
+    from datetime import datetime, timedelta
+
+    def ago(days):
+        return (datetime.now() - timedelta(days=days)).strftime("%Y%m%d-%H%M%S")
+
+    recent, week, old = ago(1), ago(5), ago(40)
+    for name in (recent, week, old):
+        _session(name)
+    api = HubApi()
+    first = api.matches(3)
+    assert [m["session"] for m in first["matches"]] == [recent] and first["older"]
+    assert [m["session"] for m in api.matches(7)["matches"]] == [recent, week]
+    assert not (paths.sessions_dir() / old / "summary.json").exists()   # older matches are not summarized
+    everything = api.matches()
+    assert [m["session"] for m in everything["matches"]] == [recent, week, old] and not everything["older"]
+
+
 def test_broken_log_does_not_hide_other_matches():
     _session("20260101-100000")
     broken = paths.sessions_dir() / "20260103-100000"

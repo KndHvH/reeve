@@ -17,6 +17,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .i18n import t, tn
 from .state import RESOURCES, GameState
 
 SEVERITIES = ("info", "warn", "critical")
@@ -60,7 +61,7 @@ def _idle_villager(s: GameState, cfg: dict, held: float):
         return None
     n = s.idle
     severity = "critical" if n >= cfg["critical_at"] else "warn"
-    return severity, f"{n} idle villager{'s' if n != 1 else ''}", {"idle": n}
+    return severity, tn("{n} idle villager", "{n} idle villagers", n), {"idle": n}
 
 
 def _housed(s: GameState, cfg: dict, held: float):
@@ -71,9 +72,9 @@ def _housed(s: GameState, cfg: dict, held: float):
         return None
     reason = {"pop": s.pop, "pop_cap": s.pop_cap, "ratio": round(ratio, 2)}
     if s.pop >= s.pop_cap:
-        return "critical", f"Housed ({s.pop}/{s.pop_cap}): build a house", reason
+        return "critical", t("Housed ({pop}/{cap}): build a house", pop=s.pop, cap=s.pop_cap), reason
     severity = "critical" if ratio >= cfg["critical_ratio"] else "warn"
-    return severity, f"Population {s.pop}/{s.pop_cap}: build a house", reason
+    return severity, t("Population {pop}/{cap}: build a house", pop=s.pop, cap=s.pop_cap), reason
 
 
 def _tc_idle(s: GameState, cfg: dict, held: float):
@@ -84,8 +85,12 @@ def _tc_idle(s: GameState, cfg: dict, held: float):
     on_resources = sum(v or 0 for v in s.villagers.values())
     if on_resources >= cfg.get("max_villagers", 100):
         return None  # enough villagers: no longer making them is a choice
+    if cfg.get("stop_age") and (s.age or 1) >= cfg["stop_age"]:
+        return None  # late game: the town center makes what the player chooses
+    if cfg.get("max_pop") and s.pop >= cfg["max_pop"]:
+        return None  # near the cap the population goes to the army
     severity = "critical" if held >= cfg["critical_after_s"] else "warn"
-    return severity, "Town center idle: queue a villager", {"pop": s.pop, "pop_cap": s.pop_cap, "idle_s": round(held)}
+    return severity, t("Town center idle: queue a villager"), {"pop": s.pop, "pop_cap": s.pop_cap, "idle_s": round(held)}
 
 
 def _floating(s: GameState, cfg: dict, held: float):
@@ -107,7 +112,7 @@ def _floating(s: GameState, cfg: dict, held: float):
             level = max(level, exceeded - 1)
     if not over:
         return None
-    text = "Floating " + ", ".join(f"{r} {v}" for r, v in over.items())
+    text = t("Floating {resources}", resources=", ".join(f"{t(r)} {v}" for r, v in over.items()))
     return SEVERITIES[level], text, {"over": over, "limits": limits}
 
 
@@ -167,12 +172,14 @@ class RuleEngine:
         if self.build is not None:
             self.build.end_after_s = bo.get("end_after_s", 30)
 
-    def evaluate(self, s: GameState, wall: float) -> list[Transition]:
-        """Updates active alerts; returns what turned on, changed severity or turned off."""
+    def evaluate(self, s: GameState, wall: float, read: GameState | None = None) -> list[Transition]:
+        """Updates active alerts; returns what turned on, changed severity or turned off.
+        `read`: the state as read this cycle (StateTracker.latest), which moves
+        the build order without waiting for a confirmation; `s` when not given."""
         transitions: list[Transition] = []
         self._sync_build()
         if self.build is not None:
-            self.build.update(s)
+            self.build.update(read or s)
         # No alert in the first seconds of a match.
         quiet = s.clock is not None and s.clock < (self.config.get("alerts") or {}).get("quiet_start_s", 10)
         for rid, cond in RULES.items():

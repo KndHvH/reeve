@@ -14,9 +14,11 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from pathlib import Path
 
 from . import catalog
+from .i18n import LANGUAGES, set_language, strings, t
 from .paths import (DEFAULT_CONFIG, ROOT, data_dir, diff, load_config, save_overrides, sessions_dir,
                     set_setting, user_config_path, user_sounds_dir)
 
@@ -24,12 +26,26 @@ HUB_HTML = ROOT / "assets" / "hub" / "hub.html"
 APP_ICON = ROOT / "assets" / "app.ico"   # the tray icon (tray._tray_image), all sizes
 
 
-def match_summaries() -> list[dict]:
-    """Every recorded match, newest first; summary.json is rebuilt when missing or stale."""
-    from .report import write_summary
+def _sessions(days: float | None = None) -> tuple[list[Path], bool]:
+    """Recorded session folders, newest first: those started in the last `days`
+    (all when None), and whether older ones exist."""
+    from .retention import DAY, started
+
+    found = sorted((p for p in sessions_dir().iterdir() if (p / "log.jsonl").exists()), reverse=True)
+    if days is None:
+        return found, False
+    cutoff = time.time() - days * DAY
+    recent = [p for p in found if started(p) >= cutoff]
+    return recent, len(recent) < len(found)
+
+
+def match_summaries(days: float | None = None) -> list[dict]:
+    """Recorded matches, newest first (only the last `days` when given);
+    summary.json is rebuilt when missing or stale."""
+    from .report import _session_label, write_summary
 
     out = []
-    for s in sorted((p for p in sessions_dir().iterdir() if (p / "log.jsonl").exists()), reverse=True):
+    for s in _sessions(days)[0]:
         summary, log = s / "summary.json", s / "log.jsonl"
         try:
             digest = None
@@ -42,6 +58,7 @@ def match_summaries() -> list[dict]:
             continue
         if not digest.get("duration"):   # no game time read: not a match
             continue
+        digest["started"] = _session_label(s.name)   # in the current language
         digest["has_report"] = (s / "report.html").exists()
         digest["flag"] = _flag(digest.get("civ"))
         out.append(digest)
@@ -96,8 +113,10 @@ class HubApi:
 
         return shown()
 
-    def matches(self) -> list[dict]:
-        return match_summaries()
+    def matches(self, days: float | None = None) -> dict:
+        """The matches of the last `days` (all when None) and whether older ones exist.
+        Older matches are not summarized at all, so a short list stays quick."""
+        return {"matches": match_summaries(days), "older": _sessions(days)[1]}
 
     def report_url(self, session: str) -> str:
         """The report's file URL, shown inside the hub. Rebuilt when the log or
@@ -125,6 +144,19 @@ class HubApi:
 
         return {"values": load_config(), "defaults": json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8")),
                 "sounds": library(), "user_sounds": _user_sounds(), "themes": themes.themes()}
+
+    def language(self) -> dict:
+        """The interface language: the setting, the language it resolves to,
+        the languages to choose from and the translation of the page's texts."""
+        lang = set_language()
+        return {"setting": (load_config().get("general") or {}).get("language", "auto"), "lang": lang,
+                "languages": LANGUAGES, "strings": strings()}
+
+    def set_language(self, setting: str) -> dict:
+        """Saves the language at once (the overlay follows within a few seconds)
+        and returns it as `language` does, for the page to redraw itself."""
+        set_setting("general", "language", setting)
+        return self.language()
 
     def theme_css(self) -> str:
         """CSS custom properties of the chosen theme and corner style."""
@@ -184,7 +216,7 @@ class HubApi:
         their default sound."""
         path = user_sounds_dir() / f"{name}.wav"
         if path.parent != user_sounds_dir() or not path.exists():
-            return {"error": "not one of your sounds"}
+            return {"error": t("not one of your sounds")}
         path.unlink()
         user = user_config_path()
         overrides = json.loads(user.read_text(encoding="utf-8")) if user.exists() else {}
@@ -242,11 +274,11 @@ class HubApi:
 
         latest = updates.check()
         if not updates.newer(latest) or not updates.can_install():
-            return {"error": "no update to install"}
+            return {"error": t("no update to install")}
         try:
             installer = updates.download(latest)
         except Exception as e:
-            return {"error": f"download failed: {e}"}
+            return {"error": t("download failed: {error}", error=e)}
         updates.install(installer)
         signal(QUIT_EVENT)
         if self._window is not None:
@@ -284,7 +316,7 @@ class HubApi:
 
         b = builds.load(build_id)
         if b is None or not builds.id_from_url(b.source):
-            return {"error": "this build has no aoe4guides.com link; import it again instead"}
+            return {"error": t("this build has no aoe4guides.com link; import it again instead")}
         try:
             new = builds.import_build(b.source)
         except ValueError as e:
@@ -356,6 +388,7 @@ def main() -> None:
     from .checks import use_app_identity
 
     use_app_identity()   # taskbar shows Reeve's icon instead of grouping under python.exe
+    set_language()
 
     api = HubApi()
     api._window = webview.create_window("Reeve", HUB_HTML.as_uri(), js_api=api, width=1180, height=820,

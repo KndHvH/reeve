@@ -214,3 +214,19 @@ def test_idle_town_center_is_no_alert_past_the_villager_limit():
                   villagers={"food": 40, "wood": 30, "gold": 25, "stone": 5})
     assert _tc_idle(s, {"critical_after_s": 10, "max_villagers": 100}, 0) is None
     assert _tc_idle(s, {"critical_after_s": 10, "max_villagers": 120}, 0) is not None
+
+
+def test_idle_town_center_is_no_alert_from_age_iv_or_a_high_population():
+    from reeve.rules import _tc_idle
+    from reeve.state import GameState
+
+    cfg = {"critical_after_s": 10, "max_villagers": 100, "stop_age": 4, "max_pop": 170}
+    s = GameState(clock=900, pop=120, pop_cap=200, producing_villager=False, age=3,
+                  villagers={"food": 30, "wood": 20, "gold": 20, "stone": 5})
+    assert _tc_idle(s, cfg, 0) is not None
+    s.age = 4
+    assert _tc_idle(s, cfg, 0) is None
+    assert _tc_idle(s, cfg | {"stop_age": 0}, 0) is not None      # 0: never stops
+    s.age, s.pop = 3, 170
+    assert _tc_idle(s, cfg, 0) is None
+    assert _tc_idle(s, cfg | {"max_pop": 0}, 0) is not None

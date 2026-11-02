@@ -15,6 +15,7 @@ import threading
 
 from PIL import Image, ImageDraw
 
+from .i18n import set_language, t
 from .version import shown as shown_version
 from .overlay import Overlay
 from .paths import data_dir, sessions_dir
@@ -79,15 +80,15 @@ class TrayApp:
         self.icon = pystray.Icon(
             "reeve", _tray_image(), f"Reeve {shown_version()}",
             menu=menu(
-                item("Overlay", self._toggle_enabled, checked=lambda _: self.overlay.enabled),
-                item("Debug view", self._toggle_debug, checked=lambda _: self.overlay.debug),
-                item("Mute", self._toggle_mute, checked=lambda _: self.overlay.muted),
+                item(lambda _: t("Overlay"), self._toggle_enabled, checked=lambda _: self.overlay.enabled),
+                item(lambda _: t("Debug view"), self._toggle_debug, checked=lambda _: self.overlay.debug),
+                item(lambda _: t("Mute"), self._toggle_mute, checked=lambda _: self.overlay.muted),
                 menu.SEPARATOR,
-                item("Open hub", self._open_hub, default=True),
-                item("Open last report", self._open_report, enabled=lambda _: latest_report() is not None),
-                item("Open data folder", lambda: os.startfile(data_dir())),
+                item(lambda _: t("Open hub"), self._open_hub, default=True),
+                item(lambda _: t("Open last report"), self._open_report, enabled=lambda _: latest_report() is not None),
+                item(lambda _: t("Open data folder"), lambda: os.startfile(data_dir())),
                 menu.SEPARATOR,
-                item("Quit", self._quit),
+                item(lambda _: t("Quit"), self._quit),
             ),
         )
 
@@ -108,23 +109,49 @@ class TrayApp:
             pass
 
     def _on_ready(self, icon) -> None:
-        """Runs once the tray icon exists. Every start shows something: started
-        by hand, the hub opens; started with Windows, a notification says
-        Reeve is in the tray (the first-run welcome, when due, says it)."""
+        """Runs once the tray icon exists. Every start says Reeve is in the
+        tray (the first-run welcome, when due, says it); started by hand, the
+        hub opens too. Clicking a notification opens the hub."""
         from .checks import webview2_version
 
+        self._click_opens_hub(icon)
         icon.visible = True
         notices = self.overlay.notices.start()
         if webview2_version() is None:
-            notices.append(("The hub needs Microsoft Edge WebView2",
-                            "Alerts work without it. Choose \"Open hub\" to get the free runtime from Microsoft."))
-        elif not self.startup:
-            self._open_hub()
-        elif not notices:
-            notices.append(("Reeve is running",
-                            "Alerts appear over the game once a match starts. The hub is in the tray."))
+            notices.append((t("The hub needs Microsoft Edge WebView2"),
+                            t("Alerts work without it. Choose \"Open hub\" to get the free runtime from Microsoft.")))
+        else:
+            if not self.startup:
+                self._open_hub()
+            if not notices:
+                notices.append((t("Reeve is running in the tray"),
+                                t("Alerts appear over the game once a match starts. Click here to open the hub.")))
         for title, message in notices:
             self._notify(title, message)
+
+    def _click_opens_hub(self, icon) -> None:
+        """pystray ignores clicks on its notifications: Windows reports them to
+        the icon's window as NIN_BALLOONUSERCLICK in the tray message's lParam,
+        so its handler is wrapped to open the hub then. The menu is also built
+        again before it opens, so it follows a language changed in the hub."""
+        from pystray._util import win32
+
+        NIN_BALLOONUSERCLICK = 0x0405
+        handlers = getattr(icon, "_message_handlers", None)
+        original = handlers.get(win32.WM_NOTIFY) if handlers else None
+        if original is None:
+            return
+
+        def on_tray_message(wparam, lparam):
+            if lparam == NIN_BALLOONUSERCLICK:
+                self._open_hub()
+                return 0
+            if lparam == win32.WM_RBUTTONUP:
+                set_language()
+                icon.update_menu()
+            return original(wparam, lparam)
+
+        handlers[win32.WM_NOTIFY] = on_tray_message
 
     def _open_hub(self):
         """The hub is its own process: it costs nothing while closed and does
@@ -180,8 +207,8 @@ class TrayApp:
                     state = load_state()
                     if (updates.newer(latest) and state.get("update_told") != latest.version
                             and self.overlay.last_status not in ("reading", "hidden")):
-                        self._notify(f"Reeve {latest.version} is available",
-                                     "Open the hub to see what's new and update.")
+                        self._notify(t("Reeve {version} is available", version=latest.version),
+                                     t("Open the hub to see what's new and update."))
                         save_state(load_state() | {"update_told": latest.version})
             except Exception:                   # never let this disturb the overlay
                 pass
@@ -197,7 +224,8 @@ class TrayApp:
         try:
             if (load_config().get("build_order") or {}).get("auto_update", True):
                 for b in builds.refresh():
-                    self._notify(f"Build updated: {b.name}", "Its author changed it on aoe4guides.com. Your next match uses the new version.")
+                    self._notify(t("Build updated: {name}", name=b.name),
+                                 t("Its author changed it on aoe4guides.com. Your next match uses the new version."))
             active = builds.load((load_config().get("build_order") or {}).get("active"))
             if active is not None:
                 catalog.ensure(active.civ)

@@ -35,7 +35,7 @@ def replay(log_path: Path, config: dict | None = None) -> list[str]:
         wall = _wall_seconds(row)
         state = tracker.update(values, wall)
         reads += 1
-        for tr in engine.evaluate(state, wall):
+        for tr in engine.evaluate(state, wall, tracker.latest()):
             a = tr.alert
             if tr.kind == "off":
                 lines.append(f"{_fmt_clock(state.clock)}  off     {a.id}")

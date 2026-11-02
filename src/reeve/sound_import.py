@@ -17,6 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .i18n import t
+
 RATE = 44100
 MAX_S = 1.5          # longer sounds are cut, with a fade-out
 FADE_S = 0.08
@@ -30,7 +32,7 @@ def prepare(x: np.ndarray) -> np.ndarray:
     x = np.asarray(x, dtype=np.float64).copy()
     peak = np.abs(x).max() if len(x) else 0
     if peak == 0:
-        raise ValueError("the file is silent")
+        raise ValueError(t("the file is silent"))
     start = int(np.argmax(np.abs(x) > SILENCE * peak))
     x = x[max(0, start - int(0.002 * RATE)):]
     if len(x) > MAX_S * RATE:

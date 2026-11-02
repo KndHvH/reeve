@@ -26,6 +26,7 @@ import winreg
 from dataclasses import dataclass, field
 from typing import Callable
 
+from .i18n import t
 from .paths import data_dir
 
 WEBVIEW2_DOWNLOAD = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
@@ -118,9 +119,9 @@ class Notices:
         if self.state.get("welcomed"):
             return []
         self._remember(welcomed=True)
-        return [("Reeve is running",
-                 "Alerts appear over the game once a match starts. "
-                 "Double-click the tray icon to open the hub: matches, reports and settings.")]
+        return [(t("Reeve is running"),
+                 t("Alerts appear over the game once a match starts. "
+                   "Double-click the tray icon to open the hub: matches, reports and settings."))]
 
     def observe(self, step) -> list[tuple[str, str]]:
         out = []
@@ -135,24 +136,24 @@ class Notices:
             self._fullscreen_checked = now
             if self.fullscreen():
                 self._fullscreen_said = True
-                out.append(("AoE4 is in exclusive fullscreen",
-                            "Reeve can't draw over it. In the game, set Settings > Graphics > "
-                            "Display mode to Borderless (or Windowed)."))
+                out.append((t("AoE4 is in exclusive fullscreen"),
+                            t("Reeve can't draw over it. In the game, set Settings > Graphics > "
+                              "Display mode to Borderless (or Windowed).")))
 
         if step.status == "reading" and step.match is not None and not self.state.get("calibrated"):
             w, h = step.win.width, step.win.height
             ui = round(100 * step.match.scale * 720 / h)
             self._remember(calibrated={"width": w, "height": h, "scale": round(step.match.scale, 3)})
-            out.append(("Reeve found the resource panel",
-                        f"Reading your match at {w}×{h} (UI scale about {ui}%). Alerts are on."))
+            out.append((t("Reeve found the resource panel"),
+                        t("Reading your match at {w}×{h} (UI scale about {ui}%). Alerts are on.", w=w, h=h, ui=ui)))
 
         if (step.status == "waiting" and not self.state.get("calibrated") and not self._no_panel_said
                 and now - self._game_since >= NO_PANEL_AFTER_S):
             self._no_panel_said = True
-            out.append(("Reeve hasn't found the resource panel yet",
-                        "It appears when a match starts. If a match is running: keep the game UI "
-                        "visible (not hidden), use Borderless or Windowed mode, and run "
-                        "`reeve doctor` for details."))
+            out.append((t("Reeve hasn't found the resource panel yet"),
+                        t("It appears when a match starts. If a match is running: keep the game UI "
+                          "visible (not hidden), use Borderless or Windowed mode, and run "
+                          "`reeve doctor` for details.")))
         return out
 
     def _remember(self, **kv) -> None:

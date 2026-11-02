@@ -3,12 +3,12 @@
 Each step is a card of its own (cards.CardStack, as the alert cards), on the
 right edge of the game: when a step is reached the previous one leaves, the
 others move up and the next one comes in, with the alert cards' animations.
-A step is a block: its age and planned time, the villager count and the five
-villager places (food, wood, gold, stone, builder), then its notes with
+A step is a block: its age and planned time and the five villager places
+(food, wood, gold, stone, builder; "–" when none), then its notes with
 aoe4guides' icons inline, wrapped to the panel's width. The current step
 stands out (accent bar, full ink); the other two are dimmed.
-Above them, one row: where the rally point goes and, on its right, the
-arrows that move the build a step by hand.
+Above them, one row: the arrows that move the build a step by hand,
+centered over the steps, and where the rally point goes, at the right edge.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ class BuildPanel:
         self.stack = CardStack(root, key, setup_window, self._paint_card, side="right",
                                signature=lambda card: card.sig)
         # The rally card has a stack of its own: it shares the top row with
-        # the step arrows (StepControls), to their left.
+        # the step arrows (StepControls), at the row's right end.
         self.rally_stack = CardStack(root, key, setup_window, self._paint_card, side="right",
                                      signature=lambda card: card.sig)
         self._k, self._look = 1.0, {}
@@ -86,15 +86,17 @@ class BuildPanel:
         self.rally_stack.clear()
 
     def update(self, tracker, origin: tuple[int, int], game_width: int, margin: int, top: int, k: float,
-               look: dict, show_prev: bool = True, show_next: bool = True, controls_w: int = 0) -> None:
+               look: dict, show_prev: bool = True, show_next: bool = True, controls: bool = False) -> int | None:
         """Shows the tracker's steps on the right of the game window at
         `origin` (its top-left on screen), `margin` from its right edge and
-        from `top` down, under a row with where the rally point goes and the
-        step arrows (`controls_w` wide, 0 without them);
-        `look`: theme colors and radius. A finished build leaves the screen."""
+        from `top` down, under a row with the step arrows (`controls`: shown
+        by StepControls) and, at its right end, where the rally point goes;
+        `look`: theme colors and radius. A finished build leaves the screen.
+        Returns the rally card's left edge in the game window (None without one),
+        so the arrows never overlap it."""
         if tracker is None or tracker.finished:
             self.hide()
-            return
+            return None
         prev, cur, nxt = tracker.window()
         i, bid = tracker.index, tracker.build.id
         rally = tracker.rally()
@@ -103,11 +105,15 @@ class BuildPanel:
                  ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else []))
         self._k, self._look = k, look
         gap, sig = round(5 * k), (round(k, 3), tuple(sorted(look.items())))
-        self.rally_stack.update([RallyCard(f"{bid}:rally:{rally}", rally)] if rally else [], origin,
-                                margin + (controls_w + gap if controls_w else 0), top, gap, None, sig, right=game_width)
-        if rally or controls_w:
+        rally_card = RallyCard(f"{bid}:rally:{rally}", rally) if rally else None
+        self.rally_stack.update([rally_card] if rally_card else [], origin, margin, top, gap, None, sig,
+                                right=game_width)
+        if rally or controls:
             top += row_height(k) + gap
         self.stack.update(steps, origin, margin, top, gap, None, sig, right=game_width)
+        shown = self.rally_stack.cards.get(rally_card.id) if rally_card else None
+        # A right-side card's window reaches the game's edge: it starts w from it.
+        return game_width - shown.w if shown else None
 
     def _paint_card(self, c: tk.Canvas, card, x: int, y: int) -> tuple[int, int]:
         if isinstance(card, RallyCard):
@@ -176,14 +182,14 @@ class BuildPanel:
         # Fixed columns wide enough for two digits, so the three steps line up.
         icon_w = round(icon_h * 0.8)
         slot_w = icon_w + self._font(fs + 1, True).measure("00") + round(9 * k)
-        sx = xmax - slot_w * (len(SLOTS) + 1) + round(9 * k)
-        for name, value in [("villager", step.villagers)] + [(s, step.targets[s]) for s in SLOTS]:
+        sx = xmax - slot_w * len(SLOTS) + round(9 * k)
+        for name in SLOTS:
+            value = step.targets[name]
             img = self._image(ICONS / f"{name}.png", round(icon_h * 0.72), dim)
             if img is not None:
                 items.append(c.create_image(sx + icon_w // 2, cy, image=img, anchor="center"))
-            items.append(c.create_text(sx + icon_w + round(2 * k), cy, text="–" if value is None else str(value),
-                                       fill=look["muted"] if not value else ink, anchor="w",
-                                       font=self._font(fs + 1, name == "villager")))
+            items.append(c.create_text(sx + icon_w + round(2 * k), cy, text=str(value) if value else "–",
+                                       fill=ink if value else look["muted"], anchor="w", font=self._font(fs + 1)))
             sx += slot_w
 
         # Notes: words and icons, wrapped to the width.
@@ -227,9 +233,10 @@ class BuildPanel:
 
 
 class StepControls:
-    """Two arrows above the build panel ("‹ 4 / 14 ›") that move the build a
-    step back or forward when the villager count got it wrong. Like the build
-    picker it takes clicks but never the focus, and stays out of captures."""
+    """Two arrows centered above the build panel ("‹ 4 / 14 ›") that move the
+    build a step back or forward when the villager count got it wrong. Like the
+    build picker it takes clicks but never the focus; like the cards it shows in
+    recordings unless that setting is off."""
 
     def __init__(self, root: tk.Tk, key: str, setup_window, box, on_move):
         """`on_move("back" | "forward")` moves the build."""
@@ -265,16 +272,16 @@ class StepControls:
             self.win.withdraw()
         self._sig = None
 
-    def update(self, tracker, right: int, top: int, k: float, look: dict) -> int:
-        """(right, top): the control's top-right corner on screen, in the
-        panel's top row (as tall as the rally card). Returns its width, 0 when
-        hidden."""
+    def update(self, tracker, center: int, top: int, k: float, look: dict, max_right: int | None = None) -> int:
+        """Centered on `center` (screen x) at `top`, in the panel's top row (as
+        tall as the rally card), never past `max_right` (the rally card's left
+        edge, less a gap). Returns its width, 0 when hidden."""
         if tracker is None or tracker.finished:
             self.hide()
             return 0
         self._ensure()
         n = len(tracker.build.steps)
-        sig = (tracker.index, n, right, top, round(k, 3), tuple(sorted(look.items())))
+        sig = (tracker.index, n, center, top, max_right, round(k, 3), tuple(sorted(look.items())))
         if sig == self._sig:
             return self._width
         self._sig = sig
@@ -295,7 +302,10 @@ class StepControls:
         self._split = (aw + gap // 2, width - aw - gap // 2)
         c.tag_lower(self.box(c, 0, 0, width, height, round(look["radius"] * k), look["card"]))
         c.configure(width=width, height=height)
-        self.win.geometry(f"{width}x{height}+{right - width}+{top}")
+        left = center - width // 2
+        if max_right is not None:
+            left = min(left, max_right - width)
+        self.win.geometry(f"{width}x{height}+{left}+{top}")
         self.win.deiconify()
         return width
 

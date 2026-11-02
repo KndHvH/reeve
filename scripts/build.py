@@ -2,7 +2,7 @@
 
     uv run python scripts/build.py                     # dist/<version>/Reeve/ and the installer
     uv run python scripts/build.py --no-installer
-    uv run python scripts/build.py --release           # also publish a GitHub release (gh)
+    uv run python scripts/build.py --release           # also publish a GitHub release (gh); run by CI
     uv run python scripts/build.py --as-version 0.2.1.99   # test build numbered below, to try updates
 
 1. Writes packaging/version_info.txt (the file's properties) from
@@ -13,8 +13,10 @@
    build gets its own folder, so a copy left running never blocks the next.
 3. Inno Setup (ISCC.exe, found on PATH or in its default folders), if
    installed: dist/Reeve-<version>-setup.exe.
-4. With --release: GitHub release v<version> (tagging the pushed main) with
-   the installer attached and docs/releases/v<version>.md as its notes.
+4. With --release: GitHub release v<version> (tagging the commit that was
+   built) with the installer attached and docs/releases/v<version>.md as its
+   notes. Releases are built by .github/workflows/release.yml when the release
+   PR is merged into main, not on the maintainer's machine.
 """
 
 from __future__ import annotations
@@ -102,7 +104,7 @@ def main() -> int:
     compiler = iscc()
     if compiler is None:
         print("Inno Setup not found (ISCC.exe): skipping the installer. Get it from https://jrsoftware.org/isdl.php")
-        return 0
+        return 1 if args.release else 0
     subprocess.run([compiler, f"/DAppVersion={shown}", f"/DFileVersion={number}", f"/DSourceDir={app}",
                     str(REPO / "packaging" / "reeve.iss")], check=True, cwd=REPO)
     installer = REPO / "dist" / f"Reeve-{shown}-setup.exe"
@@ -114,6 +116,7 @@ def main() -> int:
             print(f"write the release notes first: {notes}")
             return 1
         subprocess.run(["gh", "release", "create", f"v{__version__}", str(installer),
+                        "--target", _git("rev-parse", "HEAD"),
                         "--title", f"Reeve {__version__}", "--notes-file", str(notes)], check=True, cwd=REPO)
     return 0
 

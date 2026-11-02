@@ -5,7 +5,8 @@ sliding over "10/10" produced "10/1"; one clock read came out as 12:31 at
 1:23). The tracker therefore:
 
 - confirms slow-changing fields (population, idle, villagers per resource,
-  villager production) only after the same value is read twice in a row;
+  villager production) only after the same value is read twice in a row
+  (`latest()` gives them as read, for the build order);
 - accepts resources immediately, since they change on almost every read;
   rules add their own persistence on top;
 - accepts the clock only when it moves forward by roughly the wall time that
@@ -80,14 +81,16 @@ class StateTracker:
         self.ageup: tuple[float | None, int | None] = (None, None)
         self._clock_wall: float | None = None
         self._clock_pending: tuple[int, float] | None = None
+        self._read: dict[str, object] = {}     # slow fields as read in the latest cycle
 
     def update(self, values: dict, wall: float) -> GameState:
         """`values`: Frame.values from the reader; `wall`: monotonic seconds."""
         pop = values.get("pop")
         if pop is not None and (pop[0] > pop[1] or pop[1] == 0):
             pop = None  # misread: population over the cap, or the end screen's 0/0
+        self._read = {f: pop if f == "pop" else values.get(f) for f in SLOW_FIELDS}
         for f in SLOW_FIELDS:
-            self.slow[f].push(pop if f == "pop" else values.get(f))
+            self.slow[f].push(self._read[f])
         for r in RESOURCES:
             if values.get(r) is not None:
                 self.resources[r] = values[r]
@@ -151,3 +154,15 @@ class StateTracker:
             resources=dict(self.resources),
             villagers={r: self.slow[f"vil_{r}"].value for r in RESOURCES},
         )
+
+    def latest(self) -> GameState:
+        """The state with the slow fields as read in the latest cycle, not
+        confirmed (a field not read keeps its confirmed value): the build
+        order moves on the first read of a villager count."""
+        s = self.state()
+        read = {f: self._read.get(f) if self._read.get(f) is not None else self.slow[f].value for f in SLOW_FIELDS}
+        pop = read["pop"]
+        s.pop, s.pop_cap = (pop[0], pop[1]) if pop else (None, None)
+        s.idle, s.producing_villager = read["idle"], read["producing_villager"]
+        s.villagers = {r: read[f"vil_{r}"] for r in RESOURCES}
+        return s

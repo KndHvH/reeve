@@ -30,10 +30,11 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .version import shown as shown_version
-from .build_panel import BuildPanel, StepControls
+from .build_panel import WIDTH as PANEL_WIDTH, BuildPanel, StepControls
 from .build_picker import BuildPicker
 from .cards import CardStack, settings as animation_settings
 from .digits import MIN_SCORE
+from .i18n import set_language
 from .live import LOW_CONF, LiveReader, Step
 from .rules import Alert
 from .sound import AlertSounds
@@ -131,6 +132,7 @@ class Overlay:
         self._shown = None          # clean view: last drawn signature
         apply_theme()
         self.live = LiveReader(every)
+        set_language(self.live.rules.config)
         self.muted = mute           # tray mute, on top of the config's sound switch
         self._config_stamp = self._config_mtime()
         self._apply_sounds()
@@ -149,7 +151,7 @@ class Overlay:
         self.build_panel = BuildPanel(self.root, KEY, self._setup_card_window, _box)
         self.build_panel.set_effects(self.cards.effects)
         self.build_picker = BuildPicker(self.root, KEY, self._setup_picker_window, _box)
-        self.step_controls = StepControls(self.root, KEY, self._setup_picker_window, _box, self._move_build)
+        self.step_controls = StepControls(self.root, KEY, self._setup_controls_window, _box, self._move_build)
         self._build_args = None   # what the build panel was last drawn with
         self._builds_stamp, self._builds = None, []
         self.geom = None
@@ -193,6 +195,7 @@ class Overlay:
 
             self._config_stamp = stamp
             self.live.rules.config = load_config()
+            set_language(self.live.rules.config)
             apply_theme(self.live.rules.config)
             self.cards.effects = animation_settings(self.live.rules.config)
             self.build_panel.set_effects(self.cards.effects)
@@ -227,12 +230,23 @@ class Overlay:
         user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
         return hwnd
 
+    def _setup_controls_window(self, win: tk.Toplevel) -> int:
+        """The step arrows take clicks but never the focus, like the picker,
+        and follow the recordings setting, like the cards."""
+        hwnd = user32.GetParent(win.winfo_id())
+        style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
+        user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE if self.excluded else WDA_NONE)
+        return hwnd
+
     def _set_excluded(self, excluded: bool) -> bool:
-        """Hides the overlay and its cards from screen captures (recordings,
-        streams, and Reeve's own reading) or shows them; returns whether hidden."""
+        """Hides the overlay, its cards and the step arrows from screen captures
+        (recordings, streams, and Reeve's own reading) or shows them; returns
+        whether hidden."""
         mode = WDA_EXCLUDEFROMCAPTURE if excluded else WDA_NONE
         ok = user32.SetWindowDisplayAffinity(self.hwnd, mode)
-        extra = self.cards.windows() + self.build_panel.windows() if hasattr(self, "build_panel") else []
+        extra = [h for part in ("cards", "build_panel", "step_controls") if hasattr(self, part)
+                 for h in getattr(self, part).windows()]
         for hwnd in extra:
             user32.SetWindowDisplayAffinity(hwnd, mode)
         return excluded if ok else not excluded
@@ -314,9 +328,8 @@ class Overlay:
         if self.debug:
             self._shown = None
             self.cards.clear()
-            self.build_panel.hide()
-            self.step_controls.hide()
             self._draw_debug(s)
+            self._draw_build(s, s.match.scale if s.match else 1.0)
         else:
             self._draw_clean(s)
 
@@ -431,14 +444,17 @@ class Overlay:
         look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
         top = round(s.win.height * 0.16)
         kp, margin = k * bo.get("scale", 1.0), round(16 * k)
-        # The arrows first: the rally card sits to their left in the top row.
-        if bo.get("arrows", True):
-            controls_w = self.step_controls.update(s.build, s.win.left + s.win.width - margin, s.win.top + top, kp, look)
+        # The panel first: the arrows are centered over its steps and stop
+        # before the rally card, which sits at the right end of the top row.
+        arrows = bo.get("arrows", True)
+        rally_left = self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, margin, top,
+                                             kp, look, show_prev, show_next, arrows)
+        if arrows:
+            center = s.win.left + s.win.width - margin - round(PANEL_WIDTH * kp) // 2
+            max_right = None if rally_left is None else s.win.left + rally_left - round(5 * kp)
+            self.step_controls.update(s.build, center, s.win.top + top, kp, look, max_right)
         else:
-            controls_w = 0
             self.step_controls.hide()
-        self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, margin, top,
-                                kp, look, show_prev, show_next, controls_w)
         self._build_args = (s, k)
 
     def _move_build(self, direction: str) -> None:
@@ -552,6 +568,16 @@ class Overlay:
                 pm, pv = s.income.per_min, s.income.per_villager
                 lines.append(("income/min " + " · ".join(f"{r[0].upper()} {fmt(pm[r])}" for r in pm), FG, False))
                 lines.append(("per villager " + " · ".join(f"{r[0].upper()} {fmt(pv[r])}" for r in pv), MUTED, False))
+            b = s.build
+            if b is not None:
+                _, _, nxt = b.window()
+                ahead = "last step" if nxt is None else (
+                    f"next at {nxt.villagers} villagers" if nxt.villagers is not None else f"next at {nxt.time}s"
+                ) + (f", age {nxt.age}" if nxt is not None and nxt.age > (s.state.age or 1) else "")
+                lines.append((f"build step {b.index + 1}/{len(b.build.steps)} · {ahead}", FG, False))
+                lines.append((f"counted {'?' if b.count is None else b.count} (builders {b.builders})"
+                              f" · peak {b.peak}" + (f" · held until > {b.hold}" if b.hold is not None else ""),
+                              MUTED, False))
             if s.bad:
                 lines.append(("failed: " + ", ".join(s.bad), BAD, False))
         lines.append((f"RAM {ram_mb():.0f} MB · CPU {cpu_total:.1f}% ({cpu_core:.0f}% of 1 core)", MUTED, False))

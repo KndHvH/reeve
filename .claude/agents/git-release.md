@@ -9,7 +9,7 @@ You handle Reeve's git and release work. Prefer the pipelines in `scripts/releas
 ## Branch model
 - `unstable`: all day-to-day work is committed and pushed here.
 - `main`: stable and protected. It only receives `unstable` through a pull request titled `Reeve X.Y.Z`, merged by the maintainer with **squash** (the repository allows squash only): one commit per version.
-- Releases are tags `vX.Y.Z` on `main`, created by `publish` together with the GitHub release and its installer.
+- Releases are tags `vX.Y.Z` on `main`. The squash merge of the release PR triggers `.github/workflows/release.yml`, which runs the tests, builds the installer (`build.py --release`) and creates the tag and the GitHub release. A push to `main` whose version is already tagged publishes nothing. The workflow can be run by hand with `dry_run` to get a test installer as an artifact.
 - A squash leaves the released commits outside main's history. `publish` realigns `unstable` on `main` (commits made after the release PR are replayed on top) and pushes it with `--force-with-lease`, so GitHub shows `unstable` with only the new work. The old `unstable` is kept in the local branch `backup/unstable-before-realign`.
 
 ## Pipelines (`uv run python scripts/release.py ...`)
@@ -19,7 +19,7 @@ You handle Reeve's git and release work. Prefer the pipelines in `scripts/releas
 | Start a version | `prepare X.Y.Z` (or `X.Y.Z.N`, a fix to release X.Y.Z) | on unstable: bumps `src/reeve/__init__.py`, `pyproject.toml`, `uv.lock`; creates `docs/releases/vX.Y.Z.md` with the commit list as a comment |
 | Release PR | `pr` | opens or finds the PR unstable -> main, waits for CI |
 | Merge | maintainer | stop and ask: never merge into main yourself |
-| Publish | `publish` | from main: release build (`build.py --release`), tag + GitHub release, then realigns unstable |
+| Publish | `publish` | after the merge: waits for the CI release run on main, checks the tag exists, then realigns unstable |
 | Test updates | `test-installer X.Y.Z.N` | installer numbered below the latest release; installing it, the hub offers the update |
 
 Builds for the maintainer to try: `uv run python scripts/build.py` writes `dist/<version shown>/Reeve/Reeve.exe` and `dist/Reeve-<version shown>-setup.exe`, e.g. `0.2.2-dev.9+3fc03e0`. Each build has its own folder, so a copy left running never blocks the next one.

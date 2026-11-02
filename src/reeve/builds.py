@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import catalog
+from .i18n import t, tn
 from .paths import data_dir
 from .state import RESOURCES, GameState
 
@@ -92,11 +93,11 @@ class Build:
 def parse(data: dict, build_id: str | None = None) -> Build:
     """aoe4guides' overlay format -> Build. Raises ValueError when it is not one."""
     if not isinstance(data, dict) or not isinstance(data.get("build_order"), list) or not data["build_order"]:
-        raise ValueError("this is not an aoe4guides build order (no build_order steps)")
+        raise ValueError(t("this is not an aoe4guides build order (no build_order steps)"))
     steps = []
     for s in data["build_order"]:
         if not isinstance(s, dict):
-            raise ValueError("a build order step is not an object")
+            raise ValueError(t("a build order step is not an object"))
         res = s.get("resources") or {}
         age = s.get("age")
         steps.append(BuildStep(
@@ -189,16 +190,16 @@ def import_build(text: str, get=_get) -> Build:
         try:
             data = json.loads(text)
         except ValueError as e:
-            raise ValueError(f"the JSON could not be read ({e.msg}, line {e.lineno})") from None
+            raise ValueError(t("the JSON could not be read ({error}, line {line})", error=e.msg, line=e.lineno)) from None
         build = parse(data)
     else:
         build_id = id_from_url(text)
         if not build_id:
-            raise ValueError("paste a link to a build on aoe4guides.com, or the build's JSON")
+            raise ValueError(t("paste a link to a build on aoe4guides.com, or the build's JSON"))
         try:
             data = json.loads(get(API.format(id=build_id)))
         except Exception as e:
-            raise ValueError(f"aoe4guides.com did not return the build ({e})") from None
+            raise ValueError(t("aoe4guides.com did not return the build ({error})", error=e)) from None
         build = parse(data, build_id)
     (builds_dir() / f"{build.id}.json").write_text(json.dumps(build.raw, indent=1, ensure_ascii=False), encoding="utf-8")
     download_icons(build, get)
@@ -265,10 +266,13 @@ def villagers_seen(s: GameState) -> int | None:
 
 class BuildTracker:
     """Which step the player is on. A step is reached when the most villagers
-    counted so far (the same count read twice in a row) reach its villager
-    count and its age is reached (a step
+    counted so far reach its villager count and its age is reached (a step
     without a villager count waits for its time instead). Only moves forward,
     and may skip steps when the player is ahead.
+
+    It is fed the state as read (StateTracker.latest), not confirmed: a count
+    reached once moves the build. A count above the population is a misread
+    and is ignored.
 
     Villagers building houses or mines are on no resource, so they are
     estimated from the population: what it holds beyond the villagers seen,
@@ -290,7 +294,7 @@ class BuildTracker:
         self.producing_s = 0.0               # game seconds the town center was seen producing villagers
         self._clock: int | None = None
         self.builders = 0                    # villagers estimated to be building (not on the panel)
-        self._last: int | None = None        # previous count: a count must be read twice to raise the peak
+        self._last: int | None = None        # latest count
         self.reached_at: int | None = None   # game clock when the current step was reached
         self.clock: int | None = None        # latest game clock
         self.end_after_s = 30                # the last step stays this long, then the build is over
@@ -338,8 +342,8 @@ class BuildTracker:
     def update(self, s: GameState) -> bool:
         """Advances with the new state; True when the step changed."""
         seen = self.counted(s)
-        if seen is not None and seen == self._last and (self.hold is None or seen > self.hold):
-            self.peak = max(self.peak, seen)          # two reads in a row: one misread never moves the build
+        if seen is not None and (self.hold is None or seen > self.hold):
+            self.peak = max(self.peak, seen)
             self.hold = None
         self._last = seen
         if s.clock is not None:
@@ -408,6 +412,11 @@ class BuildTracker:
         return (steps[i - 1] if i else None, steps[i], steps[i + 1] if i + 1 < len(steps) else None)
 
     @property
+    def count(self) -> int | None:
+        """The latest villager count (seen plus builders); None when unread."""
+        return self._last
+
+    @property
     def finished(self) -> bool:
         """The last step has been up for end_after_s: the panel and the
         build's alerts are done."""
@@ -459,6 +468,7 @@ def instructions(targets: dict[str, int | None], actual: dict[str, int | None]) 
 def describe(inst: tuple) -> str:
     if inst[0] == "move":
         _, n, src, dst = inst
-        return f"Move {n} villager{'s' if n != 1 else ''} from {src} to {dst}"
+        return tn("Move {n} villager from {src} to {dst}", "Move {n} villagers from {src} to {dst}", n,
+                  src=t(src), dst=t(dst))
     _, n, dst = inst
-    return f"Put {n} villager{'s' if n != 1 else ''} on {dst}"
+    return tn("Put {n} villager on {dst}", "Put {n} villagers on {dst}", n, dst=t(dst))

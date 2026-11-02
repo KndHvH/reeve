@@ -11,7 +11,7 @@ Reeve (formerly aoe4-overlay / `aoe4ov`) is a macro assistant for AoE4: an overl
 - **Milestone checkpoints**: deliver a ROADMAP milestone, ask the user to validate it, and only then move on.
 - Record non-obvious decisions in `docs/DECISIONS.md`.
 - Use only ctypes for Win32 (no pywin32). Exception: the tray icon uses `pystray` (pure Python over ctypes).
-- **Language**: all code, comments, docs, CLI/UI text, log keys and commit messages are in English. Conversation with the user may be in Portuguese.
+- **Language**: all code, comments, docs, CLI/UI text, log keys and commit messages are in English. Player-facing text is English in the code, wrapped in `t()`/`tr()`, with translations in `assets/i18n/` (see `docs/DEVELOPMENT.md`); a new text needs its pt-BR entry. Conversation with the user may be in Portuguese.
 
 ## Commands
 - `uv sync`, `uv run pytest`, `uv run reeve <cmd>`
