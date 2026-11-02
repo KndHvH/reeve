@@ -4,7 +4,7 @@ Each step is a card of its own (cards.CardStack, as the alert cards), on the
 right edge of the game: when a step is reached the previous one leaves, the
 others move up and the next one comes in, with the alert cards' animations.
 A step is a block: its age and planned time and the five villager places
-(food, wood, gold, stone, builder; "–" when none), then its notes with
+(food, wood, gold, stone, builder; empty when none, or a dash by setting), then its notes with
 aoe4guides' icons inline, wrapped to the panel's width. The current step
 stands out (accent bar, full ink); the other two are dimmed. The current
 step's tips (advice the author wrote as steps of their own) follow it in a
@@ -46,10 +46,11 @@ class StepCard:
     id: str            # build id and step index: a step keeps its card as the build advances
     step: BuildStep
     current: bool
+    empty_places: bool = False   # places with no villagers show their icon and "-"
 
     @property
     def sig(self):
-        return self.current
+        return self.current, self.empty_places
 
 
 @dataclass(frozen=True)
@@ -98,24 +99,27 @@ class BuildPanel:
         self.rally_stack.clear()
 
     def update(self, tracker, origin: tuple[int, int], game_width: int, margin: int, top: int, k: float,
-               look: dict, show_prev: bool = True, show_next: bool = True, controls: bool = False) -> int | None:
+               look: dict, show_prev: bool = True, show_next: bool = True, controls: bool = False,
+               empty_places: bool = False, tips: bool = True) -> int | None:
         """Shows the tracker's steps on the right of the game window at
         `origin` (its top-left on screen), `margin` from its right edge and
         from `top` down, under a row with the step arrows (`controls`: shown
         by StepControls) and, at its right end, where the rally point goes;
         `look`: theme colors and radius. A finished build leaves the screen.
         Returns the rally card's left edge in the game window (None without one),
-        so the arrows never overlap it."""
+        so the arrows never overlap it. `empty_places`: places with no
+        villagers show their icon and a dash instead of nothing; `tips`: the
+        current step's tips card."""
         if tracker is None or tracker.finished:
             self.hide()
             return None
         prev, cur, nxt = tracker.window()
         i, bid = tracker.index, tracker.build.id
         rally = tracker.rally()
-        steps = (([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +
-                 [StepCard(f"{bid}:{i}", cur, True)] +
-                 ([TipCard(f"{bid}:{i}:tips", cur.tips)] if cur.tips else []) +
-                 ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else []))
+        steps = (([StepCard(f"{bid}:{i - 1}", prev, False, empty_places)] if prev and show_prev else []) +
+                 [StepCard(f"{bid}:{i}", cur, True, empty_places)] +
+                 ([TipCard(f"{bid}:{i}:tips", cur.tips)] if cur.tips and tips else []) +
+                 ([StepCard(f"{bid}:{i + 1}", nxt, False, empty_places)] if nxt and show_next else []))
         self._k, self._look = k, look
         gap, sig = round(5 * k), (round(k, 3), tuple(sorted(look.items())))
         rally_card = RallyCard(f"{bid}:rally:{rally}", rally) if rally else None
@@ -134,7 +138,7 @@ class BuildPanel:
         width = round(WIDTH * self._k)
         if isinstance(card, TipCard):
             return x + width, self._tips(c, card.tips, x, y, width, self._k, self._look)
-        return x + width, self._block(c, card.step, card.current, x, y, width, self._k, self._look)
+        return x + width, self._block(c, card.step, card.current, x, y, width, self._k, self._look, card.empty_places)
 
     def _rally(self, c: tk.Canvas, target: str, x0: int, y0: int, k: float, look: dict) -> tuple[int, int]:
         """Rally point icon, an arrow and what it goes on (its name if the icon is missing)."""
@@ -178,7 +182,8 @@ class BuildPanel:
             self._images[key] = ImageTk.PhotoImage(im)
         return self._images[key]
 
-    def _block(self, c: tk.Canvas, step, current: bool, x0: int, y0: int, width: int, k: float, look: dict) -> int:
+    def _block(self, c: tk.Canvas, step, current: bool, x0: int, y0: int, width: int, k: float, look: dict,
+               empty_places: bool = False) -> int:
         """One step; returns its bottom y."""
         pad, bar = round(8 * k), round(3 * k)
         fs = max(7, round(8 * k))
@@ -200,12 +205,14 @@ class BuildPanel:
         sx = xmax - slot_w * len(SLOTS) + round(9 * k)
         for name in SLOTS:
             value = step.targets[name]
-            img = self._image(ICONS / f"{name}.png", round(icon_h * 0.72), dim)
+            shown = bool(value) or empty_places
+            img = self._image(ICONS / f"{name}.png", round(icon_h * 0.72), dim) if shown else None
             if img is not None:
                 items.append(c.create_image(sx + icon_w // 2, cy, image=img, anchor="center"))
-            items.append(c.create_text(sx + icon_w + round(2 * k), cy, text=str(value) if value else "–",
-                                       fill=ink if value else look["muted"], anchor="w", font=self._font(fs + 1)))
-            sx += slot_w
+            if shown:
+                items.append(c.create_text(sx + icon_w + round(2 * k), cy, text=str(value) if value else "–",
+                                           fill=ink if value else look["muted"], anchor="w", font=self._font(fs + 1)))
+            sx += slot_w   # an empty place keeps its column, so the steps line up
 
         y = self._notes(c, step.notes, x0 + bar + pad, xmax, y0 + pad + icon_h + round(4 * k), fs, ink, dim)
         y1 = y + pad - round(2 * k)

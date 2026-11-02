@@ -87,7 +87,7 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); and to download a civilization's units, buildings, technologies and icons from AoE4World the first time you use a build of that civilization. Nothing about you or your matches is sent.
+Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub whether a new version exists (when Reeve starts, when the hub opens and once a day) (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); and to download a civilization's units, buildings, technologies and icons from AoE4World the first time you use a build of that civilization. Nothing about you or your matches is sent.
 
 ## Updates
 When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.

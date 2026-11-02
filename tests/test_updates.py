@@ -36,6 +36,16 @@ def test_github_is_asked_at_most_once_a_day():
     assert load_state()["update"]["latest"]["version"] == "0.3.0"
 
 
+def test_reeve_starting_or_the_hub_opening_asks_again_unless_just_asked():
+    calls = []
+    fetch = lambda: calls.append(1) or updates._from_api(API)
+    updates.check(fetch=fetch, now=1000)
+    updates.check(fetch=fetch, now=1000 + 60, max_age_s=updates.FRESH_S)        # hub opened a minute later
+    assert len(calls) == 1
+    updates.check(fetch=fetch, now=1000 + 3600, max_age_s=updates.FRESH_S)      # an hour later
+    assert len(calls) == 2
+
+
 def test_offline_keeps_the_last_answer():
     updates.check(fetch=lambda: updates._from_api(API), now=0)
     def offline():

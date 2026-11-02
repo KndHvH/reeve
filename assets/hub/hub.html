@@ -186,6 +186,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .bstep .slots { margin-left: auto; display: grid; grid-template-columns: repeat(5, 34px); }
 .bstep .slots span { display: flex; align-items: center; gap: 2px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .bstep .slots span.zero { color: var(--mist); font-weight: normal; }
+.btip { background: var(--card, var(--panel)); color: var(--card-ink, var(--ink)); padding: 6px 8px 6px 11px; border-left: 3px solid var(--info); }
+.bpreview.rounded .btip { border-radius: 8px; }
 .bstep .slots img { height: 11px; width: 13px; object-fit: contain; }
 .bstep .note img { height: 15px; vertical-align: -3px; margin: 0 1px; }
 /* As in game: the arrows centered over the steps, the rally card at the right end. */
@@ -447,10 +449,13 @@ function buildPanelHtml(p) {
   const arrows = (cfg.build_order || {}).arrows !== false
     ? `<div class="barrows"><b>‹</b>${(p.index ?? cur) + 1} / ${p.count ?? p.steps.length}<b>›</b></div>` : "";
   const top = rally || arrows ? `<div class="btop">${arrows}${rally}</div>` : "";
+  const bo = cfg.build_order || {};
+  const lines = ls => ls.map(line => `<div class="note">${line.map(x => x.icon ? `<img src="${p.icons[x.icon]}" alt="">` : esc(x.text)).join("")}</div>`).join("");
   return alert + `<div class="bpanel">${top}${p.steps.map(s => {
-    const slots = BSLOTS.map(n => `<span class="${s.targets[n] ? "" : "zero"}"><img src="../report_icons/${n}.png" alt="${tr(n)}">${s.targets[n] || "–"}</span>`).join("");
-    const notes = s.notes.map(line => `<div class="note">${line.map(x => x.icon ? `<img src="${p.icons[x.icon]}" alt="">` : esc(x.text)).join("")}</div>`).join("");
-    return `<div class="bstep${s.current ? " cur" : ""}"><div class="hd"><i>${ROMAN_ALL[s.age] || ""}</i><span class="t">${clock(s.time)}</span><span class="slots">${slots}</span></div>${notes}</div>`;
+    const slots = BSLOTS.map(n => s.targets[n] || bo.empty_places
+      ? `<span class="${s.targets[n] ? "" : "zero"}"><img src="../report_icons/${n}.png" alt="${tr(n)}">${s.targets[n] || "–"}</span>` : "<span></span>").join("");
+    const tips = bo.tips !== false && (s.tips || []).length ? `<div class="btip">${lines(s.tips)}</div>` : "";
+    return `<div class="bstep${s.current ? " cur" : ""}"><div class="hd"><i>${ROMAN_ALL[s.age] || ""}</i><span class="t">${clock(s.time)}</span><span class="slots">${slots}</span></div>${lines(s.notes)}</div>${tips}`;
   }).join("")}</div>`;
 }
 
@@ -596,6 +601,8 @@ function buildsSection() {
     ${num("build_order.previous_s", bo.previous_s ?? 10, N_("Show the previous step for"), N_("seconds after a step is reached; 0 keeps it on screen"))}
     ${num("build_order.next_after_s", bo.next_after_s ?? 10, N_("Show the next step after"), N_("seconds on a step; 0 shows it at once"))}
     ${num("build_order.end_after_s", bo.end_after_s ?? 30, N_("Hide the build after the last step"), N_("seconds; then the panel and the build's alerts leave the screen"))}
+    ${sw("build_order.empty_places", bo.empty_places === true, N_("Show places without villagers"), N_("the resource icon and a dash where the step puts no villagers"), "bo-empty")}
+    ${sw("build_order.tips", bo.tips !== false, N_("Build tips"), N_("the author's advice in a card under the current step"), "bo-tips")}
     ${sw("build_order.auto_update", bo.auto_update !== false, N_("Update builds when Reeve starts"), N_("checks aoe4guides.com for changes their author made"))}
     ${sw("build.enabled", b.enabled !== false, N_("Off-build alerts"), N_("when your villagers are not where the step puts them"))}
     ${num("build.warn_after_s", b.warn_after_s ?? 6, N_("Warn after"), N_("seconds off the step; until then it is info"))}
@@ -616,11 +623,12 @@ function bindBuildsSection() {
     api().set_setting("build_order", "scale", scale);
     $("#bpreview").style.setProperty("--bscale", scale);
   });
-  // The preview follows the arrows switch at once (saved with the other changes).
-  $("#bo-arrows").addEventListener("change", e => {
-    cfg.build_order = { ...(cfg.build_order || {}), arrows: e.target.checked };
-    $("#bpreview").innerHTML = buildPanelHtml(buildPreview);
-  });
+  // The preview follows these switches at once (saved with the other changes).
+  for (const [id, key] of [["#bo-arrows", "arrows"], ["#bo-empty", "empty_places"], ["#bo-tips", "tips"]])
+    $(id).addEventListener("change", e => {
+      cfg.build_order = { ...(cfg.build_order || {}), [key]: e.target.checked };
+      $("#bpreview").innerHTML = buildPanelHtml(buildPreview);
+    });
 }
 
 function bindAppearance() {

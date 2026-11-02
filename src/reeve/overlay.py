@@ -448,7 +448,8 @@ class Overlay:
         # before the rally card, which sits at the right end of the top row.
         arrows = bo.get("arrows", True)
         rally_left = self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, margin, top,
-                                             kp, look, show_prev, show_next, arrows)
+                                             kp, look, show_prev, show_next, arrows,
+                                             bo.get("empty_places", False), bo.get("tips", True))
         if arrows:
             center = s.win.left + s.win.width - margin - round(PANEL_WIDTH * kp) // 2
             max_right = None if rally_left is None else s.win.left + rally_left - round(5 * kp)

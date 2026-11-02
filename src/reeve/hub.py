@@ -254,12 +254,13 @@ class HubApi:
         return True
 
     def update_status(self, force: bool = False) -> dict:
-        """What the hub shows about updates: the latest release (from the daily
-        check, or asked now with `force`) and whether this copy can install it."""
+        """What the hub shows about updates: the latest release (asked when the
+        hub opens, unless asked in the last few minutes, or now with `force`)
+        and whether this copy can install it."""
         from . import updates
 
         enabled = (load_config().get("updates") or {}).get("check", True)
-        latest = updates.check(force=force) if (enabled or force) else None
+        latest = updates.check(force=force, max_age_s=updates.FRESH_S) if (enabled or force) else None
         from .version import shown
 
         return {"current": shown(), "enabled": enabled, "newer": updates.newer(latest),
@@ -338,7 +339,7 @@ class HubApi:
 
     def build_preview(self) -> dict | None:
         """Three steps of the active build (or the first stored one) for the
-        preview in Appearance: the first step with notes and its neighbours,
+        preview in Appearance: the first step with tips (else with notes) and its neighbours,
         notes split into text and icons (as data URLs)."""
         import base64
 
@@ -348,7 +349,8 @@ class HubApi:
         b = builds.load(active) or next(iter(builds.stored()), None)
         if b is None:
             return None
-        i = next((n for n in range(1, len(b.steps) - 1) if b.steps[n].notes), 0)
+        i = next((n for n in range(1, len(b.steps) - 1) if b.steps[n].tips), None)   # shows the tips card
+        i = i if i is not None else next((n for n in range(1, len(b.steps) - 1) if b.steps[n].notes), 0)
         icons = {}
 
         def piece(kind, value):
@@ -361,7 +363,8 @@ class HubApi:
 
         def step(s, current):
             return {"current": current, "age": s.age, "time": s.time, "villagers": s.villagers, "targets": s.targets,
-                    "notes": [[piece(k, v) for k, v in builds.tokens(n)] for n in s.notes]}
+                    "notes": [[piece(k, v) for k, v in builds.tokens(n)] for n in s.notes],
+                    "tips": [[piece(k, v) for k, v in builds.tokens(n)] for n in s.tips] if current else []}
 
         window = [(b.steps[n], n == i) for n in (i - 1, i, i + 1) if 0 <= n < len(b.steps)]
         tracker = builds.BuildTracker(b)

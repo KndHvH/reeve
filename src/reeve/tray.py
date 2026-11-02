@@ -190,9 +190,9 @@ class TrayApp:
         self.icon.stop()
 
     def _watch_updates(self):
-        """Background: asks GitHub for a newer Reeve (at most once a day, see
-        updates.check) and tells the user once per version, never while a
-        match is open."""
+        """Background: asks GitHub for a newer Reeve when Reeve starts, then
+        once a day (see updates.check), and tells the user once per version,
+        never while a match is open."""
         import time
 
         from . import updates
@@ -200,10 +200,12 @@ class TrayApp:
         from .paths import load_config
 
         time.sleep(30)                          # let the app settle first
+        max_age = updates.FRESH_S               # at start: a fresh answer
         while not self.overlay.quit_requested:
             try:
                 if (load_config().get("updates") or {}).get("check", True):
-                    latest = updates.check()
+                    latest = updates.check(max_age_s=max_age)
+                    max_age = updates.CHECK_EVERY_S
                     state = load_state()
                     if (updates.newer(latest) and state.get("update_told") != latest.version
                             and self.overlay.last_status not in ("reading", "hidden")):
