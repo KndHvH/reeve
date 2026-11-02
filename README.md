@@ -27,6 +27,7 @@ Floating resources start as info above the limit of your current age: 400 in the
 Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting its link in the hub. During a match, the right of the screen shows its previous, current and next step: the age, the villagers and where they go (food, wood, gold, stone, building), and the step's notes with the site's icons.
 
 - A step is reached when you have its number of villagers and its age, so the build follows your pace.
+- Tips the author wrote as steps of their own (advice with no villager count) show in a card under the current step instead.
 - If the panel is ahead of or behind your game, the arrows above it move the build one step back or forward.
 - When your villagers are not where the step puts them, an alert shows: it starts as info, turns into a warning after 6 seconds and critical after 12 (both can be changed in the hub). A resource that reached the step's count stays reached, so a villager who leaves it to build is not an alert. The alert says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.
@@ -38,7 +39,7 @@ Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting it
 - The previous step stays for 10 seconds after a new step is reached, and the next step shows once you have been 10 seconds on the current one; both can be changed in the hub.
 - Every civilization is supported. The first time you use a build of a civilization, Reeve downloads that civilization's units, buildings and technologies with their icons from AoE4World.
 
-![The build panel: a villager alert, the rally point and three steps](docs/screenshots/build-panel.png)
+![The build panel: a villager alert, the step arrows, the rally point, three steps and a tip](docs/screenshots/build-panel.png)
 
 ### Match reports
 When a match ends, Reeve writes its report:
@@ -86,7 +87,7 @@ Start a match. Reeve finds the game's resource panel on its own, at any resoluti
 Opening Reeve again while it is running opens the hub.
 
 ## Your data
-Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub once a day whether a new version exists (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); and to download a civilization's units, buildings, technologies and icons from AoE4World the first time you use a build of that civilization. Nothing about you or your matches is sent.
+Matches, settings, build orders and your sounds are stored in `%APPDATA%\reeve` on your computer and never leave it. Reeve uses the internet only to ask GitHub whether a new version exists (when Reeve starts, when the hub opens and once a day) (it can be turned off in the hub's settings) and to download build orders from aoe4guides.com: when you import one, and when Reeve starts, to update those their author changed (it can be turned off in the hub's Builds page); and to download a civilization's units, buildings, technologies and icons from AoE4World the first time you use a build of that civilization. Nothing about you or your matches is sent.
 
 ## Updates
 When a new version is out, Reeve tells you after your match, and the hub shows it with its release notes. **Update now** downloads it, closes Reeve, installs the update and opens Reeve again.

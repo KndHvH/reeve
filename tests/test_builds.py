@@ -42,6 +42,80 @@ def test_parse_reads_the_aoe4guides_overlay_format():
     assert b.steps[4].targets["builder"] is None          # -1: not given
 
 
+def _step(age, villagers=-1, time=None, notes=(), **res):
+    s = {"age": age, "villager_count": villagers, "notes": list(notes),
+         "resources": {k: res.get(k, 0) for k in ("food", "wood", "gold", "stone")} | {"builder": res.get("builder", -1)}}
+    return s | ({"time": time} if time else {})
+
+
+# Shaped like "OOTD Fast castle - Vortix's Burg Build" and "Mali for Reeve Overlay"
+# (aoe4guides): advice written as steps of their own, and a closing "Age III".
+TIPPED = {"name": "Tipped", "civilization": "Order of the Dragon", "build_order": [
+    _step(1, 5, "0:00", ["All to sheep"], food=5),
+    _step(1, 8, "1:09", ["Rally to sheep"], food=5, gold=3),
+    _step(1, notes=["Aachen unless gold and wood are short"]),
+    _step(1, 14, "3:29", ["Rally back to sheep"], food=5, wood=3, gold=3, builder=3),
+    _step(1, notes=["If raided: outpost on gold"]),
+    _step(1, notes=["", "And move the deer villagers back"]),
+    _step(2, 16, "4:22", ["Builders to gold"], food=8, wood=3, gold=5),
+    _step(3, notes=["Relics and gilded spearmen"]),
+    _step(3, notes=[""]),
+]}
+
+
+def test_tip_steps_go_with_the_step_before():
+    b = parse(TIPPED)
+    assert [(s.age, s.villagers) for s in b.steps] == [(1, 5), (1, 8), (1, 14), (2, 16), (3, None)]
+    assert b.steps[1].tips == ("Aachen unless gold and wood are short",)
+    assert b.steps[2].tips == ("If raided: outpost on gold", "And move the deer villagers back")
+    assert b.steps[0].tips == b.steps[3].tips == ()
+    opening = parse(TIPPED | {"build_order": [_step(1, notes=["Scout for deer"])] + TIPPED["build_order"]})
+    assert opening.steps[0].tips == ("Scout for deer",) and len(opening.steps) == 5
+
+
+def test_tips_never_stop_the_build_and_a_closing_age_is_reached():
+    """A tip step had neither a villager count nor a time: nothing could reach
+    it, so the build stayed before it for the rest of the match. A closing
+    "Age III" step was never reached either."""
+    t = BuildTracker(parse(TIPPED))
+    _read(t, _state(food=5, gold=3, clock=70))
+    assert t.index == 1
+    _read(t, _state(food=5, wood=3, gold=3, idle=3, clock=210))
+    assert t.index == 2
+    _read(t, _state(food=8, wood=3, gold=5, age=2, clock=270))
+    assert t.index == 3
+    _read(t, _state(food=8, wood=3, gold=5, age=3, clock=500))
+    assert t.index == 4
+
+
+def test_imported_tips_come_from_the_sites_own_format():
+    """aoe4guides' overlay format leaves the author's advice ("gameplan") steps
+    without notes; the site's format has them as HTML."""
+    overlay = {"name": "x", "build_order": [_step(1, 5, "0:00", ["All to sheep"], food=5), _step(1, notes=[""]),
+                                            _step(1, 8, "1:09", ["Rally to sheep"], food=5)]}
+    full = {"steps": [{"type": "age", "steps": [{"description": "All to sheep"}]},
+                      {"type": "ageUp", "steps": [{"description": "", "gameplan":
+                          'We go for <img src="/assets/pictures/landmark_hre/aachen-chapel.webp" class="icon-landmark">'
+                          ' &amp; more,<br>Then <img src="https://aoe4guides.com/assets/pictures/resource/sheep.webp">'}]},
+                      {"type": "age", "steps": [{"description": "Rally to sheep"}]}]}
+
+    def get(url):
+        return json.dumps(overlay if "overlay=true" in url else full).encode()
+
+    data = builds.fetch("ARrUu1WyUPpYkpgSViXT", get)
+    assert data["build_order"][1]["notes"] == ["We go for @landmark_hre/aachen-chapel.webp@ & more,",
+                                               "Then @resource/sheep.webp@"]
+    assert parse(data).steps[0].tips == ("We go for @landmark_hre/aachen-chapel.webp@ & more,", "Then @resource/sheep.webp@")
+    full["steps"].pop()                                       # the formats disagree: left as it was
+    overlay["build_order"][1]["notes"] = [""]
+    assert builds.fetch("ARrUu1WyUPpYkpgSViXT", get)["build_order"][1]["notes"] == [""]
+
+
+def test_line_breaks_left_in_a_note_split_it():
+    b = parse({"name": "x", "build_order": [_step(1, 5, "0:00", ["Aachen,<br>Then Meinwerk<br />"], food=5)]})
+    assert b.steps[0].notes == ("Aachen,", "Then Meinwerk")
+
+
 def test_parse_rejects_what_is_not_a_build():
     with pytest.raises(ValueError):
         parse({"name": "x"})

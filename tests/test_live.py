@@ -102,8 +102,8 @@ def test_clock_going_back_starts_a_new_match(monkeypatch, tmp_path):
     clocks = iter([287, 289, 291, 3, 5, 7, 9])
     real = live.read_frame
 
-    def read(buf, match):
-        f = real(buf, match)
+    def read(buf, match, civ=None):
+        f = real(buf, match, civ=civ)
         f.values["clock"] = next(clocks)
         return f
 

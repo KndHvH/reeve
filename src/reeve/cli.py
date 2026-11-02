@@ -50,7 +50,7 @@ def cmd_inspect(args) -> int:
     from .inspect import run
 
     paths = [Path(p) for p in args.images]
-    for out in run(paths):
+    for out in run(paths, args.civ):
         print(out)
     return 0
 
@@ -312,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
 
     i = sub.add_parser("inspect", help="generate <image>.inspect.html with every stage of the reading")
     i.add_argument("images", nargs="+")
+    i.add_argument("--civ", help="civilization being played: also searches its villager icons from the catalog")
 
     lb = sub.add_parser("label", help="labeler: confirm/correct readings and generate fixtures")
     lb.add_argument("images", nargs="*", help="images or folders (default: all recorded sessions)")

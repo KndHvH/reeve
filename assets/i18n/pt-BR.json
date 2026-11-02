@@ -294,5 +294,9 @@
   "{n} selected": "{n} selecionadas",
   "{n} step": "{n} etapa",
   "{n} steps": "{n} etapas",
-  "{n} villagers at 10 min": "{n} aldeões aos 10 min"
+  "{n} villagers at 10 min": "{n} aldeões aos 10 min",
+  "Show places without villagers": "Mostrar lugares sem aldeões",
+  "the resource icon and a dash where the step puts no villagers": "o ícone do recurso e um traço onde a etapa não põe aldeões",
+  "Build tips": "Dicas da build",
+  "the author's advice in a card under the current step": "os conselhos do autor num card abaixo da etapa atual"
 }

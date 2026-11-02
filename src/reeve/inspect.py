@@ -40,7 +40,7 @@ def _color(score: float) -> str:
     return GOOD if score >= 0.85 else WARN if score >= MIN_SCORE else BAD
 
 
-def build(path: Path) -> str:
+def build(path: Path, civ: str | None = None) -> str:
     img = Image.open(path).convert("RGB")
     rgb = np.asarray(img)
     t0 = time.perf_counter()
@@ -48,7 +48,7 @@ def build(path: Path) -> str:
     t_anchor = (time.perf_counter() - t0) * 1000
     _clock_y_hint.clear()
     t0 = time.perf_counter()
-    f = read_frame(rgb, m)
+    f = read_frame(rgb, m, civ=civ)
     t_read = (time.perf_counter() - t0) * 1000
 
     tx, ty, aw, ah = template_box(m)
@@ -86,6 +86,7 @@ def build(path: Path) -> str:
         bx, by, bw, bh = p.box
         rects.append(f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" fill="none" stroke="{pc}" stroke-width="2"/>')
     prod_crop = _img(rgb[py:py + ph, px:px + pw], 3)
+    civ_note = f" · villager icons of {html.escape(civ)} included" if civ else ""
 
     return f"""<!doctype html><html lang="en"><meta charset="utf-8">
 <title>Inspect · {html.escape(path.name)}</title>
@@ -121,15 +122,15 @@ def build(path: Path) -> str:
 
 <h2>Production queue</h2>
 <p>Villager in production: <b style="color:{pc}">{"YES" if p.villager else "NO"}</b> — best icon match {p.score:.2f}
-(threshold 0.6; idle stays ≤ 0.45 in real captures)</p>
+<code>{html.escape(p.template)}</code> (threshold 0.63; idle stays ≤ 0.45 in real captures){civ_note}</p>
 {prod_crop}
 </html>"""
 
 
-def run(paths: list[Path]) -> list[Path]:
+def run(paths: list[Path], civ: str | None = None) -> list[Path]:
     outs = []
     for p in paths:
         out = p.with_suffix(".inspect.html")
-        out.write_text(build(p), encoding="utf-8")
+        out.write_text(build(p, civ), encoding="utf-8")
         outs.append(out)
     return outs

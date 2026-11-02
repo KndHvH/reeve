@@ -441,14 +441,15 @@ class Overlay:
         on_step = (s.state.clock - s.build.reached_at) if s.state and s.state.clock is not None             and s.build.reached_at is not None else 0
         show_prev = not bo.get("previous_s", 10) or on_step < bo.get("previous_s", 10)
         show_next = on_step >= bo.get("next_after_s", 10)
-        look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "radius": RADIUS}
+        look = {"card": CARD, "ink": FG, "muted": MUTED, "accent": ACCENT, "info": INFO, "radius": RADIUS}
         top = round(s.win.height * 0.16)
         kp, margin = k * bo.get("scale", 1.0), round(16 * k)
         # The panel first: the arrows are centered over its steps and stop
         # before the rally card, which sits at the right end of the top row.
         arrows = bo.get("arrows", True)
         rally_left = self.build_panel.update(s.build, (s.win.left, s.win.top), s.win.width, margin, top,
-                                             kp, look, show_prev, show_next, arrows)
+                                             kp, look, show_prev, show_next, arrows,
+                                             bo.get("empty_places", False), bo.get("tips", True))
         if arrows:
             center = s.win.left + s.win.width - margin - round(PANEL_WIDTH * kp) // 2
             max_right = None if rally_left is None else s.win.left + rally_left - round(5 * kp)

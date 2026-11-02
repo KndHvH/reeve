@@ -1,7 +1,9 @@
 """Checks GitHub for a newer Reeve and installs it.
 
-- `check()` asks the GitHub releases API for the latest release, at most once
-  a day (the answer is kept in state.json), unless forced from the hub. It is
+- `check()` asks the GitHub releases API for the latest release when Reeve
+  starts, when the hub opens and then once a day (the answer is kept in
+  state.json; asked again within FRESH_S it is reused), or when forced from
+  the hub. It is
   the only request Reeve makes on its own (the other one is importing a build
   order, when the user asks), and it sends nothing about the user.
 - `download()` fetches the installer to the temp folder and verifies its size
@@ -31,7 +33,8 @@ from .paths import FROZEN
 
 REPO = "KndHvH/reeve"
 LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
-CHECK_EVERY_S = 24 * 3600
+CHECK_EVERY_S = 24 * 3600   # while Reeve stays open
+FRESH_S = 5 * 60            # when Reeve starts or the hub opens: asked again unless asked this recently
 TIMEOUT_S = 10
 
 
@@ -78,13 +81,15 @@ def _fetch_latest() -> Release:
         return _from_api(json.load(r))
 
 
-def check(force: bool = False, fetch=_fetch_latest, now: float | None = None) -> Release | None:
+def check(force: bool = False, fetch=_fetch_latest, now: float | None = None,
+          max_age_s: float = CHECK_EVERY_S) -> Release | None:
     """The latest release, from GitHub or from the last check if it was less
-    than a day ago. None when unknown (offline, rate limited...)."""
+    than `max_age_s` ago (a day; FRESH_S when Reeve starts or the hub opens).
+    None when unknown (offline, rate limited...)."""
     now = time.time() if now is None else now
     state = load_state()
     cached = state.get("update") or {}
-    if not force and "checked" in cached and now - cached["checked"] < CHECK_EVERY_S:
+    if not force and "checked" in cached and now - cached["checked"] < max_age_s:
         return Release(**cached["latest"]) if cached.get("latest") else None
     try:
         latest = fetch()

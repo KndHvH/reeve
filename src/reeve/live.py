@@ -252,7 +252,8 @@ class LiveReader:
             self.hidden = 0
 
         t1 = time.perf_counter()
-        f = read_frame(buf, match)
+        b = self.rules.build
+        f = read_frame(buf, match, civ=b.build.civ if b is not None else None)
         read_ms = (time.perf_counter() - t1) * 1000
         bad = [n for n, r in f.readings.items() if not r.ok]
         self.fails = self.fails + 1 if len(bad) > 3 else 0
@@ -279,6 +280,7 @@ class LiveReader:
             "text": {n: r.text for n, r in f.readings.items()},
             "conf": {n: round(r.conf, 3) for n, r in f.readings.items()},
             "prod_score": round(f.production.score, 3),
+            "prod_icon": f.production.template,
             "anchor": [match.x, match.y, round(match.scale, 3), round(match.score, 3)],
             "ms": round(grab_ms + read_ms, 1),
             "grab_ms": round(grab_ms, 1),
@@ -299,8 +301,10 @@ class LiveReader:
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"fail_{datetime.now():%H%M%S}_{'-'.join(bad)}.png")
             self.saved_fails += 1
-        if DOUBT_BAND[0] <= f.production.score <= DOUBT_BAND[1] and self.saved_doubts < MAX_DOUBT_SHOTS:
-            # Queue score close to the threshold: keep the image to understand what it is.
+        p = f.production
+        if DOUBT_BAND[0] <= p.score and (p.score <= DOUBT_BAND[1] or not p.villager) and self.saved_doubts < MAX_DOUBT_SHOTS:
+            # Queue score close to the threshold, or a villager's shape refused for its
+            # background color: keep the image to understand what it is.
             Image.fromarray(np.ascontiguousarray(buf)).save(
                 self.session / f"doubt_queue_{datetime.now():%H%M%S}_{f.production.score:.2f}.png")
             self.saved_doubts += 1

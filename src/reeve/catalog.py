@@ -25,6 +25,8 @@ FLAGS = ROOT / "assets" / "flags"
 DATA = "https://data.aoe4world.com/{kind}/{slug}-optimized.json"
 KINDS = ("units", "buildings", "technologies", "upgrades")
 COMPLETE = "complete.json"   # written last: a civilization interrupted midway is downloaded again
+FORMAT = 2                   # 2: icons keep their folder (units/malians/villager-1.png was lost to units/villager-1.png)
+IMAGES = "https://data.aoe4world.com/images/"
 
 
 @cache
@@ -69,13 +71,39 @@ def civ_dir(civ: dict) -> Path:
     return catalog_dir() / civ["slug"]
 
 
-def icon_file(url: str, kind: str) -> Path:
-    """Where an AoE4World icon (https://data.aoe4world.com/images/<kind>/x.png) is stored."""
-    return catalog_dir() / "icons" / kind / url.rsplit("/", 1)[-1]
+def icon_file(url: str) -> Path:
+    """Where an AoE4World icon (https://data.aoe4world.com/images/<kind>/[<civ>/]x.png)
+    is stored. The folders are kept: civilizations with their own art reuse
+    the file name (units/villager-1.png and units/malians/villager-1.png)."""
+    rel = url[len(IMAGES):] if url.startswith(IMAGES) else url.rsplit("/", 1)[-1]
+    return catalog_dir() / "icons" / Path(*[p for p in rel.split("/") if p not in ("", ".", "..")])
 
 
 def has(civ: dict) -> bool:
-    return (civ_dir(civ) / COMPLETE).exists()
+    try:
+        done = json.loads((civ_dir(civ) / COMPLETE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return done.get("format") == FORMAT
+
+
+def villager_icons(civ_name: str | None) -> list[Path]:
+    """The stored icons of the civilization's villagers (the Gilded Villager of
+    the Order of the Dragon, the Jin's villager and Mounted Villager...); []
+    when the civilization is unknown or not downloaded."""
+    civ = find(civ_name)
+    if civ is None:
+        return []
+    out = []
+    for it in items(civ, "units"):
+        if "villager" not in (it.get("classes") or []):
+            continue
+        for v in [it] + list(it.get("variations") or []):
+            url = str(v.get("icon") or "") if isinstance(v, dict) else ""
+            f = icon_file(url) if url.startswith("https://") else None
+            if f is not None and f.exists() and f not in out:
+                out.append(f)
+    return out
 
 
 def items(civ: dict, kind: str) -> list[dict]:
@@ -116,7 +144,7 @@ def download(civ: dict, get=None) -> bool:
         version = data.get("__version__", version)
         (d / f"{kind}.json").write_bytes(raw)
         for url in sorted(_icons(data)):
-            out = icon_file(url, kind)
+            out = icon_file(url)
             if out.exists():
                 continue
             try:
@@ -127,7 +155,8 @@ def download(civ: dict, get=None) -> bool:
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(png)
     if complete:
-        (d / COMPLETE).write_text(json.dumps({"version": version, "source": "data.aoe4world.com"}), encoding="utf-8")
+        (d / COMPLETE).write_text(json.dumps({"version": version, "source": "data.aoe4world.com", "format": FORMAT}),
+                                  encoding="utf-8")
     return complete
 
 

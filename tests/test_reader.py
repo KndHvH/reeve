@@ -106,6 +106,64 @@ def test_non_villager_queue_icons_are_not_villagers(name):
     assert not detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m).villager
 
 
+def test_villager_icon_over_the_map_is_found():
+    """The queue's summary icon floats over the map. Searched at the reference
+    scale, its box landed 2 px off and the border ring took in terrain: half
+    the villagers in recorded matches were refused so."""
+    from reeve.anchor import detect, to_gray
+    from reeve.production import detect_villager_in, region
+
+    rgb = _rgb(FIXTURES_DIR / "queue_villager_over_map.png")
+    m = detect(to_gray(rgb))
+    x, y, w, h = region(m, rgb.shape)
+    p = detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m)
+    assert p.villager and p.score > 0.9
+
+
+def _civ_with_icon(monkeypatch, icon):
+    """A downloaded catalog whose villager uses `icon` (an AoE4World icon)."""
+    import json
+    import shutil
+
+    from reeve import catalog, production
+
+    url = "https://data.aoe4world.com/images/units/malians/villager-1.png"
+    mali = catalog.find("Malians")
+    catalog.civ_dir(mali).mkdir(parents=True)
+    (catalog.civ_dir(mali) / "units.json").write_text(json.dumps({"data": [
+        {"id": "villager", "classes": ["villager", "worker"], "icon": url},
+        {"id": "donso", "classes": ["infantry"], "icon": "https://data.aoe4world.com/images/units/donso-1.png"}]}))
+    catalog.icon_file(url).parent.mkdir(parents=True)
+    shutil.copy(FIXTURES_DIR / "icons" / icon, catalog.icon_file(url))
+    monkeypatch.setattr(production, "_civ_found", {})
+    monkeypatch.setattr(production, "_civ_looked", {})
+
+
+def test_the_civilizations_villager_icon_is_searched_too(monkeypatch):
+    from reeve.anchor import detect, to_gray
+    from reeve.production import detect_villager_in, region
+
+    _civ_with_icon(monkeypatch, "malians-villager-1.png")
+    rgb = _rgb(FIXTURES_DIR / "queue_villager_over_map.png")
+    m = detect(to_gray(rgb))
+    x, y, w, h = region(m, rgb.shape)
+    p = detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m, "Malians")
+    assert p.villager and p.template == "villager-1.png" and p.score > 0.9
+
+
+@pytest.mark.parametrize("name", ["queue_military_units.png", "queue_blocked_housed.png", "queue_tech_and_units.png",
+                                  "720p_0036.png", "768p_0648_idle5.png"])
+def test_the_civilizations_icon_finds_no_villager_where_there_is_none(monkeypatch, name):
+    from reeve.anchor import detect, to_gray
+    from reeve.production import detect_villager_in, region
+
+    _civ_with_icon(monkeypatch, "malians-villager-1.png")
+    rgb = _rgb(FIXTURES_DIR / name)
+    m = detect(to_gray(rgb))
+    x, y, w, h = region(m, rgb.shape)
+    assert not detect_villager_in(rgb[y:y + h, x:x + w], (x, y), m, "Malians").villager
+
+
 def test_two_digit_villager_counts():
     """Villager counts above 9 touched the old 20 px region and lost a digit
     live (23 read as 3, 14 as 1). Values checked by eye on this capture."""
