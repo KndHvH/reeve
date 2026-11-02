@@ -63,7 +63,7 @@ def test_download_stores_the_civilizations_data_and_icons_once():
     icons = [u for u in calls if u.endswith(".png")]
     assert sorted(icons) == ["https://data.aoe4world.com/images/units/donso-1.png",
                              "https://data.aoe4world.com/images/units/villager.png"]
-    assert catalog.icon_file(icons[0], "units").read_bytes().startswith(b"png:")
+    assert catalog.icon_file(icons[0]).read_bytes().startswith(b"png:")
     assert [u["id"] for u in catalog.items(mali, "units")] == ["villager", "donso"]
 
     calls.clear()
@@ -91,3 +91,35 @@ def test_ensure_never_raises_without_network():
 
     assert catalog.ensure("Malians", offline) is False
     assert catalog.ensure("Any Civilization", offline) is False
+
+
+def test_icons_keep_their_folder():
+    """Civilizations with their own art reuse the file name: the Malians'
+    villager-1.png was skipped as already stored (the default villager's)."""
+    default = catalog.icon_file("https://data.aoe4world.com/images/units/villager-1.png")
+    mali = catalog.icon_file("https://data.aoe4world.com/images/units/malians/villager-1.png")
+    assert default != mali and mali.parent.name == "malians" and default.parent.name == "units"
+    assert catalog.icon_file("https://data.aoe4world.com/images/units/../../x.png").is_relative_to(catalog.catalog_dir())
+
+
+def test_a_catalog_from_the_old_format_is_downloaded_again():
+    calls = []
+    mali = catalog.find("Malians")
+    catalog.civ_dir(mali).mkdir(parents=True)
+    (catalog.civ_dir(mali) / catalog.COMPLETE).write_text(json.dumps({"version": "1.2.3"}))   # before FORMAT
+    assert not catalog.has(mali)
+    assert catalog.download(mali, _fake_site(calls)) and catalog.has(mali)
+
+
+def test_villager_icons_are_the_stored_icons_of_the_civilizations_villagers():
+    mali = catalog.find("Malians")
+    catalog.civ_dir(mali).mkdir(parents=True)
+    url = "https://data.aoe4world.com/images/units/gilded-villager-1.png"
+    (catalog.civ_dir(mali) / "units.json").write_text(json.dumps({"data": [
+        {"id": "gilded-villager", "classes": ["villager", "worker"], "icon": url, "variations": [{"icon": url}]},
+        {"id": "trader", "classes": ["worker"], "icon": "https://data.aoe4world.com/images/units/trader-2.png"}]}))
+    assert catalog.villager_icons("Malians") == []             # not downloaded yet
+    catalog.icon_file(url).parent.mkdir(parents=True)
+    catalog.icon_file(url).write_bytes(b"png")
+    assert catalog.villager_icons("Malians") == [catalog.icon_file(url)]
+    assert catalog.villager_icons("Any Civilization") == []

@@ -106,7 +106,13 @@
         1.486
       ]
     ],
+    "civ_icon": {
+      "_doc": "A civilization's villager icon from the catalog (AoE4World art, transparent background), drawn as the queue shows it: whole icon in a size x size box (reference px; fitted against the in-game crops: 34 px at scale 1.486) on the queue's navy (mean of the in-game crop corners).",
+      "size": 23,
+      "background": [19, 22, 33]
+    },
     "border_max_brightness": 80,
+    "border_search": 2,
     "border_min_blue_minus_red": -5
   },
   "age_region": {

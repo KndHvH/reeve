@@ -136,16 +136,18 @@ def _age_rect(match: AnchorMatch, width: int) -> tuple[int, int, int, int]:
     return left, top, round(width / 2 + x1 * s) - left + 1, round(y1 * s) - top + 1
 
 
-def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None) -> Frame:
-    """`rgb`: the whole game area. With a known `match`, detection is skipped."""
+def read_frame(rgb: np.ndarray, match: AnchorMatch | None = None, bank: GlyphBank | None = None,
+               civ: str | None = None) -> Frame:
+    """`rgb`: the whole game area. With a known `match`, detection is skipped.
+    `civ`: the civilization being played, when known (its villager icons)."""
     match = match or detect(to_gray(rgb))
     rois = project_rois(match, rgb.shape[1])
     f = Frame(match, rois)
     px, py, pw, ph = production_region(match, rgb.shape)
     queue = rgb[py:py + ph, px:px + pw]
-    key, f.production = _same_pixels("production", queue, (px, py), match.scale)
+    key, f.production = _same_pixels("production", queue, (px, py), match.scale, civ)
     if f.production is None:
-        f.production = detect_villager_in(queue, (px, py), match)
+        f.production = detect_villager_in(queue, (px, py), match, civ)
         _unchanged["production"] = (key, f.production)
     f.values["producing_villager"] = f.production.villager
     ax, ay, aw, ah = _age_rect(match, rgb.shape[1])
