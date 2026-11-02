@@ -27,6 +27,7 @@ Floating resources start as info above the limit of your current age: 400 in the
 Import a build order from [aoe4guides.com](https://aoe4guides.com) by pasting its link in the hub. During a match, the right of the screen shows its previous, current and next step: the age, the villagers and where they go (food, wood, gold, stone, building), and the step's notes with the site's icons.
 
 - A step is reached when you have its number of villagers and its age, so the build follows your pace.
+- Tips the author wrote as steps of their own (advice with no villager count) show in a card under the current step instead.
 - If the panel is ahead of or behind your game, the arrows above it move the build one step back or forward.
 - When your villagers are not where the step puts them, an alert shows: it starts as info, turns into a warning after 6 seconds and critical after 12 (both can be changed in the hub). A resource that reached the step's count stays reached, so a villager who leaves it to build is not an alert. The alert says what to do: **Move 1 villager from wood to food**, or **Put 2 villagers on gold** when none are left over elsewhere.
 - Buildings cannot be seen by Reeve; they are part of the step's notes.

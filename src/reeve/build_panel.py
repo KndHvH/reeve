@@ -6,7 +6,9 @@ others move up and the next one comes in, with the alert cards' animations.
 A step is a block: its age and planned time and the five villager places
 (food, wood, gold, stone, builder; "–" when none), then its notes with
 aoe4guides' icons inline, wrapped to the panel's width. The current step
-stands out (accent bar, full ink); the other two are dimmed.
+stands out (accent bar, full ink); the other two are dimmed. The current
+step's tips (advice the author wrote as steps of their own) follow it in a
+card with the info color.
 Above them, one row: the arrows that move the build a step by hand,
 centered over the steps, and where the rally point goes, at the right edge.
 """
@@ -48,6 +50,16 @@ class StepCard:
     @property
     def sig(self):
         return self.current
+
+
+@dataclass(frozen=True)
+class TipCard:
+    id: str            # build id and step index
+    tips: tuple[str, ...]
+
+    @property
+    def sig(self):
+        return self.tips
 
 
 @dataclass(frozen=True)
@@ -102,6 +114,7 @@ class BuildPanel:
         rally = tracker.rally()
         steps = (([StepCard(f"{bid}:{i - 1}", prev, False)] if prev and show_prev else []) +
                  [StepCard(f"{bid}:{i}", cur, True)] +
+                 ([TipCard(f"{bid}:{i}:tips", cur.tips)] if cur.tips else []) +
                  ([StepCard(f"{bid}:{i + 1}", nxt, False)] if nxt and show_next else []))
         self._k, self._look = k, look
         gap, sig = round(5 * k), (round(k, 3), tuple(sorted(look.items())))
@@ -119,6 +132,8 @@ class BuildPanel:
         if isinstance(card, RallyCard):
             return self._rally(c, card.target, x, y, self._k, self._look)
         width = round(WIDTH * self._k)
+        if isinstance(card, TipCard):
+            return x + width, self._tips(c, card.tips, x, y, width, self._k, self._look)
         return x + width, self._block(c, card.step, card.current, x, y, width, self._k, self._look)
 
     def _rally(self, c: tk.Canvas, target: str, x0: int, y0: int, k: float, look: dict) -> tuple[int, int]:
@@ -192,13 +207,33 @@ class BuildPanel:
                                        fill=ink if value else look["muted"], anchor="w", font=self._font(fs + 1)))
             sx += slot_w
 
-        # Notes: words and icons, wrapped to the width.
-        y = y0 + pad + icon_h + round(4 * k)
+        y = self._notes(c, step.notes, x0 + bar + pad, xmax, y0 + pad + icon_h + round(4 * k), fs, ink, dim)
+        y1 = y + pad - round(2 * k)
+
+        r = round(look["radius"] * k)
+        if not current:
+            c.tag_lower(self.box(c, x0, y0, x0 + width, y1, r, look["card"]))
+            return y1
+        self._barred(c, x0, y0, x0 + width, y1, bar, r, look["accent"], look)
+        return y1
+
+    def _tips(self, c: tk.Canvas, tips, x0: int, y0: int, width: int, k: float, look: dict) -> int:
+        """The current step's tips, under a bar in the info color; returns the bottom y."""
+        pad, bar = round(8 * k), round(3 * k)
+        fs = max(7, round(8 * k))
+        y = self._notes(c, tips, x0 + bar + pad, x0 + width - pad, y0 + pad - round(2 * k), fs, look["ink"], False)
+        y1 = y + pad - round(2 * k)
+        self._barred(c, x0, y0, x0 + width, y1, bar, round(look["radius"] * k), look.get("info", look["accent"]), look)
+        return y1
+
+    def _notes(self, c: tk.Canvas, notes, x_left: int, xmax: int, y: int, fs: int, ink: str, dim: bool) -> int:
+        """Notes: words and icons, wrapped to the width; returns the y under them."""
+        icon_h = round(fs * 1.9)
         font = self._font(fs + 1)
         lh = max(font.metrics("linespace"), icon_h)
         space = font.measure(" ")
-        for note in step.notes:
-            x = x0 + bar + pad
+        for note in notes:
+            x = x_left
             for kind, value in tokens(note):
                 pieces = [("icon", value)] if kind == "icon" else [("text", w) for w in value.split()]
                 for pk, pv in pieces:
@@ -206,29 +241,27 @@ class BuildPanel:
                     if pk == "icon" and img is None:      # icon missing: its name instead
                         pk, pv = "text", Path(pv).stem.replace("-", " ")
                     w = img.width() if img is not None else font.measure(pv)
-                    if x + w > xmax and x > x0 + bar + pad:
-                        x, y = x0 + bar + pad, y + lh
+                    if x + w > xmax and x > x_left:
+                        x, y = x_left, y + lh
                     if img is not None:
-                        items.append(c.create_image(x, y + lh // 2, image=img, anchor="w"))
+                        c.create_image(x, y + lh // 2, image=img, anchor="w")
                     else:
-                        items.append(c.create_text(x, y + lh // 2, text=pv, fill=ink, anchor="w", font=font))
+                        c.create_text(x, y + lh // 2, text=pv, fill=ink, anchor="w", font=font)
                     x += w + space
             y += lh
-        y1 = y + pad - round(2 * k)
+        return y
 
-        r = round(look["radius"] * k)
-        if not current:
-            c.tag_lower(self.box(c, x0, y0, x0 + width, y1, r, look["card"]))
-            return y1
-        # As on the alert cards: the accent fills the whole block shape and the
-        # block sits on top from the bar's width on, straight on its left side,
-        # so the bar runs the full height and follows the rounded corners.
-        card = self.box(c, x0 + bar, y0, x0 + width, y1, r, look["card"])
+    def _barred(self, c: tk.Canvas, x0: int, y0: int, x1: int, y1: int, bar: int, r: int, color: str,
+                look: dict) -> None:
+        """The card's block with a colored bar on its left. As on the alert
+        cards: the color fills the whole block shape and the block sits on top
+        from the bar's width on, straight on its left side, so the bar runs the
+        full height and follows the rounded corners."""
+        card = self.box(c, x0 + bar, y0, x1, y1, r, look["card"])
         square = c.create_rectangle(x0 + bar, y0, x0 + bar + r, y1, fill=look["card"], outline="")
-        strip = self.box(c, x0, y0, x0 + width, y1, r, look["accent"])
+        strip = self.box(c, x0, y0, x1, y1, r, color)
         for item in (square, card, strip):
             c.tag_lower(item)
-        return y1
 
 
 

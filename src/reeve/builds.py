@@ -19,7 +19,7 @@ import io
 import json
 import re
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import catalog
@@ -73,6 +73,7 @@ class BuildStep:
     time: int | None                # game seconds, as planned by the author
     targets: dict[str, int | None]  # food, wood, gold, stone, builder
     notes: tuple[str, ...]
+    tips: tuple[str, ...] = ()      # notes of the tip steps that follow it (see parse)
 
 
 @dataclass
@@ -90,23 +91,44 @@ class Build:
                 "source": self.source, "steps": len(self.steps)}
 
 
+def _is_tip(step: BuildStep, previous: BuildStep | None) -> bool:
+    """A step that only holds advice ("if you get raided..."): no villager
+    count, no time, no villager placed, and no new age. Nothing in the game
+    can reach it, so it is not a step: its notes go with the step before."""
+    return (step.villagers is None and step.time is None and not any(step.targets.values())
+            and bool(step.notes) and (previous is None or step.age <= previous.age))
+
+
 def parse(data: dict, build_id: str | None = None) -> Build:
-    """aoe4guides' overlay format -> Build. Raises ValueError when it is not one."""
+    """aoe4guides' overlay format -> Build. Raises ValueError when it is not one.
+    Tip steps (see _is_tip) become the `tips` of the step before them (of
+    the first step when they open the build)."""
     if not isinstance(data, dict) or not isinstance(data.get("build_order"), list) or not data["build_order"]:
         raise ValueError(t("this is not an aoe4guides build order (no build_order steps)"))
-    steps = []
+    steps, opening = [], []
     for s in data["build_order"]:
         if not isinstance(s, dict):
             raise ValueError(t("a build order step is not an object"))
         res = s.get("resources") or {}
         age = s.get("age")
-        steps.append(BuildStep(
+        step = BuildStep(
             age=age if isinstance(age, int) and 1 <= age <= 4 else (steps[-1].age if steps else 1),
             villagers=_count(s.get("villager_count")),
             time=_clock(s.get("time")),
             targets={k: _count(res.get(k)) for k in SLOTS},
             notes=tuple(n.strip() for n in s.get("notes") or [] if isinstance(n, str) and n.strip()),
-        ))
+        )
+        if step.villagers is None and step.time is None and not any(step.targets.values()) and not step.notes:
+            continue   # empty (a closing "Age III" with nothing in it): nothing to show or to reach
+        if not _is_tip(step, steps[-1] if steps else None):
+            steps.append(replace(step, tips=tuple(opening)) if opening else step)
+            opening = []
+        elif steps:
+            steps[-1] = replace(steps[-1], tips=steps[-1].tips + step.notes)
+        else:
+            opening.extend(step.notes)
+    if not steps:
+        raise ValueError(t("this is not an aoe4guides build order (no build_order steps)"))
     source = str(data.get("source") or "")
     return Build(id=build_id or id_from_url(source) or _slug(data.get("name", "build")),
                  name=str(data.get("name") or "Untitled build"), civ=str(data.get("civilization") or ""),
@@ -140,7 +162,7 @@ def tokens(note: str) -> list[tuple[str, str]]:
 
 
 def icon_paths(build: Build) -> set[str]:
-    return {p for s in build.steps for n in s.notes for kind, p in tokens(n) if kind == "icon"}
+    return {p for s in build.steps for n in s.notes + s.tips for kind, p in tokens(n) if kind == "icon"}
 
 
 def icon_file(path: str) -> Path:
@@ -267,7 +289,8 @@ def villagers_seen(s: GameState) -> int | None:
 class BuildTracker:
     """Which step the player is on. A step is reached when the most villagers
     counted so far reach its villager count and its age is reached (a step
-    without a villager count waits for its time instead). Only moves forward,
+    without a villager count waits for its time instead, and one with
+    neither for its age alone). Only moves forward,
     and may skip steps when the player is ahead.
 
     It is fed the state as read (StateTracker.latest), not confirmed: a count
@@ -337,7 +360,9 @@ class BuildTracker:
             return False
         if step.villagers is not None:
             return self.peak >= step.villagers
-        return step.time is not None and s.clock is not None and s.clock >= step.time
+        if step.time is not None:
+            return s.clock is not None and s.clock >= step.time
+        return True   # only its age ("Age III" closing a build): it was never reached before
 
     def update(self, s: GameState) -> bool:
         """Advances with the new state; True when the step changed."""
@@ -428,7 +453,7 @@ class BuildTracker:
         current step's notes put it on (\"@rally@ on @sheep@\"), or, when a
         step does not say, the last one that did. None before any does."""
         for step in reversed(self.build.steps[:self.index + 1]):
-            for note in step.notes:
+            for note in step.notes:   # not the tips: they are advice for some matches
                 icons = [v for kind, v in tokens(note) if kind == "icon"]
                 for a, b in zip(icons, icons[1:]):
                     if Path(a).stem == RALLY:
