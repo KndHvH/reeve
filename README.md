@@ -54,7 +54,7 @@ When a match ends, Reeve writes its report:
 ### The hub
 Double-click the tray icon to open the hub. It closes by itself when a match starts, to leave its memory to the game (this can be turned off in its settings).
 
-- **Matches**: every recorded match, newest first, with the civilization's flag when the match followed a build, the ages reached and the alerts of each. Open one to see its report, or select matches to delete them.
+- **Matches**: your recorded matches, newest first: the last 3 days, and **Load more** for older ones. Each shows the civilization's flag when the match followed a build, the ages reached and its alerts. Open one to see its report, or select matches to delete them.
 - **Builds**: import build orders from aoe4guides.com, each with its civilization's flag, choose the one in use, and turn the build panel on or off.
 - **Settings**: turn each alert on or off and adjust its thresholds, choose the sound of each level, the volume and whether sounds repeat while an alert is active. Changes apply to the running overlay within seconds.
 - **Your sounds**: add any audio or video file as an alert sound.
